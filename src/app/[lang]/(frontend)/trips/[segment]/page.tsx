@@ -84,11 +84,7 @@ const getBoatsByType = unstable_cache(
   { revalidate: 60 },
 );
 
-export function generateStaticParams() {
-  const langs = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
-  const segments = ["daytrip", "snorkeling", "land-tour", "liveaboard", "dive-resort", "freedive"];
-  return langs.flatMap(lang => segments.map(segment => ({ lang, segment })));
-}
+export const dynamic = "force-dynamic";
 
 export default async function TripSegmentPage({
   params,

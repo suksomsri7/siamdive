@@ -71,9 +71,7 @@ const getHomepageData = unstable_cache(
   { revalidate: 60 },
 );
 
-export function generateStaticParams() {
-  return ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"].map(lang => ({ lang }));
-}
+export const dynamic = "force-dynamic";
 
 export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;

@@ -1,0 +1,5 @@
+.env
+.env.*
+public/uploads/
+logs/
+docker-compose.yml
