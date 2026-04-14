@@ -24,6 +24,54 @@ type Props = {
   multi?: boolean;
 };
 
+// ── Client-side resize before upload ─────────────────────────────────────────
+// Shrinks large images to max 2400px (longest side) and compresses to JPEG 85%
+// to stay under Vercel's 4.5 MB body limit and improve SEO/performance.
+const MAX_DIMENSION = 2400;
+const COMPRESS_QUALITY = 0.85;
+
+function resizeImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    // Skip non-raster or already-small files
+    if (!file.type.startsWith("image/") || file.size <= 2 * 1024 * 1024) {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const { width, height } = img;
+      // No resize needed if already within bounds
+      if (width <= MAX_DIMENSION && height <= MAX_DIMENSION) {
+        // Still compress if file is large (>4 MB)
+        if (file.size <= 4 * 1024 * 1024) { resolve(file); return; }
+      }
+      const scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height, 1);
+      const w = Math.round(width * scale);
+      const h = Math.round(height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          const ext = "jpg";
+          const name = file.name.replace(/\.[^.]+$/, "") + `.${ext}`;
+          resolve(new File([blob], name, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        COMPRESS_QUALITY,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("ไม่สามารถอ่านไฟล์ภาพได้")); };
+    img.src = url;
+  });
+}
+
 export default function ImageEditorField(props: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -42,7 +90,7 @@ export default function ImageEditorField(props: Props) {
   // ── Upload original → open editor ─────────────────────────────────────────
   // Uses XHR (not fetch) so we can show real upload progress and abort on timeout.
   // Browser fetch() does not support upload progress events.
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     // Client-side validation: catch obvious problems before round-tripping
     if (!file.type.startsWith("image/")) {
       alert(`ไฟล์นี้ไม่ใช่รูปภาพ (type: ${file.type || "unknown"})`);
@@ -56,6 +104,14 @@ export default function ImageEditorField(props: Props) {
 
     setUploading(true);
     setUploadProgress(0);
+
+    // Resize & compress before uploading (stays under Vercel 4.5 MB limit)
+    let resized: File;
+    try {
+      resized = await resizeImage(file);
+    } catch {
+      resized = file; // fallback to original if resize fails
+    }
 
     const xhr = new XMLHttpRequest();
     xhrRef.current = xhr;
@@ -121,7 +177,7 @@ export default function ImageEditorField(props: Props) {
     xhr.withCredentials = true; // include session cookie
 
     const fd = new FormData();
-    fd.append("original", file);
+    fd.append("original", resized);
     xhr.send(fd);
   };
 
