@@ -27,15 +27,16 @@ async function saveFile(path: string, buf: Buffer) {
 
 async function deleteFile(url: string) {
   if (!url) return;
+  const cleanUrl = url.split("?")[0]; // strip ?v= cache-buster
   if (BUNNY_STORAGE_KEY) {
-    await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${url}`, {
+    await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${cleanUrl}`, {
       method: "DELETE",
       headers: { AccessKey: BUNNY_STORAGE_KEY },
     }).catch(() => {});
   } else {
-    const filename = url.split("/").pop();
+    const filename = cleanUrl.split("/").pop();
     if (!filename) return;
-    const dir = url.includes("/originals/") ? "originals" : "processed";
+    const dir = cleanUrl.includes("/originals/") ? "originals" : "processed";
     try { await unlink(join(process.cwd(), "public", "uploads", dir, filename)); } catch {}
   }
 }
@@ -113,8 +114,9 @@ export async function POST(req: NextRequest) {
       .toBuffer();
     await saveFile(`/uploads/processed/${ogFilename}`, ogBuf);
 
-    const coverUrl = `/uploads/processed/${coverFilename}`;
-    const ogUrl = `/uploads/processed/${ogFilename}`;
+    const cacheBust = `?v=${Date.now()}`;
+    const coverUrl = `/uploads/processed/${coverFilename}${cacheBust}`;
+    const ogUrl = `/uploads/processed/${ogFilename}${cacheBust}`;
 
     const updated = await prisma.blogImage.update({
       where: { id },
@@ -143,9 +145,10 @@ export async function GET(req: NextRequest) {
   }
 
   if (coverUrl) {
-    // Find by coverUrl — most recent if multiple match
+    // Find by coverUrl — strip ?v= cache-buster, match by startsWith on the base path
+    const basePath = coverUrl.split("?")[0];
     const img = await prisma.blogImage.findFirst({
-      where: { coverUrl },
+      where: { coverUrl: { startsWith: basePath } },
       orderBy: { createdAt: "desc" },
     });
     if (!img) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -168,7 +171,8 @@ export async function DELETE(req: NextRequest) {
   if (id) {
     img = await prisma.blogImage.findUnique({ where: { id } });
   } else if (coverUrl) {
-    img = await prisma.blogImage.findFirst({ where: { coverUrl }, orderBy: { createdAt: "desc" } });
+    const basePath = coverUrl.split("?")[0];
+    img = await prisma.blogImage.findFirst({ where: { coverUrl: { startsWith: basePath } }, orderBy: { createdAt: "desc" } });
   } else {
     return NextResponse.json({ error: "id or coverUrl required" }, { status: 400 });
   }
