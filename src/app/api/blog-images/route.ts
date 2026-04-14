@@ -7,6 +7,8 @@ import { requireAuth, canDo } from "@/lib/apiAuth";
 
 const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
+const BUNNY_ACCOUNT_KEY = process.env.BUNNY_ACCOUNT_KEY;
+const BUNNY_CDN_HOSTNAME = process.env.BUNNY_CDN_HOSTNAME || "siamdive-cdn.b-cdn.net";
 const ORIGINALS_DIR = join(process.cwd(), "public", "uploads", "originals");
 const PROCESSED_DIR = join(process.cwd(), "public", "uploads", "processed");
 
@@ -18,6 +20,13 @@ async function saveFile(path: string, buf: Buffer) {
       body: buf,
     });
     if (!res.ok) throw new Error(`Bunny upload failed: ${res.status}`);
+    // Purge CDN cache so re-edited images show immediately
+    if (BUNNY_ACCOUNT_KEY) {
+      await fetch(`https://api.bunny.net/purge?url=https://${BUNNY_CDN_HOSTNAME}${path}`, {
+        method: "POST",
+        headers: { AccessKey: BUNNY_ACCOUNT_KEY },
+      }).catch(() => {});
+    }
   } else {
     const dir = path.includes("/originals/") ? ORIGINALS_DIR : PROCESSED_DIR;
     const filename = path.split("/").pop()!;
@@ -114,9 +123,8 @@ export async function POST(req: NextRequest) {
       .toBuffer();
     await saveFile(`/uploads/processed/${ogFilename}`, ogBuf);
 
-    const cacheBust = `?v=${Date.now()}`;
-    const coverUrl = `/uploads/processed/${coverFilename}${cacheBust}`;
-    const ogUrl = `/uploads/processed/${ogFilename}${cacheBust}`;
+    const coverUrl = `/uploads/processed/${coverFilename}`;
+    const ogUrl = `/uploads/processed/${ogFilename}`;
 
     const updated = await prisma.blogImage.update({
       where: { id },
@@ -145,10 +153,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (coverUrl) {
-    // Find by coverUrl — strip ?v= cache-buster, match by startsWith on the base path
-    const basePath = coverUrl.split("?")[0];
+    // Find by coverUrl — most recent if multiple match
     const img = await prisma.blogImage.findFirst({
-      where: { coverUrl: { startsWith: basePath } },
+      where: { coverUrl },
       orderBy: { createdAt: "desc" },
     });
     if (!img) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -171,8 +178,7 @@ export async function DELETE(req: NextRequest) {
   if (id) {
     img = await prisma.blogImage.findUnique({ where: { id } });
   } else if (coverUrl) {
-    const basePath = coverUrl.split("?")[0];
-    img = await prisma.blogImage.findFirst({ where: { coverUrl: { startsWith: basePath } }, orderBy: { createdAt: "desc" } });
+    img = await prisma.blogImage.findFirst({ where: { coverUrl }, orderBy: { createdAt: "desc" } });
   } else {
     return NextResponse.json({ error: "id or coverUrl required" }, { status: 400 });
   }
