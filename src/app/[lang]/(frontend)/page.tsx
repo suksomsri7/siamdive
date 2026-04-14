@@ -23,6 +23,7 @@ const getHomepageData = unstable_cache(
     });
 
     const scheduleIds = [...new Set(rows.flatMap(r => r.items.filter(i => i.refType === "SCHEDULE").map(i => i.refId)))];
+    const boatIds     = [...new Set(rows.flatMap(r => r.items.filter(i => i.refType === "BOAT").map(i => i.refId)))];
     const blogIds     = [...new Set(rows.flatMap(r => r.items.filter(i => i.refType === "BLOG").map(i => i.refId)))];
 
     // Auto-latest: any BLOG row with autoLatest=true pulls the most recent
@@ -31,20 +32,25 @@ const getHomepageData = unstable_cache(
     const hasAutoLatestBlog = rows.some(r => r.itemType === "BLOG" && r.autoLatest);
     const latestBlogsLimit = Math.max(...rows.filter(r => r.itemType === "BLOG" && r.autoLatest).map(r => r.maxItems ?? 20), 20);
 
-    const [schedules, blogs, latestBlogs] = await Promise.all([
+    const boatInclude = {
+      translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
+      priceTiers:   { select: { regularPrice: true, salePrice: true } },
+      serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
+      videos:       { select: { id: true }, take: 1 },
+    } as const;
+
+    const [schedules, boats, blogs, latestBlogs] = await Promise.all([
       scheduleIds.length
         ? prisma.schedule.findMany({
             where: { id: { in: scheduleIds } },
-            include: {
-              boat: {
-                include: {
-                  translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
-                  priceTiers:   { select: { regularPrice: true, salePrice: true } },
-                  serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
-                  videos:       { select: { id: true }, take: 1 },
-                },
-              },
-            },
+            include: { boat: { include: boatInclude } },
+          })
+        : Promise.resolve([]),
+
+      boatIds.length
+        ? prisma.boat.findMany({
+            where: { id: { in: boatIds } },
+            include: boatInclude,
           })
         : Promise.resolve([]),
 
@@ -65,7 +71,7 @@ const getHomepageData = unstable_cache(
         : Promise.resolve([]),
     ]);
 
-    return { rows, schedules, blogs, latestBlogs };
+    return { rows, schedules, boats, blogs, latestBlogs };
   },
   ["homepage-data"],
   { revalidate: 60 },
@@ -77,9 +83,10 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   const l = VALID_LANGS.includes(lang) ? lang : "en";
 
-  const { rows, schedules, blogs, latestBlogs } = await getHomepageData();
+  const { rows, schedules, boats, blogs, latestBlogs } = await getHomepageData();
 
   const schedMap = new Map(schedules.map(s => [s.id, s]));
+  const boatMap  = new Map(boats.map(b => [b.id, b]));
   const blogMap  = new Map(blogs.map(b => [b.id, b]));
 
   // ── Resolve each row into a Section ───────────────────────────────────────
@@ -139,6 +146,35 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           boatId:          s.boat.id,
           boatType:        s.boat.type,
           hasVideos:       (s.boat.videos?.length ?? 0) > 0,
+        });
+      }
+
+      if (item.refType === "BOAT") {
+        const boat = boatMap.get(item.refId);
+        if (!boat) continue;
+        const bt = boat.translations.find(t => t.lang === l)
+          || boat.translations.find(t => t.lang === "en")
+          || boat.translations[0];
+        const prices = boat.priceTiers.map(p => p.salePrice ?? p.regularPrice).filter(p => p > 0);
+        const minPrice = prices.length ? Math.min(...prices) : 0;
+        const area = boat.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === l)
+          || boat.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === "en")
+          || boat.serviceAreas[0]?.serviceArea.translations[0];
+        const isLiveaboard = ["LIVEABOARD", "DIVE_RESORT"].includes(boat.type);
+        trips.push({
+          id:              boat.id,
+          slug:            bt?.slug || boat.id,
+          title:           bt?.title || boat.name || "",
+          price:           minPrice,
+          duration:        "",
+          type:            isLiveaboard ? "LIVEABOARD" : "DAYTRIP",
+          destinationName: area?.name || "",
+          imageUrl:        boat.covers[0] || undefined,
+          covers:          boat.covers,
+          description:     bt?.excerpt || undefined,
+          boatId:          boat.id,
+          boatType:        boat.type,
+          hasVideos:       (boat.videos?.length ?? 0) > 0,
         });
       }
 

@@ -28,7 +28,7 @@ const SOURCES = [
   { value: "DAYTRIP",          label: "Scuba Day Trips",   icon: "🤿",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ/ทัวร์"  },
   { value: "SNORKELING",       label: "Snorkeling",         icon: "🐠",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ/ทัวร์"  },
   { value: "LAND_TOUR",        label: "Land Tour",          icon: "🗺",  itemRefType: "SCHEDULE" as const, boatLabel: "ทัวร์"        },
-  { value: "LIVEABOARD",       label: "Liveaboard",         icon: "🚢",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ"         },
+  { value: "LIVEABOARD",       label: "Liveaboard",         icon: "🚢",  itemRefType: "BOAT"     as const, boatLabel: "เรือ"         },
   { value: "DIVE_RESORT",      label: "Dive Resort",        icon: "🏝",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "FREEDIVE",         label: "Freedive Trips",     icon: "🫧",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ/ทัวร์"  },
   { value: "SCUBA_COURSES",    label: "Scuba Courses",      icon: "🎓",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
@@ -134,6 +134,21 @@ export default function DisplayPage() {
       }).finally(() => setLoadingRef(false));
       return;
     }
+    // BOAT-level source (e.g. LIVEABOARD): pick boats directly, skip schedule drill-down
+    const srcDef = SOURCES.find(s => s.value === pickerSource);
+    if (srcDef?.itemRefType === "BOAT") {
+      setBoats([]); setPickerBoat("");
+      setLoadingRef(true);
+      fetch(`/api/boats?type=${pickerSource}`).then(r => r.json()).catch(() => []).then((data: Record<string, unknown>[]) => {
+        const all = Array.isArray(data) ? data : [];
+        setRefItems(all.map(b => {
+          const trans = (b.translations as { lang: string; title: string }[]) ?? [];
+          const covers = (b.covers as string[]) ?? [];
+          return { id: b.id as string, label: trans.find(t => t.lang === "en")?.title || (b.name as string), cover: covers[0], badge: b.status as string };
+        }));
+      }).finally(() => setLoadingRef(false));
+      return;
+    }
     // fetch boats by type
     setBoats([]); setPickerBoat(""); setRefItems([]);
     setLoadingBoats(true);
@@ -183,6 +198,7 @@ export default function DisplayPage() {
   }, [pickerBoat]);
 
   const currentSrc = SOURCES.find(s => s.value === pickerSource);
+  const isBoatLevel = currentSrc?.itemRefType === "BOAT";
 
   const toggleItem = (item: RefItem) => {
     const refType = currentSrc?.itemRefType ?? "SCHEDULE";
@@ -231,10 +247,12 @@ export default function DisplayPage() {
     const schedIds = row.items.filter(i => i.refType === "SCHEDULE").map(i => i.refId);
     const pkgIds   = row.items.filter(i => i.refType === "PACKAGE").map(i => i.refId);
     const blogIds  = row.items.filter(i => i.refType === "BLOG").map(i => i.refId);
-    const [schedData, pkgData, blogData] = await Promise.all([
+    const boatIds  = row.items.filter(i => i.refType === "BOAT").map(i => i.refId);
+    const [schedData, pkgData, blogData, boatData] = await Promise.all([
       schedIds.length ? fetch("/api/schedules").then(r => r.json()).catch(() => []) : [],
       pkgIds.length   ? fetch("/api/packages").then(r => r.json()).catch(() => [])  : [],
       blogIds.length  ? fetch("/api/blogs").then(r => r.json()).catch(() => [])     : [],
+      boatIds.length  ? fetch(`/api/boats?type=${row.itemType}`).then(r => r.json()).catch(() => []) : [],
     ]);
     const resolved: SelectedEntry[] = row.items.map(i => {
       if (i.refType === "SCHEDULE") {
@@ -261,6 +279,14 @@ export default function DisplayPage() {
           const trans = (b.translations as { lang: string; title: string }[]) ?? [];
           const covers = (b.covers as string[]) ?? [];
           return { refId: i.refId, refType: i.refType, item: { id: i.refId, label: trans.find(t => t.lang === "en")?.title || "Untitled", cover: covers[0], badge: b.status as string } };
+        }
+      }
+      if (i.refType === "BOAT") {
+        const b = (Array.isArray(boatData) ? boatData : []).find((x: Record<string, unknown>) => x.id === i.refId);
+        if (b) {
+          const trans = (b.translations as { lang: string; title: string }[]) ?? [];
+          const covers = (b.covers as string[]) ?? [];
+          return { refId: i.refId, refType: i.refType, item: { id: i.refId, label: trans.find(t => t.lang === "en")?.title || (b.name as string), cover: covers[0], badge: b.status as string } };
         }
       }
       return { refId: i.refId, refType: i.refType, item: { id: i.refId, label: i.refId } };
@@ -460,8 +486,8 @@ export default function DisplayPage() {
                   })}
                 </div>
 
-                {/* Step ②: Boat / DiveCenter selector (non-BLOG sources) */}
-                {pickerSource && !isBlog && (
+                {/* Step ②: Boat / DiveCenter selector (non-BLOG, non-BOAT-level sources) */}
+                {pickerSource && !isBlog && !isBoatLevel && (
                   <>
                     <p style={stepLabel}>② เลือก{currentSrc?.boatLabel || "เรือ"}</p>
                     {loadingBoats ? (
@@ -493,12 +519,12 @@ export default function DisplayPage() {
                   </>
                 )}
 
-                {/* Step ③ (or ② for BLOG): Items list */}
-                {pickerSource && (pickerBoat || isBlog) && (
+                {/* Step ③ (or ② for BLOG/BOAT): Items list */}
+                {pickerSource && (pickerBoat || isBlog || isBoatLevel) && (
                   <>
                     <p style={stepLabel}>
-                      {isBlog ? "② " : "③ "}
-                      เลือก {isBlog ? "Blog" : currentSrc?.itemRefType === "PACKAGE" ? "Package" : "Schedule"}
+                      {isBlog || isBoatLevel ? "② " : "③ "}
+                      เลือก {isBlog ? "Blog" : isBoatLevel ? "เรือ" : currentSrc?.itemRefType === "PACKAGE" ? "Package" : "Schedule"}
                       {selectedArr.length > 0 && <span style={{ color:"#3b82f6", marginLeft:6 }}>({selectedArr.length} เลือกแล้ว)</span>}
                     </p>
                     {loadingRef ? (
@@ -542,7 +568,7 @@ export default function DisplayPage() {
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:200, overflowY:"auto" }}>
                     {selectedArr.map((entry, i) => {
-                      const refTypeBadge = entry.refType === "BLOG" ? "📝" : entry.refType === "PACKAGE" ? "📦" : "📅";
+                      const refTypeBadge = entry.refType === "BLOG" ? "📝" : entry.refType === "PACKAGE" ? "📦" : entry.refType === "BOAT" ? "🚢" : "📅";
                       const isFirst = i === 0;
                       const isLast  = i === selectedArr.length - 1;
                       return (
