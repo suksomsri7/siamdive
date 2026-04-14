@@ -66,7 +66,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) 
 
 // ── Cover & Photo Gallery (Photo Editor) ─────────────────────────────────────
 function CoverGallery({ images, onChange }: { images: string[]; onChange: (i: string[]) => void }) {
-  return <ImageEditorField multi values={images} onChangeMulti={(urls) => onChange(urls)} aspectRatio={1.5} />;
+  return <ImageEditorField multi values={images} onChangeMulti={(urls) => onChange(urls)} aspectRatio={2/3} />;
 }
 function PhotoGallery({ images, onChange }: { images: string[]; onChange: (i: string[]) => void }) {
   return <ImageEditorField multi values={images} onChangeMulti={(urls) => onChange(urls)} aspectRatio={1.5} />;
