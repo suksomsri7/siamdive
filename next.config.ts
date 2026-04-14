@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       { protocol: "http",  hostname: "**" },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "https://siamdive-cdn.b-cdn.net/uploads/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

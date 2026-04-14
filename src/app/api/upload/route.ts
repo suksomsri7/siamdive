@@ -4,6 +4,9 @@ import { join } from "path";
 import { randomBytes } from "crypto";
 import { requireAuth, canDo } from "@/lib/apiAuth";
 
+const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
+
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
@@ -19,8 +22,23 @@ export async function POST(req: NextRequest) {
 
   const ext = file.name.split(".").pop() ?? "bin";
   const name = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
-  const uploadDir = join(process.cwd(), "public", "uploads");
-  await writeFile(join(uploadDir, name), buffer);
+
+  if (BUNNY_STORAGE_KEY) {
+    // Upload to Bunny Storage (production)
+    const res = await fetch(
+      `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/uploads/${name}`,
+      {
+        method: "PUT",
+        headers: { AccessKey: BUNNY_STORAGE_KEY, "Content-Type": "application/octet-stream" },
+        body: buffer,
+      }
+    );
+    if (!res.ok) return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  } else {
+    // Write to local filesystem (development)
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    await writeFile(join(uploadDir, name), buffer);
+  }
 
   return NextResponse.json({ url: `/uploads/${name}` });
 }

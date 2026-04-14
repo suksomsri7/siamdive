@@ -5,8 +5,40 @@ import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
 
+const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
 const ORIGINALS_DIR = join(process.cwd(), "public", "uploads", "originals");
 const PROCESSED_DIR = join(process.cwd(), "public", "uploads", "processed");
+
+async function saveFile(path: string, buf: Buffer) {
+  if (BUNNY_STORAGE_KEY) {
+    const res = await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${path}`, {
+      method: "PUT",
+      headers: { AccessKey: BUNNY_STORAGE_KEY, "Content-Type": "application/octet-stream" },
+      body: buf,
+    });
+    if (!res.ok) throw new Error(`Bunny upload failed: ${res.status}`);
+  } else {
+    const dir = path.includes("/originals/") ? ORIGINALS_DIR : PROCESSED_DIR;
+    const filename = path.split("/").pop()!;
+    await writeFile(join(dir, filename), buf);
+  }
+}
+
+async function deleteFile(url: string) {
+  if (!url) return;
+  if (BUNNY_STORAGE_KEY) {
+    await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${url}`, {
+      method: "DELETE",
+      headers: { AccessKey: BUNNY_STORAGE_KEY },
+    }).catch(() => {});
+  } else {
+    const filename = url.split("/").pop();
+    if (!filename) return;
+    const dir = url.includes("/originals/") ? "originals" : "processed";
+    try { await unlink(join(process.cwd(), "public", "uploads", dir, filename)); } catch {}
+  }
+}
 
 // POST /api/blog-images
 //
@@ -38,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     const ext = (original.name.split(".").pop() ?? "jpg").toLowerCase();
     const filename = `${newId}.${ext}`;
-    await writeFile(join(ORIGINALS_DIR, filename), buf);
+    await saveFile(`/uploads/originals/${filename}`, buf);
 
     const originalUrl = `/uploads/originals/${filename}`;
     const updated = await prisma.blogImage.update({
@@ -69,7 +101,7 @@ export async function POST(req: NextRequest) {
       .resize(1200, Math.round(1200 / renderedAspect / 2) * 2, { fit: "cover", position: "centre" })
       .webp({ quality: 85 })
       .toBuffer();
-    await writeFile(join(PROCESSED_DIR, coverFilename), coverBuf);
+    await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
     // OG: 1200x630 JPG q90 (Facebook/Twitter standard).
     // If editor was already at 1200×630, this is a no-op resize.
@@ -79,7 +111,7 @@ export async function POST(req: NextRequest) {
       .resize(1200, 630, { fit: "cover", position: "centre" })
       .jpeg({ quality: 90, mozjpeg: true })
       .toBuffer();
-    await writeFile(join(PROCESSED_DIR, ogFilename), ogBuf);
+    await saveFile(`/uploads/processed/${ogFilename}`, ogBuf);
 
     const coverUrl = `/uploads/processed/${coverFilename}`;
     const ogUrl = `/uploads/processed/${ogFilename}`;
@@ -142,17 +174,8 @@ export async function DELETE(req: NextRequest) {
   }
   if (!img) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Delete files from disk (best-effort, don't fail on missing)
-  const tryUnlink = async (url: string) => {
-    if (!url) return;
-    const filename = url.split("/").pop();
-    if (!filename) return;
-    const dir = url.includes("/originals/") ? "originals" : "processed";
-    try {
-      await unlink(join(process.cwd(), "public", "uploads", dir, filename));
-    } catch {}
-  };
-  await Promise.all([tryUnlink(img.originalUrl), tryUnlink(img.coverUrl), tryUnlink(img.ogUrl)]);
+  // Delete files (best-effort)
+  await Promise.all([deleteFile(img.originalUrl), deleteFile(img.coverUrl), deleteFile(img.ogUrl)]);
 
   await prisma.blogImage.delete({ where: { id: img.id } });
   return NextResponse.json({ ok: true });
