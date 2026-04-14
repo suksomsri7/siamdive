@@ -1,26 +1,100 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #0d0d0d;
+  color: #f0f0f0;
+  /* Prompt handles Thai + Latin; CJK/Cyrillic fall back to system fonts */
+  font-family: var(--font-prompt), 'Prompt',
+               'PingFang SC', 'Hiragino Kaku Gothic ProN', 'Apple SD Gothic Neo',
+               'Microsoft YaHei', 'Noto Sans',
+               'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
+
+/* CJK — prefer system fonts that render the script correctly */
+:lang(zh), :lang(cn) { font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', var(--font-prompt), sans-serif; }
+:lang(ja)            { font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Meiryo', var(--font-prompt), sans-serif; }
+:lang(ko)            { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', var(--font-prompt), sans-serif; }
+
+a { text-decoration: none; color: inherit; }
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+.row-scroll::-webkit-scrollbar { display: none; }
+.row-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+.hover-white:hover { color: #fff; }
+
+/* ── Blog / Rich Content Prose ─────────────────────────────────────────────── */
+.blog-content { color: #ccc; font-size: 15px; line-height: 1.95; font-family: inherit; }
+
+.blog-content h1 { font-size: 1.6em; font-weight: 900; margin: 28px 0 10px; color: #e5e5e5; }
+.blog-content h2 { font-size: 1.3em; font-weight: 800; margin: 24px 0 8px; color: #e5e5e5; }
+.blog-content h3 { font-size: 1.1em; font-weight: 700; margin: 20px 0 6px; color: #e5e5e5; }
+.blog-content h4, .blog-content h5, .blog-content h6 { font-weight: 700; margin: 16px 0 4px; color: #d4d4d4; }
+
+.blog-content p { margin: 8px 0; }
+
+.blog-content ul { padding-left: 22px; list-style: disc; margin: 8px 0; }
+.blog-content ol { padding-left: 22px; list-style: decimal; margin: 8px 0; }
+.blog-content li { margin: 4px 0; }
+
+.blog-content blockquote {
+  border-left: 3px solid #3b82f6;
+  padding: 8px 14px;
+  margin: 14px 0;
+  color: #888;
+  font-style: italic;
+  background: #111;
+  border-radius: 0 4px 4px 0;
+}
+
+.blog-content pre {
+  background: #111;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #7dd3fc;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.blog-content code {
+  background: #1a1a1a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #7dd3fc;
+}
+.blog-content pre code { background: none; padding: 0; }
+
+.blog-content a { color: #60a5fa; text-decoration: underline; }
+.blog-content a:hover { color: #93c5fd; }
+
+.blog-content strong { font-weight: 700; color: #e5e5e5; }
+.blog-content em { font-style: italic; }
+
+.blog-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 12px 0;
+  display: block;
+}
+
+.blog-content hr {
+  border: none;
+  border-top: 1px solid #222;
+  margin: 24px 0;
+}
+
+.blog-content table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+.blog-content th { background: #161616; color: #e5e5e5; padding: 8px 12px; text-align: left; border: 1px solid #2a2a2a; }
+.blog-content td { padding: 8px 12px; border: 1px solid #1e1e1e; color: #aaa; }

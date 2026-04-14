@@ -1,0 +1,540 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+
+model Admin {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        String   @default("ADMIN")   // SUPER_ADMIN | ADMIN | EDITOR
+  permissions String[]                      // granular keys for EDITOR role
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Blog ─────────────────────────────────────────────────────────────────────
+
+model Blog {
+  id           String            @id @default(cuid())
+  status       BlogStatus        @default(DRAFT)
+  covers       String[]                       // image URLs (cover variant) — public-facing
+  imageIds     String[]          @default([]) // BlogImage IDs in same order as covers (for re-edit/cleanup)
+  mjPrompt     String            @default("")
+  translations BlogTranslation[]
+  videos       BlogVideo[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+// Blog images with edit metadata for re-editing
+model BlogImage {
+  id          String   @id @default(cuid())
+  originalUrl String   // /uploads/originals/<id>.<ext> — ภาพดั้งเดิม
+  coverUrl    String   // /uploads/processed/<id>-cover.webp — 1200x800
+  ogUrl       String   // /uploads/processed/<id>-og.jpg — 1200x630
+  width       Int      @default(0)
+  height      Int      @default(0)
+  editJson    String   @default("{}")  // JSON: crop, watermark, text layers — สำหรับ re-edit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Singleton model — ใช้ id = "default" เสมอ มีเพียง 1 row
+model SiteBranding {
+  id                  String   @id @default("default")
+  watermarkUrl        String   @default("")  // legacy — เก็บไว้เพื่อ backward compat
+  defaultWatermarkId  String   @default("")  // ID ของ Watermark default (ใช้ครั้งแรกเมื่อเปิด editor)
+  watermarkEnabled    Boolean  @default(false)
+  watermarkOpacity    Int      @default(60)  // 0-100
+  watermarkPosition   String   @default("bottom-right")  // top-left | top-right | bottom-left | bottom-right | center
+  watermarkScale      Int      @default(15)  // % ของความกว้างภาพ (เช่น 15 = logo กว้าง 15% ของภาพ)
+  updatedAt           DateTime @updatedAt
+}
+
+// Watermark images (logos) — มีได้หลายอัน
+model Watermark {
+  id        String   @id @default(cuid())
+  name      String   @default("")  // ชื่อ logo เช่น "White Logo", "Black Logo"
+  url       String                 // URL ของ PNG โปร่งใส
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model BlogTranslation {
+  id       String   @id @default(cuid())
+  blog     Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId   String
+  lang     String
+  title    String
+  slug     String
+  excerpt       String   @default("")
+  content       String   @default("")
+  keywords      String[]
+  ogTitle       String   @default("")
+  ogDescription String   @default("")
+  ogImage       String   @default("")
+
+  @@unique([blogId, lang])
+  @@unique([slug, lang])
+}
+
+model BlogVideo {
+  id     String @id @default(cuid())
+  blog   Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId String
+  url    String
+  name   String
+  order  Int    @default(0)
+}
+
+// ── Company ───────────────────────────────────────────────────────────────────
+
+model Company {
+  id           String               @id @default(cuid())
+  logo         String?
+  phone        String?
+  email        String?
+  lineId       String?
+  status       ActiveStatus         @default(ACTIVE)
+  covers       String[]
+  photos       String[]
+  boats        Boat[]
+  translations CompanyTranslation[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model CompanyTranslation {
+  id          String  @id @default(cuid())
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  lang        String
+  name        String
+  description String  @default("")
+
+  @@unique([companyId, lang])
+}
+
+// ── Boat ──────────────────────────────────────────────────────────────────────
+// Boat IS the product listing (daytrip or liveaboard)
+
+model Boat {
+  id           String            @id @default(cuid())
+  company      Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyId    String?
+  name         String            // internal boat name e.g. "MV Manta Queen 5"
+  type         BoatType
+  capacity     Int?
+  photos       String[]          // boat photos (interior/exterior)
+  covers       String[]          // product listing cover images
+  status       PublishStatus     @default(DRAFT)
+  featured     Boolean           @default(false)
+  translations  BoatTranslation[]
+  videos        BoatVideo[]
+  priceTiers    BoatPriceTier[]
+  schedules     Schedule[]
+  packages      Package[]
+  options       BoatOption[]
+  serviceAreas  BoatServiceArea[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model BoatTranslation {
+  id       String   @id @default(cuid())
+  boat     Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId   String
+  lang     String
+  title    String   @default("")  // product listing title
+  slug     String   @default("")
+  excerpt  String   @default("")
+  content  String   @default("")
+  keywords String[]
+
+  @@unique([boatId, lang])
+}
+
+model BoatVideo {
+  id     String @id @default(cuid())
+  boat   Boat   @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId String
+  url    String
+  name   String
+  order  Int    @default(0)
+}
+
+model BoatPriceTier {
+  id           String  @id @default(cuid())
+  boat         Boat    @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId       String
+  tier         String  // ADULT | CHILD | NON_DIVER | DIVER
+  costPrice    Float?
+  regularPrice Float
+  salePrice    Float?
+  agentPrice   Float?
+
+  @@unique([boatId, tier])
+}
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+
+model Schedule {
+  id             String                @id @default(cuid())
+  boat           Boat                  @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId         String
+  dateType       String                @default("single")
+  departureDate  DateTime?
+  returnDate     DateTime?
+  weekDays       String[]
+  totalSeats     Int?
+  availableSeats Int?
+  status         ScheduleStatus        @default(OPEN)
+  season         String?               // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
+  note           String?
+  itinerary      String                @default("")
+  translations   ScheduleTranslation[]
+  packages       SchedulePackage[]
+  createdAt      DateTime              @default(now())
+}
+
+model SchedulePackage {
+  id                   String                     @id @default(cuid())
+  schedule             Schedule                   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId           String
+  package              Package                    @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId            String
+  availableSeats       Int?
+  isFull               Boolean                    @default(false)
+  appendScheduleDetail Boolean                    @default(false)
+  priceTiers           SchedulePackagePriceTier[]
+
+  @@unique([scheduleId, packageId])
+}
+
+model SchedulePackagePriceTier {
+  id                String          @id @default(cuid())
+  schedulePackage   SchedulePackage @relation(fields: [schedulePackageId], references: [id], onDelete: Cascade)
+  schedulePackageId String
+  tier              String
+  costPrice         Float?
+  regularPrice      Float           @default(0)
+  salePrice         Float?
+  agentPrice        Float?
+
+  @@unique([schedulePackageId, tier])
+}
+
+model ScheduleTranslation {
+  id         String   @id @default(cuid())
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId String
+  lang       String
+  title      String   @default("")
+  slug       String   @default("")
+  excerpt    String   @default("")
+  content    String   @default("")
+  itinerary  String   @default("")
+  route      String   @default("")
+  keywords   String[]
+
+  @@unique([scheduleId, lang])
+}
+
+// ── Package ───────────────────────────────────────────────────────────────────
+
+model Package {
+  id            String                 @id @default(cuid())
+  boat          Boat                   @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId        String
+  name          String                 // internal name
+  totalSeats    Int?
+  photos        String[]               // package gallery photos (unlimited)
+  status        PublishStatus          @default(DRAFT)
+  translations  PackageTranslation[]
+  priceTiers    PackagePriceTier[]
+  seasonPeriods PackageSeasonPeriod[]
+  schedules     SchedulePackage[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+}
+
+model PackageSeasonPeriod {
+  id        String   @id @default(cuid())
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId String
+  season    String   // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
+  startDate DateTime
+  endDate   DateTime
+}
+
+model PackageTranslation {
+  id        String  @id @default(cuid())
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId String
+  lang      String
+  title     String  @default("")
+  slug      String  @default("")
+  excerpt   String  @default("")
+  content   String  @default("")    // detail
+  itinerary String  @default("")
+  route     String  @default("")    // เส้นทาง
+  keywords  String[]
+
+  @@unique([packageId, lang])
+}
+
+model BoatOption {
+  id           String                  @id @default(cuid())
+  boat         Boat                    @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId       String
+  price        Float                   @default(0)
+  order        Int                     @default(0)
+  translations BoatOptionTranslation[]
+}
+
+model BoatOptionTranslation {
+  id          String     @id @default(cuid())
+  option      BoatOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId    String
+  lang        String
+  name        String     @default("")
+  description String     @default("")
+
+  @@unique([optionId, lang])
+}
+
+model PackagePriceTier {
+  id           String  @id @default(cuid())
+  package      Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId    String
+  tier         String  // DIVER | NON_DIVER
+  costPrice    Float?
+  regularPrice Float   @default(0)
+  salePrice    Float?
+  agentPrice   Float?
+
+  @@unique([packageId, tier])
+}
+
+// ── ServiceArea ───────────────────────────────────────────────────────────────
+
+model ServiceArea {
+  id           String                   @id @default(cuid())
+  translations ServiceAreaTranslation[]
+  boats        BoatServiceArea[]
+}
+
+model ServiceAreaTranslation {
+  id            String      @id @default(cuid())
+  serviceArea   ServiceArea @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+  serviceAreaId String
+  lang          String
+  name          String      @default("")
+
+  @@unique([serviceAreaId, lang])
+}
+
+model BoatServiceArea {
+  boatId        String
+  serviceAreaId String
+  boat          Boat        @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  serviceArea   ServiceArea @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+
+  @@id([boatId, serviceAreaId])
+}
+
+// ── School ────────────────────────────────────────────────────────────────────
+
+model School {
+  id           String              @id @default(cuid())
+  logo         String?
+  certBody     String              // PADI | SSI | NAUI | CMAS | SDI | TDI
+  phone        String?
+  email        String?
+  lineId       String?
+  website      String?
+  serviceArea  String?
+  keywords     String[]
+  status       ActiveStatus        @default(ACTIVE)
+  courses      Course[]
+  translations SchoolTranslation[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model SchoolTranslation {
+  id          String @id @default(cuid())
+  school      School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId    String
+  lang        String
+  name        String
+  description String @default("")
+  information String @default("")
+
+  @@unique([schoolId, lang])
+}
+
+// ── Course ────────────────────────────────────────────────────────────────────
+
+model Course {
+  id           String              @id @default(cuid())
+  school       School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId     String
+  level        String?
+  duration     Int?
+  status       PublishStatus       @default(DRAFT)
+  covers       String[]
+  translations CourseTranslation[]
+  videos       CourseVideo[]
+  price        CoursePrice?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model CourseTranslation {
+  id       String   @id @default(cuid())
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  lang     String
+  title    String
+  slug     String   @unique
+  excerpt  String   @default("")
+  content  String   @default("")
+  keywords String[]
+
+  @@unique([courseId, lang])
+}
+
+model CourseVideo {
+  id       String @id @default(cuid())
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+  url      String
+  name     String
+  order    Int    @default(0)
+}
+
+model CoursePrice {
+  id           String  @id @default(cuid())
+  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String  @unique
+  costPrice    Float?
+  regularPrice Float
+  salePrice    Float?
+  agentPrice   Float?
+}
+
+// ── Display ───────────────────────────────────────────────────────────────────
+
+model DisplayRow {
+  id           String                   @id @default(cuid())
+  topic        String                   // internal name (backoffice only)
+  layout       String                   @default("HORIZONTAL") // FULL | VERTICAL | HORIZONTAL
+  itemType     String                   // DAYTRIP | LIVEABOARD | DIVE_RESORT | FREEDIVE | LAND_TOUR | SNORKELING | SCUBA_COURSES | FREEDIVE_COURSES | BLOG
+  order        Int                      @default(0)
+  active       Boolean                  @default(true)
+  maxItems     Int?                     // null = show all
+  // When true (BLOG rows only): ignore curated `items` and pull the most recent
+  // PUBLISHED blogs (capped at maxItems ?? 20). Useful for "latest articles" rows
+  // that auto-update without admin intervention.
+  autoLatest   Boolean                  @default(false)
+  items        DisplayRowItem[]
+  translations DisplayRowTranslation[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+}
+
+model DisplayRowTranslation {
+  id       String     @id @default(cuid())
+  row      DisplayRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  rowId    String
+  lang     String
+  title    String     @default("")    // heading shown on frontend
+  subtitle String     @default("")    // optional tagline, hidden if empty
+
+  @@unique([rowId, lang])
+}
+
+model DisplayRowItem {
+  id      String     @id @default(cuid())
+  row     DisplayRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  rowId   String
+  refId   String     // schedule.id | package.id | blog.id
+  refType String     @default("SCHEDULE") // SCHEDULE | PACKAGE | BLOG
+  order   Int        @default(0)
+
+  @@unique([rowId, refId])
+}
+
+// ── SiteSeo ───────────────────────────────────────────────────────────────────
+
+model SiteSeo {
+  lang          String   @id          // "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru"
+  title         String   @default("")
+  description   String   @default("")
+  keywords      String[]
+  ogTitle       String   @default("")
+  ogDescription String   @default("")
+  ogImage       String   @default("")
+  updatedAt     DateTime @updatedAt
+}
+
+// ── ApiKey ────────────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String
+  keyHash     String    @unique  // SHA-256 of full key
+  keyPrefix   String             // "sk_xxxxxxxx" first 12 chars for display
+  permissions String[]           // ["boats.read", "schedules.write", ...]
+  active      Boolean   @default(true)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum BoatType {
+  DAYTRIP
+  LIVEABOARD
+  DIVE_RESORT
+  FREEDIVE
+  LAND_TOUR
+  SNORKELING
+  SCUBA_COURSES
+  FREEDIVE_COURSES
+}
+
+enum ScheduleStatus {
+  DRAFT
+  OPEN
+  FULL
+  CANCELLED
+  COMPLETED
+}

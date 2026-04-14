@@ -1,0 +1,19 @@
+# Postgres only — Next.js runs via PM2 on host (`pm2 list` → siamdive).
+# Plan: migrate DB to Neon when moving the app to Vercel.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: siamdive-db
+    environment:
+      POSTGRES_USER: siamdive
+      POSTGRES_PASSWORD: siamdive_password
+      POSTGRES_DB: siamdive_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
