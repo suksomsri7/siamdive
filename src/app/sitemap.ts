@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 // Sitemap is regenerated at most once per hour. Adding/publishing a blog will
 // show up within 1 hour without a redeploy. Lower this if you want it faster.
+export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 const BASE = "https://siamdive.com";
