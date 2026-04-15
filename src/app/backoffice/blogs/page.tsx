@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ImageEditorField from "@/components/PhotoEditor/ImageEditorField";
 import PhotoEditorComp from "@/components/PhotoEditor";
+import { buildMjPrompt } from "@/lib/mjPrompt";
 
 const STATUSES = ["ทั้งหมด", "PUBLISHED", "DRAFT"];
 const LANGS_ALL = ["ทั้งหมด", "en", "th", "cn", "de", "fr", "ru", "ko", "ja"];
@@ -58,7 +59,9 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
 }
 
 // ── Midjourney Prompt ────────────────────────────────────────────────────────
-function buildMjPrompt(title: string, excerpt: string): string {
+// Legacy inline prompt builder — kept commented for reference.
+// Use `buildMjPrompt` from `@/lib/mjPrompt` instead (NatGeo v2).
+/* function _legacyBuildMjPrompt(title: string, excerpt: string): string {
   const src = `${title} ${excerpt}`.toLowerCase();
 
   type SceneMatch = { test: RegExp; scene: string; lens: "macro" | "wide" };
@@ -105,7 +108,7 @@ function buildMjPrompt(title: string, excerpt: string): string {
     : `Nikkor 14-30mm f/4 wide-angle lens, natural underwater sunlight, available light only`;
 
   return `RAW underwater photograph of ${scene}, shot on Nikon Z9 with Nauticam housing and ${lensDesc}, sharp focus on subject, documentary wildlife photography, National Geographic style, candid moment, unedited RAW file, photojournalism, no text no watermark --style raw --s 50 --v 7 --no illustration, painting, render, cgi, cartoon, drawing, anime, 3d, hdr, oversaturated`;
-}
+} */
 
 function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string, ogUrl: string) => void }) {
   const [copied, setCopied] = useState(false);
