@@ -110,15 +110,38 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
   return `RAW underwater photograph of ${scene}, shot on Nikon Z9 with Nauticam housing and ${lensDesc}, sharp focus on subject, documentary wildlife photography, National Geographic style, candid moment, unedited RAW file, photojournalism, no text no watermark --style raw --s 50 --v 7 --no illustration, painting, render, cgi, cartoon, drawing, anime, 3d, hdr, oversaturated`;
 } */
 
+type ModelOption = { id: string; label: string; blurb: string; price: string };
+
 function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string, ogUrl: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("siamdive.genModel") ?? "";
+  });
+
+  useEffect(() => {
+    fetch("/api/blog-images/generate").then((r) => r.json()).then((d) => {
+      if (Array.isArray(d.models)) {
+        setModels(d.models);
+        if (!selectedModel && d.models[0]) setSelectedModel(d.models[0].id);
+      }
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (selectedModel) localStorage.setItem("siamdive.genModel", selectedModel);
+  }, [selectedModel]);
+
   if (!title.trim() && !savedPrompt) return null;
 
   // Use saved prompt from DB if available, otherwise auto-generate
   const prompt = savedPrompt || buildMjPrompt(title, excerpt);
   const isSaved = !!savedPrompt;
+  const currentModel = models.find((m) => m.id === selectedModel);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt);
@@ -132,7 +155,7 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
       const res = await fetch("/api/blog-images/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, aspectRatio: "16:9" }),
+        body: JSON.stringify({ prompt, aspectRatio: "16:9", model: selectedModel }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
@@ -154,11 +177,16 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
             : <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 600 }}>auto-generated</span>
           }
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={handleGenerate} disabled={generating}
-            title="สร้างภาพจาก prompt ด้วย Flux 1.1 Pro (~10-15s)"
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}
+            title={currentModel?.blurb ?? ""}
+            style={{ fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 12, border: "1px solid #222", background: "#111", color: "#a78bfa", cursor: "pointer", maxWidth: 220 }}>
+            {models.map((m) => (<option key={m.id} value={m.id}>{m.label} · {m.price}</option>))}
+          </select>
+          <button onClick={handleGenerate} disabled={generating || !selectedModel}
+            title={currentModel ? `${currentModel.label} — ${currentModel.blurb}` : "เลือก model ก่อน"}
             style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: generating ? "wait" : "pointer", background: generating ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.15)", color: "#a78bfa", opacity: generating ? 0.6 : 1, transition: "all 0.2s" }}>
-            {generating ? "Generating… (10-15s)" : "✨ Generate Image"}
+            {generating ? "Generating…" : "✨ Generate Image"}
           </button>
           <button onClick={handleCopy}
             style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: copied ? "rgba(16,185,129,0.15)" : "rgba(59,130,246,0.12)", color: copied ? "#10b981" : "#60a5fa", transition: "all 0.2s" }}>

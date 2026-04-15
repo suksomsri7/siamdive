@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { fal } from "@fal-ai/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
+import { MODELS, getModel, generateImage, type AspectRatio } from "./models";
 
 const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
@@ -38,10 +39,9 @@ async function saveFile(path: string, buf: Buffer) {
   }
 }
 
-// Flux 1.1 Pro Ultra accepts aspect_ratio strings directly
-const VALID_ASPECTS = new Set(["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"]);
+const VALID_ASPECTS = new Set<AspectRatio>(["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"]);
 
-// Strip Midjourney-specific flags — they pollute Flux prompts as literal text
+// Strip Midjourney-specific flags — they pollute non-MJ prompts as literal text
 // Examples removed: --style raw, --s 50, --v 7, --ar 16:9, --no illustration, painting, ...
 function stripMjFlags(prompt: string): string {
   return prompt
@@ -67,28 +67,23 @@ export async function POST(req: NextRequest) {
   if (!body?.prompt || typeof body.prompt !== "string") {
     return NextResponse.json({ error: "prompt required" }, { status: 400 });
   }
-  const aspectRatio = VALID_ASPECTS.has(body.aspectRatio) ? body.aspectRatio : "16:9";
+  const aspectRatio: AspectRatio = VALID_ASPECTS.has(body.aspectRatio) ? body.aspectRatio : "16:9";
   const blogId: string | undefined = body.blogId;
   const attachToBlog = body.attachToBlog !== false; // default true when blogId given
+  const model = getModel(body.model);
 
-  // Clean prompt for Flux (strip Midjourney params)
+  // Clean prompt (strip Midjourney params — they degrade all non-MJ models)
   const cleanPrompt = stripMjFlags(body.prompt);
 
-  // ── 1) Generate via Flux 1.1 Pro Ultra (raw mode = photorealism, NatGeo-style) ─
-  const result = await fal.subscribe("fal-ai/flux-pro/v1.1-ultra", {
-    input: {
-      prompt: cleanPrompt,
-      aspect_ratio: aspectRatio as "16:9" | "4:3" | "3:2" | "1:1" | "2:3" | "3:4" | "9:16" | "21:9" | "9:21",
-      num_images: 1,
-      enable_safety_checker: true,
-      raw: true,           // disable aesthetic stylization → photorealistic output
-      safety_tolerance: "2",
-    },
-    logs: false,
-  });
-
-  const imageUrl = (result.data as { images?: Array<{ url: string }> })?.images?.[0]?.url;
-  if (!imageUrl) return NextResponse.json({ error: "Flux returned no image", raw: result.data }, { status: 502 });
+  // ── 1) Generate via selected model ────────────────────────────────────────
+  let imageUrl: string;
+  try {
+    imageUrl = await generateImage(model, cleanPrompt, aspectRatio);
+  } catch (e) {
+    return NextResponse.json({
+      error: `Generate failed on model "${model.id}": ${e instanceof Error ? e.message : String(e)}`,
+    }, { status: 502 });
+  }
 
   // ── 2) Download generated image ───────────────────────────────────────────
   const imgRes = await fetch(imageUrl);
@@ -155,5 +150,16 @@ export async function POST(req: NextRequest) {
     width: updated.width,
     height: updated.height,
     attachedToBlog: Boolean(blogId && attachToBlog),
+    model: model.id,
+  });
+}
+
+// GET /api/blog-images/generate — list available models for UI
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+  if (!canDo(auth, "blogs.read")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return NextResponse.json({
+    models: MODELS.map((m) => ({ id: m.id, label: m.label, blurb: m.blurb, price: m.price })),
   });
 }
