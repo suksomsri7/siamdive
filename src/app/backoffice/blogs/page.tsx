@@ -107,8 +107,10 @@ function buildMjPrompt(title: string, excerpt: string): string {
   return `RAW underwater photograph of ${scene}, shot on Nikon Z9 with Nauticam housing and ${lensDesc}, sharp focus on subject, documentary wildlife photography, National Geographic style, candid moment, unedited RAW file, photojournalism, no text no watermark --style raw --s 50 --v 7 --no illustration, painting, render, cgi, cartoon, drawing, anime, 3d, hdr, oversaturated`;
 }
 
-function MidjourneyPrompt({ title, excerpt, savedPrompt }: { title: string; excerpt: string; savedPrompt: string }) {
+function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   if (!title.trim() && !savedPrompt) return null;
 
   // Use saved prompt from DB if available, otherwise auto-generate
@@ -121,6 +123,24 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt }: { title: string; exce
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleGenerate = async () => {
+    setGenerating(true); setError(null);
+    try {
+      const res = await fetch("/api/blog-images/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, aspectRatio: "16:9" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      onImageGenerated?.(data.id, data.coverUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Generate failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -131,11 +151,19 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt }: { title: string; exce
             : <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 600 }}>auto-generated</span>
           }
         </div>
-        <button onClick={handleCopy}
-          style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: copied ? "rgba(16,185,129,0.15)" : "rgba(59,130,246,0.12)", color: copied ? "#10b981" : "#60a5fa", transition: "all 0.2s" }}>
-          {copied ? "Copied!" : "Copy Prompt"}
-        </button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={handleGenerate} disabled={generating}
+            title="สร้างภาพจาก prompt ด้วย Flux 1.1 Pro (~10-15s)"
+            style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: generating ? "wait" : "pointer", background: generating ? "rgba(139,92,246,0.08)" : "rgba(139,92,246,0.15)", color: "#a78bfa", opacity: generating ? 0.6 : 1, transition: "all 0.2s" }}>
+            {generating ? "Generating… (10-15s)" : "✨ Generate Image"}
+          </button>
+          <button onClick={handleCopy}
+            style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: copied ? "rgba(16,185,129,0.15)" : "rgba(59,130,246,0.12)", color: copied ? "#10b981" : "#60a5fa", transition: "all 0.2s" }}>
+            {copied ? "Copied!" : "Copy Prompt"}
+          </button>
+        </div>
       </div>
+      {error && <p style={{ fontSize: 10, color: "#ef4444", marginBottom: 4 }}>❌ {error}</p>}
       <div onClick={handleCopy}
         style={{ background: "#0d0d0d", border: `1px solid ${isSaved ? "#1a2a1a" : "#1a1a1a"}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555", lineHeight: 1.6, cursor: "pointer", wordBreak: "break-word", maxHeight: 120, overflowY: "auto" }}>
         {prompt}
@@ -564,7 +592,8 @@ export default function BlogsPage() {
             </div>
 
             {/* Midjourney Prompt */}
-            <MidjourneyPrompt title={form.en.title} excerpt={form.en.excerpt} savedPrompt={form.mjPrompt} />
+            <MidjourneyPrompt title={form.en.title} excerpt={form.en.excerpt} savedPrompt={form.mjPrompt}
+              onImageGenerated={(imgId, coverUrl) => setForm((f) => ({ ...f, covers: [...f.covers, coverUrl], imageIds: [...f.imageIds, imgId] }))} />
 
             {/* Covers */}
             <div>
