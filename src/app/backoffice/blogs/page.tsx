@@ -107,7 +107,7 @@ function buildMjPrompt(title: string, excerpt: string): string {
   return `RAW underwater photograph of ${scene}, shot on Nikon Z9 with Nauticam housing and ${lensDesc}, sharp focus on subject, documentary wildlife photography, National Geographic style, candid moment, unedited RAW file, photojournalism, no text no watermark --style raw --s 50 --v 7 --no illustration, painting, render, cgi, cartoon, drawing, anime, 3d, hdr, oversaturated`;
 }
 
-function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string) => void }) {
+function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string, ogUrl: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +133,7 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-      onImageGenerated?.(data.id, data.coverUrl);
+      onImageGenerated?.(data.id, data.coverUrl, data.ogUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Generate failed");
     } finally {
@@ -593,7 +593,14 @@ export default function BlogsPage() {
 
             {/* Midjourney Prompt */}
             <MidjourneyPrompt title={form.en.title} excerpt={form.en.excerpt} savedPrompt={form.mjPrompt}
-              onImageGenerated={(imgId, coverUrl) => setForm((f) => ({ ...f, covers: [...f.covers, coverUrl], imageIds: [...f.imageIds, imgId] }))} />
+              onImageGenerated={(imgId, coverUrl, ogUrl) => setForm((f) => {
+                const next = { ...f, covers: [...f.covers, coverUrl], imageIds: [...f.imageIds, imgId] };
+                // Populate OG image for every language that doesn't have one yet
+                for (const l of ALL_LANGS) {
+                  if (!next[l].ogImage) next[l] = { ...next[l], ogImage: ogUrl };
+                }
+                return next;
+              })} />
 
             {/* Covers */}
             <div>
