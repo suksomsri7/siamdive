@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
   const updated = await prisma.blogImage.update({
     where: { id: blogImage.id },
-    data: { originalUrl, coverUrl, ogUrl, editJson: JSON.stringify({ generated: "flux-pro-v1.1", prompt: body.prompt, aspectRatio }) },
+    data: { originalUrl, coverUrl, ogUrl },
   });
 
   // ── 6) Attach to Blog.covers / imageIds if blogId provided ────────────────
