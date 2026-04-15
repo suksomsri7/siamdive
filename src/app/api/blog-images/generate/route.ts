@@ -41,6 +41,50 @@ async function saveFile(path: string, buf: Buffer) {
 
 const VALID_ASPECTS = new Set<AspectRatio>(["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"]);
 
+// Composite the default site watermark onto an image buffer, matching
+// SiteBranding settings (position, scale %, opacity %). Returns the original
+// buffer when watermarking is disabled or misconfigured.
+async function applyWatermark(baseBuf: Buffer): Promise<Buffer> {
+  const branding = await prisma.siteBranding.findUnique({ where: { id: "default" } });
+  if (!branding?.watermarkEnabled || !branding.defaultWatermarkId) return baseBuf;
+  const wm = await prisma.watermark.findUnique({ where: { id: branding.defaultWatermarkId } });
+  if (!wm?.url) return baseBuf;
+
+  // Fetch watermark PNG from Bunny CDN
+  const wmRes = await fetch(`https://${BUNNY_CDN_HOSTNAME}${wm.url}`);
+  if (!wmRes.ok) return baseBuf;
+  const wmBuf = Buffer.from(await wmRes.arrayBuffer());
+
+  const baseMeta = await sharp(baseBuf).metadata();
+  const baseW = baseMeta.width ?? 1200;
+  const scalePct = Math.max(1, Math.min(100, branding.watermarkScale || 15));
+  const targetWmW = Math.max(16, Math.round((baseW * scalePct) / 100));
+
+  // Resize watermark + apply opacity via dest-in alpha multiply
+  const opacity = Math.max(0, Math.min(100, branding.watermarkOpacity ?? 60)) / 100;
+  const wmResized = await sharp(wmBuf)
+    .resize({ width: targetWmW, withoutEnlargement: false })
+    .ensureAlpha()
+    .composite([{
+      input: Buffer.from([255, 255, 255, Math.round(255 * opacity)]),
+      raw: { width: 1, height: 1, channels: 4 },
+      tile: true,
+      blend: "dest-in",
+    }])
+    .toBuffer();
+
+  const gravityMap: Record<string, string> = {
+    "top-left": "northwest", "top-right": "northeast",
+    "bottom-left": "southwest", "bottom-right": "southeast",
+    "center": "center",
+  };
+  const gravity = gravityMap[branding.watermarkPosition] ?? "southeast";
+
+  return await sharp(baseBuf)
+    .composite([{ input: wmResized, gravity: gravity as "northwest" | "northeast" | "southwest" | "southeast" | "center" }])
+    .toBuffer();
+}
+
 // Strip Midjourney-specific flags — they pollute non-MJ prompts as literal text
 // Examples removed: --style raw, --s 50, --v 7, --ar 16:9, --no illustration, painting, ...
 function stripMjFlags(prompt: string): string {
@@ -107,10 +151,11 @@ export async function POST(req: NextRequest) {
   const aspect = rW / rH;
 
   const coverFilename = `${blogImage.id}-cover.webp`;
-  const coverBuf = await sharp(buf)
+  const coverRawBuf = await sharp(buf)
     .resize(1200, Math.round(1200 / aspect / 2) * 2, { fit: "cover", position: "centre" })
-    .webp({ quality: 85 })
     .toBuffer();
+  const coverWithWm = await applyWatermark(coverRawBuf);
+  const coverBuf = await sharp(coverWithWm).webp({ quality: 85 }).toBuffer();
   await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
   // OG: when the model supports exact dims, make a SECOND generation at
@@ -127,10 +172,11 @@ export async function POST(req: NextRequest) {
     // Non-fatal — fall back to cropping the cover source
   }
   const ogFilename = `${blogImage.id}-og.jpg`;
-  const ogBuf = await sharp(ogSourceBuf)
+  const ogRawBuf = await sharp(ogSourceBuf)
     .resize(1200, 630, { fit: "cover", position: "centre" })
-    .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
+  const ogWithWm = await applyWatermark(ogRawBuf);
+  const ogBuf = await sharp(ogWithWm).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
   await saveFile(`/uploads/processed/${ogFilename}`, ogBuf);
 
   const coverUrl = `/uploads/processed/${coverFilename}`;
