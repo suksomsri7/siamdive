@@ -38,14 +38,20 @@ async function saveFile(path: string, buf: Buffer) {
   }
 }
 
-// Map aspect-ratio label → Flux 1.1 Pro `image_size` enum
-const ASPECT_MAP: Record<string, string> = {
-  "16:9": "landscape_16_9",
-  "4:3": "landscape_4_3",
-  "1:1": "square_hd",
-  "3:4": "portrait_4_3",
-  "9:16": "portrait_16_9",
-};
+// Flux 1.1 Pro Ultra accepts aspect_ratio strings directly
+const VALID_ASPECTS = new Set(["21:9", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16", "9:21"]);
+
+// Strip Midjourney-specific flags — they pollute Flux prompts as literal text
+// Examples removed: --style raw, --s 50, --v 7, --ar 16:9, --no illustration, painting, ...
+function stripMjFlags(prompt: string): string {
+  return prompt
+    .replace(/--no\s+[^-]+?(?=--|$)/gi, "") // --no <list>
+    .replace(/--\w+(\s+[\w:.-]+)?/g, "")    // --style raw, --s 50, --v 7, --ar 16:9
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s*,\s*,+/g, ",")
+    .trim()
+    .replace(/[,\s]+$/, "");
+}
 
 // POST /api/blog-images/generate
 // body: { prompt: string, aspectRatio?: "16:9"|"1:1"|..., blogId?: string, attachToBlog?: boolean }
@@ -61,18 +67,22 @@ export async function POST(req: NextRequest) {
   if (!body?.prompt || typeof body.prompt !== "string") {
     return NextResponse.json({ error: "prompt required" }, { status: 400 });
   }
-  const aspectRatio = body.aspectRatio ?? "16:9";
-  const imageSize = ASPECT_MAP[aspectRatio] ?? "landscape_16_9";
+  const aspectRatio = VALID_ASPECTS.has(body.aspectRatio) ? body.aspectRatio : "16:9";
   const blogId: string | undefined = body.blogId;
   const attachToBlog = body.attachToBlog !== false; // default true when blogId given
 
-  // ── 1) Generate via Flux 1.1 Pro ──────────────────────────────────────────
-  const result = await fal.subscribe("fal-ai/flux-pro/v1.1", {
+  // Clean prompt for Flux (strip Midjourney params)
+  const cleanPrompt = stripMjFlags(body.prompt);
+
+  // ── 1) Generate via Flux 1.1 Pro Ultra (raw mode = photorealism, NatGeo-style) ─
+  const result = await fal.subscribe("fal-ai/flux-pro/v1.1-ultra", {
     input: {
-      prompt: body.prompt,
-      image_size: imageSize as "landscape_16_9" | "landscape_4_3" | "square_hd" | "portrait_4_3" | "portrait_16_9",
+      prompt: cleanPrompt,
+      aspect_ratio: aspectRatio as "16:9" | "4:3" | "3:2" | "1:1" | "2:3" | "3:4" | "9:16" | "21:9" | "9:21",
       num_images: 1,
       enable_safety_checker: true,
+      raw: true,           // disable aesthetic stylization → photorealistic output
+      safety_tolerance: "2",
     },
     logs: false,
   });
