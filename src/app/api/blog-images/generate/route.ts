@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { fal } from "@fal-ai/client";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
-import { MODELS, getModel, generateImage, type AspectRatio } from "./models";
+import { MODELS, getModel, generateImage, generateOgImage, type AspectRatio } from "./models";
 
 const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
@@ -113,8 +113,21 @@ export async function POST(req: NextRequest) {
     .toBuffer();
   await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
+  // OG: when the model supports exact dims, make a SECOND generation at
+  // 1920×1008 (1.905:1 ≈ 1.91:1) → resize down to 1200×630 with zero crop
+  // loss. Otherwise fall back to cropping the 16:9 cover source.
+  let ogSourceBuf = buf;
+  try {
+    const ogUrlFal = await generateOgImage(model, cleanPrompt);
+    if (ogUrlFal) {
+      const ogRes = await fetch(ogUrlFal);
+      if (ogRes.ok) ogSourceBuf = Buffer.from(await ogRes.arrayBuffer());
+    }
+  } catch {
+    // Non-fatal — fall back to cropping the cover source
+  }
   const ogFilename = `${blogImage.id}-og.jpg`;
-  const ogBuf = await sharp(buf)
+  const ogBuf = await sharp(ogSourceBuf)
     .resize(1200, 630, { fit: "cover", position: "centre" })
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();

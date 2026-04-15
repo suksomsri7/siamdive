@@ -18,7 +18,15 @@ export type ModelAdapter = {
   price: string;        // e.g. "$0.06"
   defaultAspect: AspectRatio;
   buildInput: (prompt: string, aspectRatio: AspectRatio) => Record<string, unknown>;
-  extract?: (data: unknown) => string | null; // override if output shape differs
+  // When true, adapter can request arbitrary {width, height} — we leverage
+  // this to generate a separate OG source at EXACT 1920×1008 (1.905:1 ≈ 1.91:1)
+  // so the final 1200×630 OG has ZERO crop loss. Without this, OG is cropped
+  // from the 16:9 source (~8% height loss).
+  supportsExactDims?: boolean;
+  // Optional: build input for an OG-specific generation at ~1.91:1. Defaults
+  // to buildInput(prompt, "16:9") which falls back to the current crop path.
+  buildOgInput?: (prompt: string) => Record<string, unknown>;
+  extract?: (data: unknown) => string | null;
 };
 
 // Most fal image models return { images: [{ url }] } — default extractor
@@ -58,6 +66,11 @@ const withWH = (long = 1536) => (prompt: string, ar: AspectRatio) => ({
 // {prompt, image_size: enum} adapter
 const withImageSizeEnum = (prompt: string, ar: AspectRatio) => ({
   prompt, image_size: toImageSizeEnum(ar), num_images: 1,
+});
+
+// OG-specific builder — exact 1920×1008 (1.905:1 ≈ 1.91:1, pixel-perfect for 1200×630)
+const ogAt1920x1008 = (prompt: string) => ({
+  prompt, image_size: { width: 1920, height: 1008 }, num_images: 1,
 });
 
 export const MODELS: ModelAdapter[] = [
@@ -116,13 +129,15 @@ export const MODELS: ModelAdapter[] = [
 
   // ── ByteDance Seedream ────────────────────────────────────────────────
   { id: "seedream-v4", endpoint: "fal-ai/bytedance/seedream/v4/text-to-image",
-    label: "Seedream 4.0 (ByteDance)", price: "$0.03",
-    blurb: "Photoreal + detail — cost-effective",
-    defaultAspect: "16:9", buildInput: withWH(2048) },
+    label: "Seedream 4.0 (ByteDance) ✓", price: "$0.03",
+    blurb: "Photoreal + detail — cost-effective (OG perfect)",
+    defaultAspect: "16:9", buildInput: withWH(2048),
+    supportsExactDims: true, buildOgInput: ogAt1920x1008 },
   { id: "seedream-v5-lite", endpoint: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    label: "Seedream 5.0 Lite (ByteDance)", price: "$0.02",
-    blurb: "Seedream รุ่นใหม่สุด (lite) — เร็ว + ถูก",
-    defaultAspect: "16:9", buildInput: withWH(2048) },
+    label: "Seedream 5.0 Lite (ByteDance) ✓", price: "$0.02",
+    blurb: "Seedream รุ่นใหม่สุด (lite) — เร็ว + ถูก (OG perfect)",
+    defaultAspect: "16:9", buildInput: withWH(2048),
+    supportsExactDims: true, buildOgInput: ogAt1920x1008 },
 
   // ── Ideogram ──────────────────────────────────────────────────────────
   { id: "ideogram-v3", endpoint: "fal-ai/ideogram/v3",
@@ -133,15 +148,19 @@ export const MODELS: ModelAdapter[] = [
 
   // ── Recraft ───────────────────────────────────────────────────────────
   { id: "recraft-v4-pro", endpoint: "fal-ai/recraft/v4/pro/text-to-image",
-    label: "Recraft V4 Pro", price: "$0.08",
-    blurb: "Production-quality, brand systems",
+    label: "Recraft V4 Pro ✓", price: "$0.08",
+    blurb: "Production-quality, brand systems (OG perfect)",
     defaultAspect: "16:9",
-    buildInput: (prompt, ar) => ({ ...withWH(1536)(prompt, ar), style: "realistic_image" }) },
+    buildInput: (prompt, ar) => ({ ...withWH(1536)(prompt, ar), style: "realistic_image" }),
+    supportsExactDims: true,
+    buildOgInput: (prompt) => ({ prompt, image_size: { width: 1920, height: 1008 }, style: "realistic_image" }) },
   { id: "recraft-v3", endpoint: "fal-ai/recraft/v3/text-to-image",
-    label: "Recraft V3", price: "$0.04",
-    blurb: "Production-quality, style consistency",
+    label: "Recraft V3 ✓", price: "$0.04",
+    blurb: "Production-quality, style consistency (OG perfect)",
     defaultAspect: "16:9",
-    buildInput: (prompt, ar) => ({ ...withWH(1536)(prompt, ar), style: "realistic_image" }) },
+    buildInput: (prompt, ar) => ({ ...withWH(1536)(prompt, ar), style: "realistic_image" }),
+    supportsExactDims: true,
+    buildOgInput: (prompt) => ({ prompt, image_size: { width: 1920, height: 1008 }, style: "realistic_image" }) },
 
   // ── Alibaba / Baidu ───────────────────────────────────────────────────
   { id: "qwen-image", endpoint: "fal-ai/qwen-image",
@@ -196,5 +215,18 @@ export async function generateImage(model: ModelAdapter, prompt: string, aspectR
   const extract = model.extract ?? defaultExtract;
   const url = extract(result.data);
   if (!url) throw new Error(`Model ${model.id} returned no image — raw: ${JSON.stringify(result.data).slice(0, 200)}`);
+  return url;
+}
+
+// Generate a SEPARATE OG source image at exact 1.91:1 (1920×1008) when the
+// model supports arbitrary dimensions. Returns null when the model only
+// supports aspect strings — caller should fall back to cropping the cover.
+export async function generateOgImage(model: ModelAdapter, prompt: string): Promise<string | null> {
+  if (!model.supportsExactDims || !model.buildOgInput) return null;
+  const input = model.buildOgInput(prompt);
+  const result = await fal.subscribe(model.endpoint, { input, logs: false });
+  const extract = model.extract ?? defaultExtract;
+  const url = extract(result.data);
+  if (!url) throw new Error(`Model ${model.id} OG pass returned no image`);
   return url;
 }
