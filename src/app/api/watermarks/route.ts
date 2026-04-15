@@ -6,6 +6,45 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
 
 const UPLOADS_DIR = join(process.cwd(), "public", "uploads");
+const BUNNY_STORAGE_KEY = process.env.BUNNY_STORAGE_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE || "siamdive-com";
+const BUNNY_ACCOUNT_KEY = process.env.BUNNY_ACCOUNT_KEY;
+const BUNNY_CDN_HOSTNAME = process.env.BUNNY_CDN_HOSTNAME || "siamdive-cdn.b-cdn.net";
+
+async function saveFile(path: string, buf: Buffer) {
+  if (BUNNY_STORAGE_KEY) {
+    const res = await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${path}`, {
+      method: "PUT",
+      headers: { AccessKey: BUNNY_STORAGE_KEY, "Content-Type": "application/octet-stream" },
+      body: buf,
+    });
+    if (!res.ok) throw new Error(`Bunny upload failed: ${res.status}`);
+    if (BUNNY_ACCOUNT_KEY) {
+      await fetch(`https://api.bunny.net/purge?url=https://${BUNNY_CDN_HOSTNAME}${path}`, {
+        method: "POST",
+        headers: { AccessKey: BUNNY_ACCOUNT_KEY },
+      }).catch(() => {});
+    }
+  } else {
+    const filename = path.split("/").pop()!;
+    await writeFile(join(UPLOADS_DIR, filename), buf);
+  }
+}
+
+async function deleteFile(url: string) {
+  if (!url) return;
+  const cleanUrl = url.split("?")[0];
+  if (BUNNY_STORAGE_KEY) {
+    await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}${cleanUrl}`, {
+      method: "DELETE",
+      headers: { AccessKey: BUNNY_STORAGE_KEY },
+    }).catch(() => {});
+  } else {
+    const filename = cleanUrl.split("/").pop();
+    if (!filename) return;
+    try { await unlink(join(UPLOADS_DIR, filename)); } catch {}
+  }
+}
 
 // GET /api/watermarks — list all watermarks
 export async function GET(req: NextRequest) {
@@ -32,13 +71,14 @@ export async function POST(req: NextRequest) {
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = (file.name.split(".").pop() ?? "png").toLowerCase();
   const filename = `wm-${Date.now()}-${randomBytes(4).toString("hex")}.${ext}`;
-  await writeFile(join(UPLOADS_DIR, filename), buf);
+  const path = `/uploads/${filename}`;
+  await saveFile(path, buf);
 
   const count = await prisma.watermark.count();
   const watermark = await prisma.watermark.create({
     data: {
       name: name || `Watermark ${count + 1}`,
-      url: `/uploads/${filename}`,
+      url: path,
       order: count,
     },
   });
@@ -79,10 +119,7 @@ export async function DELETE(req: NextRequest) {
   if (!wm) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Delete file (best-effort)
-  try {
-    const filename = wm.url.split("/").pop();
-    if (filename) await unlink(join(UPLOADS_DIR, filename));
-  } catch {}
+  await deleteFile(wm.url);
 
   // Clear default if this was the default
   await prisma.siteBranding.updateMany({
