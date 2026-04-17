@@ -26,11 +26,13 @@ const getHomepageData = unstable_cache(
     const boatIds     = [...new Set(rows.flatMap(r => r.items.filter(i => i.refType === "BOAT").map(i => i.refId)))];
     const blogIds     = [...new Set(rows.flatMap(r => r.items.filter(i => i.refType === "BLOG").map(i => i.refId)))];
 
-    // Auto-latest: any BLOG row with autoLatest=true pulls the most recent
-    // PUBLISHED blogs (capped at maxItems ?? 20). Fetched once and shared
-    // across all auto rows so we don't double-query the same data.
+    // Auto pools: any BLOG row with autoLatest or randomMode pulls from the
+    // latest PUBLISHED blogs. randomMode shuffles a pool of up to 50; autoLatest
+    // takes the top N. One fetch shared across all auto rows.
     const hasAutoLatestBlog = rows.some(r => r.itemType === "BLOG" && r.autoLatest);
-    const latestBlogsLimit = Math.max(...rows.filter(r => r.itemType === "BLOG" && r.autoLatest).map(r => r.maxItems ?? 20), 20);
+    const hasRandomBlog     = rows.some(r => r.itemType === "BLOG" && r.randomMode);
+    const autoLatestCap     = Math.max(...rows.filter(r => r.itemType === "BLOG" && r.autoLatest).map(r => r.maxItems ?? 20), 20);
+    const latestBlogsLimit  = hasRandomBlog ? Math.max(autoLatestCap, 50) : autoLatestCap;
 
     const boatInclude = {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
@@ -61,7 +63,7 @@ const getHomepageData = unstable_cache(
           })
         : Promise.resolve([]),
 
-      hasAutoLatestBlog
+      (hasAutoLatestBlog || hasRandomBlog)
         ? prisma.blog.findMany({
             where: { status: "PUBLISHED" },
             orderBy: { createdAt: "desc" },
@@ -100,10 +102,14 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
     const trips: Section["trips"] = [];
     const resolvedBlogs: Section["blogs"] = [];
 
-    // Auto-latest BLOG row: bypass curated items, use the latestBlogs query result
-    if (row.itemType === "BLOG" && row.autoLatest) {
+    // Auto BLOG row: bypass curated items, use the latestBlogs query result.
+    // randomMode wins over autoLatest if both are set — shuffle the pool first.
+    if (row.itemType === "BLOG" && (row.autoLatest || row.randomMode)) {
       const cap = row.maxItems ?? 20;
-      for (const b of latestBlogs.slice(0, cap)) {
+      const pool = row.randomMode
+        ? [...latestBlogs].sort(() => Math.random() - 0.5)
+        : latestBlogs;
+      for (const b of pool.slice(0, cap)) {
         const bt = b.translations.find(t => t.lang === l)
           || b.translations.find(t => t.lang === "en")
           || b.translations[0];

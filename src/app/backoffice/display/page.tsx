@@ -102,6 +102,7 @@ export default function DisplayPage() {
   const [activeLang, setActiveLang]= useState<LangKey>("en");
   const [maxItems,   setMaxItems]  = useState<string>("");
   const [autoLatest, setAutoLatest] = useState<boolean>(false);
+  const [randomMode, setRandomMode] = useState<boolean>(false);
 
   // ── Picker state ──
   const [pickerSource,  setPickerSource]  = useState<SourceValue | "">("");
@@ -223,7 +224,7 @@ export default function DisplayPage() {
 
   const openNew = () => {
     setForm(emptyForm()); setEditId(null);
-    setTransForm(emptyTransForm()); setMaxItems(""); setAutoLatest(false); setActiveLang("en");
+    setTransForm(emptyTransForm()); setMaxItems(""); setAutoLatest(false); setRandomMode(false); setActiveLang("en");
     setSelected([]); setPickerSource(""); setPickerBoat(""); setRowItemType(""); setPanelOpen(true);
   };
 
@@ -232,6 +233,7 @@ export default function DisplayPage() {
     setEditId(row.id); setRowItemType(row.itemType);
     setMaxItems(row.maxItems != null ? String(row.maxItems) : "");
     setAutoLatest((row as any).autoLatest === true);
+    setRandomMode((row as any).randomMode === true);
     setActiveLang("en");
     // load translations
     const tf = emptyTransForm();
@@ -338,6 +340,7 @@ export default function DisplayPage() {
       active: form.active,
       maxItems: parsedMax,
       autoLatest,
+      randomMode,
       translations,
       items: entries.map((e, i) => ({ refId: e.refId, refType: e.refType, order: i })),
     };
@@ -610,19 +613,25 @@ export default function DisplayPage() {
                 </div>
               </div>
 
-              {/* Auto Latest — only meaningful for BLOG rows */}
+              {/* Auto Latest / Random — only meaningful for BLOG rows */}
               {(rowItemType === "BLOG" || pickerSource === "BLOG") && (
                 <div>
                   <label style={lbl}>โหมด Blog</label>
-                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-                    <input type="checkbox" checked={autoLatest} onChange={e => setAutoLatest(e.target.checked)} style={{ accentColor:"#3b82f6", width:15, height:15 }} />
+                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
+                    <input type="checkbox" checked={autoLatest} onChange={e => { setAutoLatest(e.target.checked); if (e.target.checked) setRandomMode(false); }} style={{ accentColor:"#3b82f6", width:15, height:15 }} />
                     <span style={{ fontSize:13, color: autoLatest ? "#3b82f6" : "#555" }}>
                       ดึง blog ล่าสุดอัตโนมัติ {autoLatest && `(${maxItems || "20"} ตัวล่าสุด ที่ PUBLISHED)`}
                     </span>
                   </label>
-                  {autoLatest && (
+                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+                    <input type="checkbox" checked={randomMode} onChange={e => { setRandomMode(e.target.checked); if (e.target.checked) setAutoLatest(false); }} style={{ accentColor:"#a855f7", width:15, height:15 }} />
+                    <span style={{ fontSize:13, color: randomMode ? "#a855f7" : "#555" }}>
+                      สุ่มจาก blog 50 ล่าสุด {randomMode && `(แสดง ${maxItems || "20"} ตัว, สุ่มใหม่ทุกครั้งที่โหลด)`}
+                    </span>
+                  </label>
+                  {(autoLatest || randomMode) && (
                     <p style={{ fontSize:11, color:"#444", marginTop:6, lineHeight:1.4 }}>
-                      ⚡ จะ ignore รายการ blog ที่เลือกด้านบน — ใช้ blog ล่าสุดที่ publish เสมอ. ปล่อย maxItems ว่างจะใช้ default 20 ตัว
+                      ⚡ จะ ignore รายการ blog ที่เลือกด้านบน — ใช้ pool ที่ publish เสมอ. ปล่อย maxItems ว่างจะใช้ default 20 ตัว
                     </p>
                   )}
                 </div>

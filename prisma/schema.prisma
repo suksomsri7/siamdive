@@ -447,6 +447,10 @@ model DisplayRow {
   // PUBLISHED blogs (capped at maxItems ?? 20). Useful for "latest articles" rows
   // that auto-update without admin intervention.
   autoLatest   Boolean                  @default(false)
+  // When true (BLOG rows only): shuffle a random selection of PUBLISHED blogs
+  // from the newest 50 pool, capped at maxItems ?? 20. Reshuffles on every page
+  // load. If both autoLatest and randomMode are true, randomMode wins.
+  randomMode   Boolean                  @default(false)
   items        DisplayRowItem[]
   translations DisplayRowTranslation[]
   createdAt    DateTime                 @default(now())
