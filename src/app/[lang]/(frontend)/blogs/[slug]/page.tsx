@@ -15,6 +15,8 @@ const BOAT_TYPE_SEGMENT: Record<string, string> = {
   FREEDIVE: "freedive",
   SCUBA_COURSES: "scuba-courses",
   FREEDIVE_COURSES: "freedive-courses",
+  SCUBA_INSTRUCTOR: "scuba-instructor",
+  FREEDIVE_INSTRUCTOR: "freedive-instructor",
 };
 
 export default async function BlogDetailPage({

@@ -9,7 +9,7 @@ export const revalidate = 3600;
 const BASE = "https://siamdive.com";
 const LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"] as const;
 const TRIP_SEGMENTS = ["daytrip", "snorkeling", "land-tour", "liveaboard", "dive-resort", "freedive"];
-const COURSE_TYPES = ["scuba", "freedive"];
+const COURSE_TYPES = ["scuba", "freedive", "scuba-instructor", "freedive-instructor"];
 
 function staticAlternates(path: string): Record<string, string> {
   return Object.fromEntries(LANGS.map((l) => [l, `${BASE}/${l}${path}`]));

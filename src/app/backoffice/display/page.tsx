@@ -33,6 +33,8 @@ const SOURCES = [
   { value: "FREEDIVE",         label: "Freedive Trips",     icon: "🫧",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ/ทัวร์"  },
   { value: "SCUBA_COURSES",    label: "Scuba Courses",      icon: "🎓",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "FREEDIVE_COURSES", label: "Freedive Courses",   icon: "🫁",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
+  { value: "SCUBA_INSTRUCTOR", label: "Scuba Dive Instructor", icon: "🎖",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
+  { value: "FREEDIVE_INSTRUCTOR", label: "Freedive Instructor", icon: "🏅",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "BLOG",             label: "Blog",               icon: "📝",  itemRefType: "BLOG"     as const, boatLabel: ""            },
 ] as const;
 type SourceValue = typeof SOURCES[number]["value"];

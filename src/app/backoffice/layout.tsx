@@ -20,6 +20,8 @@ const NAV = [
       { label: "Freedive Trips", href: "/backoffice/trips/freedive", icon: "🫧" },
       { label: "Scuba Courses", href: "/backoffice/courses", icon: "🎓" },
       { label: "Freedive Courses", href: "/backoffice/freedive-courses", icon: "🫁" },
+      { label: "Scuba Dive Instructor", href: "/backoffice/scuba-instructor", icon: "🎖" },
+      { label: "Freedive Instructor", href: "/backoffice/freedive-instructor", icon: "🏅" },
       { label: "Blog / Articles", href: "/backoffice/blogs", icon: "📝" },
     ],
   },

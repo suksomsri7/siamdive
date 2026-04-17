@@ -19,6 +19,8 @@ export const BOAT_TYPE_PERM: Record<string, string> = {
   FREEDIVE: "freedive",
   SCUBA_COURSES: "scuba-courses",
   FREEDIVE_COURSES: "freedive-courses",
+  SCUBA_INSTRUCTOR: "scuba-instructor",
+  FREEDIVE_INSTRUCTOR: "freedive-instructor",
 };
 
 export function hasPermission(perms: string[], required: string): boolean {

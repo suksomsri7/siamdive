@@ -49,7 +49,7 @@ tools:
     params:
       type:
         type: string
-        enum: [DAYTRIP, SNORKELING, LAND_TOUR, LIVEABOARD, DIVE_RESORT, FREEDIVE, SCUBA_COURSES, FREEDIVE_COURSES]
+        enum: [DAYTRIP, SNORKELING, LAND_TOUR, LIVEABOARD, DIVE_RESORT, FREEDIVE, SCUBA_COURSES, FREEDIVE_COURSES, SCUBA_INSTRUCTOR, FREEDIVE_INSTRUCTOR]
         description: Filter by boat type
       companyId:
         type: string
@@ -68,7 +68,7 @@ tools:
     path: /boats
     body:
       name: string          # internal name
-      type: string          # DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES
+      type: string          # DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | SCUBA_INSTRUCTOR | FREEDIVE_INSTRUCTOR
       companyId: string?
       capacity: number?
       photos: string[]      # boat photos
@@ -517,7 +517,7 @@ tools:
     body:
       topic: string         # internal name
       layout: string        # FULL | VERTICAL | HORIZONTAL
-      itemType: string      # DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | BLOG
+      itemType: string      # DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | SCUBA_INSTRUCTOR | FREEDIVE_INSTRUCTOR | BLOG
       active: boolean
       order: number?
       maxItems: number?     # null = show all

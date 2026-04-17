@@ -273,6 +273,8 @@ const BOAT_TYPE_LABEL: Record<string, string> = {
   FREEDIVE: "Freedive",
   SCUBA_COURSES: "Scuba Courses",
   FREEDIVE_COURSES: "Freedive Courses",
+  SCUBA_INSTRUCTOR: "Scuba Dive Instructor",
+  FREEDIVE_INSTRUCTOR: "Freedive Instructor",
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 

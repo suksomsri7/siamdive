@@ -60,7 +60,7 @@ https://siamdive.com/api
 List boats. Filter by type or company.
 
 **Query params:**
-- `type` — `DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES`
+- `type` — `DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | SCUBA_INSTRUCTOR | FREEDIVE_INSTRUCTOR`
 - `companyId` — filter by company ID
 
 **Permission:** `<tripType>.read`
@@ -507,7 +507,7 @@ All homepage display rows with items and translations.
 ```
 
 `layout`: `FULL | VERTICAL | HORIZONTAL`  
-`itemType`: `DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | BLOG`  
+`itemType`: `DAYTRIP | SNORKELING | LAND_TOUR | LIVEABOARD | DIVE_RESORT | FREEDIVE | SCUBA_COURSES | FREEDIVE_COURSES | SCUBA_INSTRUCTOR | FREEDIVE_INSTRUCTOR | BLOG`  
 `refType`: `SCHEDULE | PACKAGE | BLOG`
 
 ### PUT /display-rows/{id}

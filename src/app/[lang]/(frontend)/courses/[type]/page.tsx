@@ -3,13 +3,17 @@ import { notFound } from "next/navigation";
 import TripListClient, { type TripListItem } from "@/components/TripListClient";
 
 const TYPE_MAP: Record<string, string> = {
-  "scuba":    "SCUBA_COURSES",
-  "freedive": "FREEDIVE_COURSES",
+  "scuba":              "SCUBA_COURSES",
+  "freedive":           "FREEDIVE_COURSES",
+  "scuba-instructor":   "SCUBA_INSTRUCTOR",
+  "freedive-instructor":"FREEDIVE_INSTRUCTOR",
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  "scuba":    "Scuba Diving Courses",
-  "freedive": "Freedive Courses",
+  "scuba":              "Scuba Diving Courses",
+  "freedive":           "Freedive Courses",
+  "scuba-instructor":   "Scuba Dive Instructor",
+  "freedive-instructor":"Freedive Instructor",
 };
 
 export default async function CoursesTypePage({

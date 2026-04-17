@@ -8,6 +8,7 @@ const BOAT_TYPE_LABEL: Record<string, string> = {
   DAYTRIP: "Scuba Day Trips", SNORKELING: "Snorkeling", LAND_TOUR: "Land Tour",
   LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive",
   SCUBA_COURSES: "Scuba Courses", FREEDIVE_COURSES: "Freedive Courses",
+  SCUBA_INSTRUCTOR: "Scuba Dive Instructor", FREEDIVE_INSTRUCTOR: "Freedive Instructor",
 };
 
 type TripCardProps = {
