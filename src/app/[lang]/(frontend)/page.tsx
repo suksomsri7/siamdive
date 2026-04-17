@@ -125,7 +125,13 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       return { id: row.id, layout: row.layout, title, subtitle, trips, blogs: resolvedBlogs };
     }
 
-    for (const item of row.items.slice(0, limit)) {
+    // Non-BLOG row with randomMode: shuffle the curated items on every page load,
+    // then slice maxItems. User controls the pool via backoffice; we randomise order.
+    const itemsForRow = row.randomMode && row.itemType !== "BLOG"
+      ? [...row.items].sort(() => Math.random() - 0.5)
+      : row.items;
+
+    for (const item of itemsForRow.slice(0, limit)) {
       if (item.refType === "SCHEDULE") {
         const s = schedMap.get(item.refId);
         if (!s) continue;

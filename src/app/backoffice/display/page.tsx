@@ -613,29 +613,35 @@ export default function DisplayPage() {
                 </div>
               </div>
 
-              {/* Auto Latest / Random — only meaningful for BLOG rows */}
-              {(rowItemType === "BLOG" || pickerSource === "BLOG") && (
-                <div>
-                  <label style={lbl}>โหมด Blog</label>
+              {/* Auto modes — autoLatest only for BLOG, randomMode for any itemType */}
+              <div>
+                <label style={lbl}>โหมดอัตโนมัติ</label>
+                {(rowItemType === "BLOG" || pickerSource === "BLOG") && (
                   <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
                     <input type="checkbox" checked={autoLatest} onChange={e => { setAutoLatest(e.target.checked); if (e.target.checked) setRandomMode(false); }} style={{ accentColor:"#3b82f6", width:15, height:15 }} />
                     <span style={{ fontSize:13, color: autoLatest ? "#3b82f6" : "#555" }}>
                       ดึง blog ล่าสุดอัตโนมัติ {autoLatest && `(${maxItems || "20"} ตัวล่าสุด ที่ PUBLISHED)`}
                     </span>
                   </label>
-                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-                    <input type="checkbox" checked={randomMode} onChange={e => { setRandomMode(e.target.checked); if (e.target.checked) setAutoLatest(false); }} style={{ accentColor:"#a855f7", width:15, height:15 }} />
-                    <span style={{ fontSize:13, color: randomMode ? "#a855f7" : "#555" }}>
-                      สุ่มจาก blog 50 ล่าสุด {randomMode && `(แสดง ${maxItems || "20"} ตัว, สุ่มใหม่ทุกครั้งที่โหลด)`}
-                    </span>
-                  </label>
-                  {(autoLatest || randomMode) && (
-                    <p style={{ fontSize:11, color:"#444", marginTop:6, lineHeight:1.4 }}>
-                      ⚡ จะ ignore รายการ blog ที่เลือกด้านบน — ใช้ pool ที่ publish เสมอ. ปล่อย maxItems ว่างจะใช้ default 20 ตัว
-                    </p>
-                  )}
-                </div>
-              )}
+                )}
+                <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+                  <input type="checkbox" checked={randomMode} onChange={e => { setRandomMode(e.target.checked); if (e.target.checked) setAutoLatest(false); }} style={{ accentColor:"#a855f7", width:15, height:15 }} />
+                  <span style={{ fontSize:13, color: randomMode ? "#a855f7" : "#555" }}>
+                    {rowItemType === "BLOG" || pickerSource === "BLOG"
+                      ? `สุ่มจาก blog 50 ล่าสุด ${randomMode ? `(แสดง ${maxItems || "20"} ตัว, สุ่มใหม่ทุกครั้งที่โหลด)` : ""}`
+                      : `สุ่มลำดับ items ที่เลือก ${randomMode ? `(แสดง ${maxItems || "ทั้งหมด"} ตัวแบบสุ่มใหม่ทุกครั้งที่โหลด)` : ""}`}
+                  </span>
+                </label>
+                {(autoLatest || randomMode) && (
+                  <p style={{ fontSize:11, color:"#444", marginTop:6, lineHeight:1.4 }}>
+                    {autoLatest
+                      ? "⚡ ใช้ blog ล่าสุดที่ publish เสมอ — ignore รายการที่เลือกด้านบน"
+                      : rowItemType === "BLOG" || pickerSource === "BLOG"
+                        ? "🎲 สุ่มจาก pool 50 ล่าสุด — ignore รายการที่เลือกด้านบน"
+                        : "🎲 สุ่มลำดับจาก items ที่คุณเลือกด้านบน — ทุกครั้งที่เปิดเว็บจะสลับใหม่"}
+                  </p>
+                )}
+              </div>
 
               {/* Active */}
               <div>
