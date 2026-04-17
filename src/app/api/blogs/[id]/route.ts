@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
+import { normalizeStatus, canTransition, transitionError } from "@/lib/blogStatus";
 
 // GET /api/blogs/[id]
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,11 +26,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
 
-  const exists = await prisma.blog.findUnique({ where: { id }, select: { id: true } });
+  const exists = await prisma.blog.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
   const { status, covers, imageIds, videos, translations, mjPrompt } = body;
+
+  // Resolve target status through transition validator. If no status is
+  // provided, keep the current one.
+  const requestedStatus = normalizeStatus(status);
+  const nextStatus = requestedStatus ?? exists.status;
+  if (requestedStatus && !canTransition(exists.status, requestedStatus)) {
+    return NextResponse.json(
+      { error: transitionError(exists.status, requestedStatus) },
+      { status: 400 },
+    );
+  }
 
   const valid = (translations as { lang: string; title: string; slug?: string; excerpt?: string; content?: string; keywords?: string[]; ogTitle?: string; ogDescription?: string; ogImage?: string }[] ?? [])
     .filter((t) => t.lang && t.title?.trim());
@@ -43,7 +55,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const blog = await prisma.blog.update({
     where: { id },
     data: {
-      status: status?.toUpperCase() === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
+      status: nextStatus,
       covers: covers ?? [],
       ...(imageIds !== undefined && { imageIds }),
       ...(mjPrompt !== undefined && { mjPrompt }),
@@ -80,19 +92,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
 
-  const blog = await prisma.blog.findUnique({ where: { id }, select: { id: true } });
+  const blog = await prisma.blog.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!blog) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { mjPrompt } = body;
+  const { mjPrompt, status, covers, imageIds } = body;
   const translations = body.translations as { lang: string; title: string; slug?: string; excerpt?: string; content?: string; keywords?: string[]; ogTitle?: string; ogDescription?: string; ogImage?: string }[] ?? [];
 
   const valid = translations.filter((t) => t.lang && t.title?.trim());
-  if (valid.length === 0 && mjPrompt === undefined) return NextResponse.json({ error: "No valid translations or mjPrompt provided" }, { status: 400 });
+  const requestedStatus = normalizeStatus(status);
+  const hasUpdate =
+    valid.length > 0 ||
+    mjPrompt !== undefined ||
+    requestedStatus !== null ||
+    covers !== undefined ||
+    imageIds !== undefined;
+  if (!hasUpdate) {
+    return NextResponse.json({ error: "No valid translations, mjPrompt, status, covers, or imageIds provided" }, { status: 400 });
+  }
 
-  // Update mjPrompt if provided
-  if (mjPrompt !== undefined) {
-    await prisma.blog.update({ where: { id }, data: { mjPrompt } });
+  // Validate status transition before any writes
+  if (requestedStatus && !canTransition(blog.status, requestedStatus)) {
+    return NextResponse.json(
+      { error: transitionError(blog.status, requestedStatus) },
+      { status: 400 },
+    );
+  }
+
+  // Update blog-level fields (mjPrompt, status, covers, imageIds) in a single call
+  const blogUpdates: Record<string, unknown> = {};
+  if (mjPrompt !== undefined) blogUpdates.mjPrompt = mjPrompt;
+  if (requestedStatus) blogUpdates.status = requestedStatus;
+  if (covers !== undefined) blogUpdates.covers = covers;
+  if (imageIds !== undefined) blogUpdates.imageIds = imageIds;
+  if (Object.keys(blogUpdates).length > 0) {
+    await prisma.blog.update({ where: { id }, data: blogUpdates });
   }
 
   // Resolve EN slug: from incoming translations, or from existing DB record

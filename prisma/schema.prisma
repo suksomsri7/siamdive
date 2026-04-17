@@ -503,11 +503,74 @@ model ApiKey {
   updatedAt   DateTime  @updatedAt
 }
 
+// ── BlogTopic ─────────────────────────────────────────────────────────────────
+// Topic backlog that feeds the blog generator cron. Each topic is consumed
+// once — the generator picks the oldest unused topic in the rotated category,
+// marks it used, and links the resulting blog id for audit.
+
+model BlogTopic {
+  id        String    @id @default(cuid())
+  category  BlogCategory
+  title     String // short angle/hook, not the final blog title
+  keywords  String[]  @default([])
+  note      String    @default("") // optional hint for the writer
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  blogId    String?   // set after a blog is generated from this topic
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([category, used, order])
+}
+
+// ── CronState ─────────────────────────────────────────────────────────────────
+// Singleton row (id = "default") storing global flags for scheduled work:
+// kill switches, last-run timestamps, rotation counters.
+
+model CronState {
+  id                  String   @id @default("default")
+  autoPublishEnabled  Boolean  @default(false)
+  generatorEnabled    Boolean  @default(true)
+  lastGeneratedAt     DateTime?
+  lastPublishedAt     DateTime?
+  categoryRotationIdx Int      @default(0) // rotates 0..5 each generator run
+  publishedToday      Int      @default(0)
+  publishedDate       String   @default("") // YYYY-MM-DD in BKK tz
+  updatedAt           DateTime @updatedAt
+}
+
+// ── CronAuditLog ──────────────────────────────────────────────────────────────
+// Per-event trail for generator + publisher actions. Useful for debugging and
+// for answering "why did this blog publish at 03:00".
+
+model CronAuditLog {
+  id        String   @id @default(cuid())
+  event     String   // generator.started | generator.picked | generator.completed | publisher.picked | publisher.skipped | publisher.published
+  blogId    String?
+  topicId   String?
+  category  String?
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([blogId])
+}
+
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum BlogStatus {
   DRAFT
+  APPROVED
   PUBLISHED
+}
+
+enum BlogCategory {
+  INSPIRATION
+  LIFESTYLE
+  GEAR
+  GUIDE
+  SAFETY
+  EDUCATION
 }
 
 enum ActiveStatus {

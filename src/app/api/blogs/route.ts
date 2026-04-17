@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
+import { normalizeStatus } from "@/lib/blogStatus";
 
 // GET /api/blogs — list all blogs with translations
 export async function GET(req: NextRequest) {
@@ -29,9 +30,19 @@ export async function POST(req: NextRequest) {
   const enEntry = valid.find((t) => t.lang === "en");
   const enSlug = enEntry?.slug?.trim() || slugify(enEntry?.title ?? "");
 
+  // Creation always starts in DRAFT — cannot create blogs in APPROVED or PUBLISHED
+  // state. Content must always flow DRAFT → APPROVED → PUBLISHED.
+  const requestedStatus = normalizeStatus(status);
+  if (requestedStatus && requestedStatus !== "DRAFT") {
+    return NextResponse.json(
+      { error: "New blogs must be created in DRAFT status" },
+      { status: 400 },
+    );
+  }
+
   const blog = await prisma.blog.create({
     data: {
-      status: status?.toUpperCase() === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
+      status: "DRAFT",
       covers: covers ?? [],
       imageIds: imageIds ?? [],
       mjPrompt: mjPrompt ?? "",

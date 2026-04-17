@@ -5,7 +5,13 @@ import ImageEditorField from "@/components/PhotoEditor/ImageEditorField";
 import PhotoEditorComp from "@/components/PhotoEditor";
 import { buildMjPrompt } from "@/lib/mjPrompt";
 
-const STATUSES = ["ทั้งหมด", "PUBLISHED", "DRAFT"];
+const STATUSES = ["ทั้งหมด", "DRAFT", "APPROVED", "PUBLISHED"];
+const STATUS_LABEL: Record<string, string> = {
+  ทั้งหมด: "ทั้งหมด",
+  DRAFT: "Draft",
+  APPROVED: "Approved",
+  PUBLISHED: "เผยแพร่",
+};
 const LANGS_ALL = ["ทั้งหมด", "en", "th", "cn", "de", "fr", "ru", "ko", "ja"];
 
 type LangKey = "en" | "th" | "cn" | "de" | "fr" | "ru" | "ko" | "ja";
@@ -17,8 +23,10 @@ const LANG_LABELS: Record<LangKey, string> = {
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Translation = { lang: string; title: string; slug: string; excerpt: string; content: string; keywords: string[]; ogTitle: string; ogDescription: string; ogImage: string };
 type VideoItem = { url: string; name: string };
+type BlogStatusUpper = "DRAFT" | "APPROVED" | "PUBLISHED";
+type BlogStatusLower = "draft" | "approved" | "published";
 type BlogRow = {
-  id: string; status: "DRAFT" | "PUBLISHED"; covers: string[]; imageIds?: string[]; mjPrompt?: string;
+  id: string; status: BlogStatusUpper; covers: string[]; imageIds?: string[]; mjPrompt?: string;
   translations: Translation[]; videos: VideoItem[];
   createdAt: string; updatedAt: string;
 };
@@ -27,7 +35,7 @@ const EMPTY_LANG = { title: "", slug: "", excerpt: "", content: "", keywords: []
 
 type LangData = typeof EMPTY_LANG;
 type FormState = {
-  status: "draft" | "published"; covers: string[]; imageIds: string[]; videos: VideoItem[]; mjPrompt: string;
+  status: BlogStatusLower; covers: string[]; imageIds: string[]; videos: VideoItem[]; mjPrompt: string;
 } & Record<LangKey, LangData>;
 
 const EMPTY_FORM: FormState = {
@@ -485,15 +493,18 @@ export default function BlogsPage() {
     // Mark langs whose slug differs from EN as overridden
     const overrides = new Set(ALL_LANGS.filter((l) => l !== "en" && langs[l].slug && langs[l].slug !== enSlug));
     setSlugOverrides(overrides);
-    setForm({ status: b.status === "PUBLISHED" ? "published" : "draft", covers: b.covers, imageIds: b.imageIds ?? [], videos: b.videos, mjPrompt: b.mjPrompt ?? "", ...langs });
+    const statusLower = b.status.toLowerCase() as BlogStatusLower;
+    setForm({ status: statusLower, covers: b.covers, imageIds: b.imageIds ?? [], videos: b.videos, mjPrompt: b.mjPrompt ?? "", ...langs });
     setEditId(b.id); setActiveLang("en"); setPanelOpen(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      // New blogs must be created in DRAFT — the API enforces this too.
+      const submitStatus = editId ? form.status : "draft";
       const body = {
-        status: form.status,
+        status: submitStatus,
         covers: form.covers,
         imageIds: form.imageIds,
         videos: form.videos,
@@ -545,7 +556,7 @@ export default function BlogsPage() {
           {STATUSES.map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               style={{ fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: statusFilter === s ? "#3b82f6" : "#181818", color: statusFilter === s ? "#fff" : "#444" }}>
-              {s === "PUBLISHED" ? "เผยแพร่" : s === "DRAFT" ? "Draft" : "ทั้งหมด"}
+              {STATUS_LABEL[s] ?? s}
             </button>
           ))}
           <span style={{ fontSize: 11, color: "#2a2a2a", marginLeft: 6, marginRight: 2 }}>ภาษา:</span>
@@ -583,9 +594,19 @@ export default function BlogsPage() {
                   ))}
                 </div>
                 <span>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: b.status === "PUBLISHED" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: b.status === "PUBLISHED" ? "#10b981" : "#f59e0b" }}>
-                    {b.status === "PUBLISHED" ? "Live" : "Draft"}
-                  </span>
+                  {(() => {
+                    const styleByStatus: Record<BlogStatusUpper, { bg: string; color: string; label: string }> = {
+                      DRAFT: { bg: "rgba(245,158,11,0.1)", color: "#f59e0b", label: "Draft" },
+                      APPROVED: { bg: "rgba(59,130,246,0.12)", color: "#60a5fa", label: "Approved" },
+                      PUBLISHED: { bg: "rgba(16,185,129,0.1)", color: "#10b981", label: "Live" },
+                    };
+                    const s = styleByStatus[b.status];
+                    return (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: s.bg, color: s.color }}>
+                        {s.label}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                   <button onClick={() => openEdit(b)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#666", cursor: "pointer" }}>แก้ไข</button>
@@ -612,15 +633,39 @@ export default function BlogsPage() {
           <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 22 }}>
 
             {/* Status */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <label style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>สถานะ</label>
-              {(["draft", "published"] as const).map((s) => (
-                <button key={s} onClick={() => setForm((f) => ({ ...f, status: s }))}
-                  style={{ fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 20, border: "none", cursor: "pointer", background: form.status === s ? (s === "published" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.12)") : "#161616", color: form.status === s ? (s === "published" ? "#10b981" : "#f59e0b") : "#333" }}>
-                  {s === "published" ? "เผยแพร่" : "Draft"}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const statusStyles: Record<BlogStatusLower, { activeBg: string; activeColor: string; label: string }> = {
+                draft: { activeBg: "rgba(245,158,11,0.12)", activeColor: "#f59e0b", label: "Draft" },
+                approved: { activeBg: "rgba(59,130,246,0.15)", activeColor: "#60a5fa", label: "Approved" },
+                published: { activeBg: "rgba(16,185,129,0.15)", activeColor: "#10b981", label: "เผยแพร่" },
+              };
+              // DRAFT→PUBLISHED must pass through APPROVED. Disable the direct
+              // jump when we're looking at a draft.
+              const canClick = (target: BlogStatusLower): boolean => {
+                if (form.status === "published") return false; // PUBLISHED is terminal
+                if (form.status === "draft" && target === "published") return false;
+                return true;
+              };
+              return (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <label style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>สถานะ</label>
+                  {(["draft", "approved", "published"] as const).map((s) => {
+                    const st = statusStyles[s];
+                    const active = form.status === s;
+                    const enabled = canClick(s);
+                    return (
+                      <button key={s}
+                        disabled={!enabled}
+                        onClick={() => enabled && setForm((f) => ({ ...f, status: s }))}
+                        title={!enabled && s === "published" && form.status === "draft" ? "ต้อง Approve ก่อนถึงจะ Publish ได้" : undefined}
+                        style={{ fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 20, border: "none", cursor: enabled ? "pointer" : "not-allowed", background: active ? st.activeBg : "#161616", color: active ? st.activeColor : enabled ? "#333" : "#222", opacity: enabled ? 1 : 0.5 }}>
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Midjourney Prompt */}
             <MidjourneyPrompt title={form.en.title} excerpt={form.en.excerpt} savedPrompt={form.mjPrompt}
