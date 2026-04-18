@@ -328,7 +328,7 @@ export default function SearchFab() {
                                   </span>
                                   {!p.isFull && (
                                     <button onClick={() => openResult(r)} title="Info"
-                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
                                         <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                                       </svg>
@@ -342,9 +342,11 @@ export default function SearchFab() {
                                       ฿{p.minPrice.toLocaleString()}
                                     </button>
                                   ) : (
-                                    <button onClick={() => setContactFor(p.id)}
-                                      style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
-                                      Contact
+                                    <button onClick={() => setContactFor(p.id)} title="Booking"
+                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                                      </svg>
                                     </button>
                                   )}
                                 </div>
@@ -411,16 +413,11 @@ function LiveaboardResults({
                   <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{boat.title}</p>
                   <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{schedules.length} รอบในเดือนนี้</p>
                 </div>
-                {boatMin > 0 ? (
+                {boatMin > 0 && (
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
                     <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa" }}>฿{boatMin.toLocaleString()}</p>
                   </div>
-                ) : (
-                  <button onClick={() => onContact(boat.id)}
-                    style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", flexShrink: 0 }}>
-                    Contact
-                  </button>
                 )}
               </div>
 
@@ -436,7 +433,7 @@ function LiveaboardResults({
                         📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
                       </span>
                       <button onClick={() => openResult(s)} title="Info"
-                        style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                        style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
                           <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                         </svg>
@@ -447,9 +444,11 @@ function LiveaboardResults({
                           ฿{schedMin.toLocaleString()}
                         </button>
                       ) : (
-                        <button onClick={() => onContact(s.scheduleId)}
-                          style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
-                          Contact
+                        <button onClick={() => onContact(s.scheduleId)} title="Booking"
+                          style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                          </svg>
                         </button>
                       )}
                     </div>
