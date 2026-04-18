@@ -910,9 +910,9 @@ export function ScheduleSheet({ trip, onClose }: { trip: Trip; onClose: () => vo
             style={{ background: "#1a1a1a", border: "1px solid #262626", borderRadius: 8, color: "#f5f5f5", fontSize: 13, padding: "6px 12px", outline: "none", colorScheme: "dark" }} />
           <div style={{ flex: 1 }} />
           <button onClick={() => setShareFor("trip")}
-            style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa", width: 32, height: 32, borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             aria-label="Share">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={15} height={15}>
               <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
               <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
             </svg>
@@ -952,9 +952,9 @@ export function ScheduleSheet({ trip, onClose }: { trip: Trip; onClose: () => vo
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <button onClick={() => setShareFor(s.id)}
-                          style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid #262626", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                          style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                           aria-label="Share this date">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={15} height={15}>
                             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                           </svg>
