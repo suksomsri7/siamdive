@@ -420,6 +420,7 @@ export function InfoModal({ trip, lang = "en", onClose }: { trip: Trip; lang?: s
   const [expandedPkg, setExpandedPkg] = useState<string | null>(null);
   const [showVideos, setShowVideos]   = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
+  const [showShare,   setShowShare]   = useState(false);
 
   // Lock body scroll while InfoModal is open
   useEffect(() => {
@@ -482,6 +483,25 @@ export function InfoModal({ trip, lang = "en", onClose }: { trip: Trip; lang?: s
         ←
       </button>
     </div>
+
+    {/* Fixed share button — mirror of back at top-right */}
+    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 1032 }}>
+      <button onClick={() => setShowShare(true)} aria-label="Share"
+        style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={17} height={17}>
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
+    </div>
+
+    {showShare && (
+      <ShareMenu
+        url={typeof window !== "undefined" ? `${window.location.origin}/${lang}/trips/${trip.slug}` : `/${lang}/trips/${trip.slug}`}
+        title={trip.title}
+        onClose={() => setShowShare(false)}
+      />
+    )}
 
     <div style={{ position: "fixed", inset: 0, zIndex: 1030, background: "#0d0d0d", color: "#e5e5e5", overflowY: "auto", animation: "infoSlideUp 0.55s cubic-bezier(0.22,1,0.36,1) both" }}>
       <style>{`
