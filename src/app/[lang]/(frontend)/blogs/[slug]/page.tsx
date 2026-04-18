@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
+import BlogReadTracker from "@/components/analytics/BlogReadTracker";
 
 // Map boat type → frontend trip listing segment
 const BOAT_TYPE_SEGMENT: Record<string, string> = {
@@ -117,6 +118,7 @@ export default async function BlogDetailPage({
 
   return (
     <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
+      <BlogReadTracker blogId={blog.id} lang={lang} />
       {/* Hero */}
       {blog.covers[0] && (
         <div style={{ position: "relative", height: "50vh", minHeight: 280 }}>

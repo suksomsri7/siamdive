@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { trackBookingIntent, type BookingChannel } from "@/lib/analytics/client";
 
-const CONTACTS = [
+type Contact = {
+  label: string;
+  channel: BookingChannel;
+  href: string;
+  icon: React.ReactNode;
+  bg: string;
+};
+
+const CONTACTS: Contact[] = [
   {
     label: "Line OA",
+    channel: "line",
     href: "https://lin.ee/wayWuGH",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width={22} height={22}>
@@ -15,6 +25,7 @@ const CONTACTS = [
   },
   {
     label: "WhatsApp",
+    channel: "whatsapp",
     href: "https://wa.me/66",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width={22} height={22}>
@@ -25,6 +36,7 @@ const CONTACTS = [
   },
   {
     label: "Messenger",
+    channel: "messenger",
     href: "https://m.me/siamdive",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width={22} height={22}>
@@ -35,6 +47,7 @@ const CONTACTS = [
   },
   {
     label: "WeChat",
+    channel: "wechat",
     href: "weixin://",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" width={22} height={22}>
@@ -68,6 +81,7 @@ export default function ContactBubble() {
             target="_blank"
             rel="noopener noreferrer"
             title={c.label}
+            onClick={() => trackBookingIntent(c.channel)}
             style={{
               width: 44,
               height: 44,

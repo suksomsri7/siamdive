@@ -7,6 +7,7 @@ import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroSlider from "./HeroSlider";
+import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 
 export type Section = {
   id:       string;
@@ -86,8 +87,9 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   )}
                 </div>
                 <div className="flex gap-3 overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4 pb-2">
-                  {section.blogs.map(b => (
+                  {section.blogs.map((b, idx) => (
                     <Link key={b.id} href={`/${lang}/blogs/${b.slug}`}
+                      onClick={() => trackRowClick(section.id, "BLOG", b.id, idx + 1)}
                       className="group flex-shrink-0 overflow-hidden transition-transform hover:scale-[1.04]"
                       style={{ width: "clamp(240px, 28vw, 340px)", background: "#1a1a1a", borderRadius: 12, textDecoration: "none" }}>
                       <div style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden" }}>
@@ -133,7 +135,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
               </div>
               <div className="flex gap-2 overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4"
                 style={{ overflowY: "visible", paddingBottom: 8, paddingTop: 4 }}>
-                {section.trips.map(trip => (
+                {section.trips.map((trip, idx) => (
                   <TripCard
                     key={trip.id}
                     slug={trip.slug}
@@ -147,15 +149,20 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     boatType={trip.boatType}
                     description={trip.description}
                     variant={cardVariant}
-                    onClick={() => setSelected({
-                      slug: trip.slug, title: trip.title, description: trip.description,
-                      price: trip.price, duration: trip.duration, type: trip.type,
-                      destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
-                    })}
+                    onClick={() => {
+                      trackRowClick(section.id, "TRIP", trip.id, idx + 1);
+                      if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
+                      setSelected({
+                        slug: trip.slug, title: trip.title, description: trip.description,
+                        price: trip.price, duration: trip.duration, type: trip.type,
+                        destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
+                      });
+                    }}
                   />
                 ))}
-                {section.blogs.map(b => (
+                {section.blogs.map((b, idx) => (
                   <Link key={b.id} href={`/${lang}/blogs/${b.slug}`}
+                    onClick={() => trackRowClick(section.id, "BLOG", b.id, idx + 1)}
                     className="group flex-shrink-0 overflow-hidden transition-transform hover:scale-[1.04]"
                     style={{ width: "clamp(200px, 22vw, 280px)", background: "#1a1a1a", borderRadius: 12, textDecoration: "none" }}>
                     <div style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden" }}>

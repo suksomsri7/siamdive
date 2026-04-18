@@ -18,6 +18,7 @@ const QUICK_LINKS = [
   { label: "Add Blog Post", href: "/backoffice/blogs/new", icon: "+" },
   { label: "Manage Display", href: "/backoffice/display", icon: "🖥" },
   { label: "Media Library", href: "/backoffice/media", icon: "🖼" },
+  { label: "Analytics", href: "/backoffice/analytics", icon: "📊" },
 ];
 
 function fmtRel(d: Date | null | undefined): string {

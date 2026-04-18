@@ -560,6 +560,162 @@ model CronAuditLog {
   @@index([blogId])
 }
 
+// ── Analytics ────────────────────────────────────────────────────────────────
+// Custom analytics: 5 tables, anonymous, marketing/SEO focused.
+// See memory/project_siamdive_analytics.md for full design rationale.
+
+model AnalyticsSession {
+  id             String   @id                       // client-generated uuid v4
+  visitorId      String                             // stable across sessions (localStorage)
+  startedAt      DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  eventCount     Int      @default(0)
+  pageCount      Int      @default(0)
+
+  // Geo (from Vercel headers; raw IP never stored)
+  country        String?
+  region         String?
+  city           String?
+
+  // Device (parsed UA; raw UA never stored)
+  device         String?                            // mobile | tablet | desktop
+  os             String?
+  browser        String?
+
+  // First-touch (locked after first set)
+  firstUtmSource   String?
+  firstUtmMedium   String?
+  firstUtmCampaign String?
+  firstUtmTerm     String?
+  firstUtmContent  String?
+  firstReferrer    String?
+  firstLandingPath String?
+
+  // Last-touch
+  lastUtmSource    String?
+  lastUtmMedium    String?
+  lastUtmCampaign  String?
+
+  lang             String?
+  isBot            Boolean  @default(false)
+
+  events       AnalyticsEvent[]
+  attributions AnalyticsAttribution[]
+
+  @@index([startedAt])
+  @@index([visitorId])
+  @@index([country, startedAt])
+  @@index([isBot, startedAt])
+}
+
+model AnalyticsEvent {
+  id          BigInt              @id @default(autoincrement())
+  ts          DateTime            @default(now())
+  sessionId   String
+  visitorId   String
+
+  type        AnalyticsEventType
+  path        String                             // "/trips/aquarian-similan"
+  lang        String?
+
+  // Polymorphic entity reference
+  entityType  String?                            // BOAT | SCHEDULE | BLOG | TOPIC | ROW
+  entityId    String?
+
+  // Engagement
+  dwellMs     Int?
+  scrollPct   Int?
+  viewportW   Int?
+  viewportH   Int?
+
+  // Free-form (search query, filter values, A/B variant, etc.)
+  properties  Json?
+
+  session     AnalyticsSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([ts])
+  @@index([type, ts])
+  @@index([entityType, entityId, ts])
+  @@index([sessionId])
+  @@index([visitorId, ts])
+}
+
+model AnalyticsSearch {
+  id             BigInt   @id @default(autoincrement())
+  ts             DateTime @default(now())
+  sessionId      String
+  visitorId      String
+  queryRaw       String
+  queryNorm      String                          // lowercase trim no-punct
+  lang           String?
+  country        String?
+  resultsCount   Int                             // 0 = SEO opportunity
+  filters        Json?                           // {dateFrom, dateTo, boatType, ...}
+  clickedResult  String?                         // entity id that was clicked (null = no click)
+  clickedRank    Int?                            // 1-based
+
+  @@index([ts])
+  @@index([queryNorm])
+  @@index([resultsCount, ts])
+  @@index([sessionId])
+}
+
+model AnalyticsAttribution {
+  id                   BigInt              @id @default(autoincrement())
+  ts                   DateTime            @default(now())
+  sessionId            String
+  visitorId            String
+
+  intentType           AnalyticsEventType  // BOOKING_INTENT_*
+  targetType           String              // BOAT | SCHEDULE
+  targetId             String
+  targetPriceTHB       Int?
+  scheduleDate         DateTime?
+
+  // Snapshot (avoid join when aggregating)
+  firstUtmSource       String?
+  firstUtmMedium       String?
+  firstUtmCampaign     String?
+  firstReferrer        String?
+
+  // Marketing efficiency signals
+  msFromSessionStart   Int?
+  sessionsBeforeIntent Int?
+
+  // Future hook: external booking confirmation
+  confirmed            Boolean             @default(false)
+  confirmedAt          DateTime?
+  confirmedValueTHB    Int?
+
+  session              AnalyticsSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([ts])
+  @@index([targetType, targetId, ts])
+  @@index([firstUtmSource, ts])
+  @@index([confirmed, ts])
+}
+
+model AnalyticsDaily {
+  id             BigInt   @id @default(autoincrement())
+  date           DateTime                          // BKK date normalized to 00:00
+  entityType     String                            // BOAT | SCHEDULE | BLOG | PATH | SEARCH
+  entityId       String                            // id / path / queryNorm
+  country        String?                           // null = all-countries roll-up
+  device         String?                           // null = all-devices roll-up
+
+  views          Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  uniqueSessions Int      @default(0)
+  avgDwellMs     Int?
+  avgScrollPct   Int?
+  reads          Int      @default(0)              // BLOG_READ_COMPLETE
+  intents        Int      @default(0)              // BOOKING_INTENT_*
+
+  @@unique([date, entityType, entityId, country, device])
+  @@index([date, entityType])
+  @@index([entityType, entityId, date])
+}
+
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum BlogStatus {
@@ -606,4 +762,27 @@ enum ScheduleStatus {
   FULL
   CANCELLED
   COMPLETED
+}
+
+enum AnalyticsEventType {
+  PAGE_VIEW
+  ROW_CLICK
+  LANGUAGE_SWITCH
+  TRIP_VIEW
+  SCHEDULE_VIEW
+  SCHEDULE_SHARE
+  BLOG_VIEW
+  BLOG_READ_COMPLETE
+  SEARCH
+  SEARCH_RESULT_CLICK
+  FILTER_APPLY
+  BOOKING_INTENT_LINE
+  BOOKING_INTENT_WHATSAPP
+  BOOKING_INTENT_EMAIL
+  BOOKING_INTENT_CALL
+  BOOKING_INTENT_MESSENGER
+  BOOKING_INTENT_WECHAT
+  SESSION_START
+  SESSION_END
+  ERROR
 }

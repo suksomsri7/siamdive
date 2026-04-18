@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { trackSearch, trackSearchResultClick } from "@/lib/analytics/client";
 
 type TripType = "DAYTRIP" | "LIVEABOARD";
 
@@ -90,12 +91,18 @@ export default function SearchFab() {
       const arr = Array.isArray(res) ? res : [];
       setResults(arr);
       setResultsType(type);
+      trackSearch(
+        type === "DAYTRIP" ? `${type} ${date}${areaId ? ` area:${areaId}` : ""}` : `${type} ${month}`,
+        arr.length,
+        { type, date, month, areaId: areaId || null, lang },
+      );
       // Collapse the form after a successful search to free up result space.
       // Keep expanded when no results so user can tweak query.
       if (arr.length > 0) setCollapsed(true);
     } catch {
       setResults([]);
       setResultsType(type);
+      trackSearch(`${type} (error)`, 0, { type, date, month, areaId: areaId || null, lang, error: true });
     } finally {
       setLoading(false);
     }
@@ -112,6 +119,8 @@ export default function SearchFab() {
   const openResult = (r: Result) => {
     const dateParam = r.departureDate ? r.departureDate.slice(0, 10) : "";
     const q = dateParam ? `?date=${dateParam}` : "";
+    const rank = (results ?? []).findIndex((x) => x.scheduleId === r.scheduleId) + 1;
+    trackSearchResultClick("SCHEDULE", r.scheduleId, rank || 1);
     router.push(`/${lang}/trips/${r.boat.slug}${q}`);
     setOpen(false);
   };
