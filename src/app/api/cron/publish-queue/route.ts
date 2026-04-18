@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { skipped: true, reason: "approved exist but none ready", approvedCount },
-        { status: 204 },
+        { status: 200 },
       );
     }
 
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(
       { skipped: true, reason: "no ready draft blogs", validationSkips: skipped },
-      { status: 204 },
+      { status: 200 },
     );
   }
 
