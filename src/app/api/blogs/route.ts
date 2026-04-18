@@ -41,13 +41,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Translation-parity guard. The EN translation is the baseline — every other
-  // translation must carry the same structural skeleton (h2/ul/table/li/a count)
-  // and meet a character-length floor. This exists because the generator (AI)
-  // repeatedly collapses CJK translations by ~60% and quietly drops sections.
-  // The server is the last line of defence. See src/lib/blogParity.ts.
-  // Bypass allowed for admin sessions that explicitly opt out (manual backoffice
-  // edits where incomplete drafts are legit).
+  // Anti-drop guard. Minimum 20% of EN char length per translation — catches
+  // AI returning empty or near-empty translations. Structural parity (h2/ul/
+  // table counts) was removed 2026-04-18 because it forced mirrored EN
+  // structure and produced unnatural prose in target languages.
+  // See src/lib/blogParity.ts.
   const parityBypass =
     auth.source === "session" && req.headers.get("x-skip-parity") === "1";
   if (!parityBypass) {
@@ -55,12 +53,11 @@ export async function POST(req: NextRequest) {
     if (!parity.ok) {
       return NextResponse.json(
         {
-          error: "translation_parity_failed",
+          error: "translation_too_short",
           message:
-            "One or more non-EN translations are structurally incomplete vs the EN baseline. Fix and resubmit. See `failures[]` for details and `baseline` for expected counts.",
+            "One or more non-EN translations are shorter than the anti-drop floor (20% of EN char length). Expand the translation with the missing content — you do not need to match EN structure.",
           baseline: parity.baseline,
           failures: parity.failures,
-          hint: "Likely cause: AI translator collapsed sections. Re-run the translation with explicit instruction to preserve every <h2>, <ul>, <table>, and <a> from EN.",
         },
         { status: 422 },
       );
