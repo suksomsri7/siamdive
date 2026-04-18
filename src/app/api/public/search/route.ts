@@ -45,6 +45,13 @@ export async function GET(req: NextRequest) {
     lt  = new Date(Date.UTC(y, m, 1));
   }
 
+  // Never surface departures that have already passed: floor `gte` to today.
+  const todayStart = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
+  if (gte < todayStart) gte = todayStart;
+  if (lt <= todayStart) {
+    return NextResponse.json([]);
+  }
+
   const boatTypes = typeParam === "DAYTRIP"
     ? ["DAYTRIP", "SNORKELING", "LAND_TOUR", "FREEDIVE"]
     : ["LIVEABOARD", "DIVE_RESORT"];

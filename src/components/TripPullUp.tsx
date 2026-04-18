@@ -471,11 +471,15 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   // stay in sync with what the user is actually looking at.
   const usesDatePicker  = !!boat && TRIP_TYPES_WITH_DATE_PICKER.includes(boat.type);
   const usesMonthPicker = !!boat && TRIP_TYPES_WITH_MONTH_PICKER.includes(boat.type);
+  const todayIso = todayISO();
   const matchingSchedules = boat
     ? (usesDatePicker
         ? boat.schedules.filter(s => s.departureDate && s.departureDate.slice(0, 10) === selectedDate)
         : usesMonthPicker
-          ? boat.schedules.filter(s => s.departureDate && s.departureDate.slice(0, 7) === selectedMonth)
+          ? boat.schedules.filter(s =>
+              s.departureDate &&
+              s.departureDate.slice(0, 7) === selectedMonth &&
+              s.departureDate.slice(0, 10) >= todayIso)
           : [])
     : [];
   const visiblePackageIds = (usesDatePicker || usesMonthPicker)
@@ -1051,8 +1055,11 @@ export function ScheduleSheet({ trip, onClose }: { trip: Trip; onClose: () => vo
     return () => window.removeEventListener("keydown", fn);
   }, [onClose]);
 
+  const todayIso = todayISO();
   const filtered = schedules.filter(s => {
-    if (!month || !s.departureDate) return true;
+    if (!s.departureDate) return true;
+    if (s.departureDate.slice(0, 10) < todayIso) return false;
+    if (!month) return true;
     return s.departureDate.slice(0, 7) === month;
   });
 
