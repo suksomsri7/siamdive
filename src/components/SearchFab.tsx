@@ -418,9 +418,21 @@ function LiveaboardResults({
                   const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
                   return (
                     <button key={s.scheduleId} onClick={() => openResult(s)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
-                      <span style={{ fontSize: 12, color: "#bbb", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={15} height={15}
+                        style={{ color: "#fff", flexShrink: 0, opacity: 0.9 }}>
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                        </span>
+                        {s.scheduleTitle && (
+                          <span style={{ display: "block", fontSize: 11, color: "#666", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {s.scheduleTitle}
+                          </span>
+                        )}
                       </span>
                       {schedMin > 0 && (
                         <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
