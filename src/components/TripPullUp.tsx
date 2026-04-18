@@ -263,7 +263,8 @@ function pickTrans<T extends { lang: string }>(arr: T[] | undefined, lang: strin
 
 const formatPrice = (n: number) => `฿${n.toLocaleString()}`;
 
-const TRIP_TYPES_WITH_DATE_PICKER = ["DAYTRIP", "SNORKELING", "LAND_TOUR"];
+const TRIP_TYPES_WITH_DATE_PICKER  = ["DAYTRIP", "SNORKELING", "LAND_TOUR"];
+const TRIP_TYPES_WITH_MONTH_PICKER = ["LIVEABOARD", "DIVE_RESORT"];
 const BOAT_TYPE_LABEL: Record<string, string> = {
   DAYTRIP: "Scuba Day Trips",
   SNORKELING: "Snorkeling",
@@ -419,8 +420,9 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const [loading, setLoading]   = useState<boolean>(!!trip.boatId);
   const [expandedPkg, setExpandedPkg] = useState<string | null>(null);
   const [showVideos, setShowVideos]   = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(() => initialDate || todayISO());
-  const [showShare,   setShowShare]   = useState(false);
+  const [selectedDate,  setSelectedDate]  = useState<string>(() => initialDate || todayISO());
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => (initialDate || todayISO()).slice(0, 7));
+  const [showShare,    setShowShare]     = useState(false);
 
   // Lock body scroll while InfoModal is open
   useEffect(() => {
@@ -451,18 +453,23 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const content   = boatTrans?.content || "";
   const keywords  = boatTrans?.keywords || [];
 
-  // Determine which packages are currently visible based on date selection,
-  // then compute the lowest price among them so the hero meta can stay in
-  // sync with what the user is actually looking at.
-  const usesDatePicker = !!boat && TRIP_TYPES_WITH_DATE_PICKER.includes(boat.type);
-  const matchingSchedules = usesDatePicker && boat
-    ? boat.schedules.filter(s => s.departureDate && s.departureDate.slice(0, 10) === selectedDate)
+  // Determine which packages are currently visible based on date/month
+  // selection, then compute the lowest price among them so the hero meta can
+  // stay in sync with what the user is actually looking at.
+  const usesDatePicker  = !!boat && TRIP_TYPES_WITH_DATE_PICKER.includes(boat.type);
+  const usesMonthPicker = !!boat && TRIP_TYPES_WITH_MONTH_PICKER.includes(boat.type);
+  const matchingSchedules = boat
+    ? (usesDatePicker
+        ? boat.schedules.filter(s => s.departureDate && s.departureDate.slice(0, 10) === selectedDate)
+        : usesMonthPicker
+          ? boat.schedules.filter(s => s.departureDate && s.departureDate.slice(0, 7) === selectedMonth)
+          : [])
     : [];
-  const visiblePackageIds = usesDatePicker
+  const visiblePackageIds = (usesDatePicker || usesMonthPicker)
     ? new Set(matchingSchedules.flatMap(s => s.packages.map(p => p.packageId)))
     : null;
   const visiblePackages = boat
-    ? (usesDatePicker ? boat.packages.filter(p => visiblePackageIds!.has(p.id)) : boat.packages)
+    ? ((usesDatePicker || usesMonthPicker) ? boat.packages.filter(p => visiblePackageIds!.has(p.id)) : boat.packages)
     : [];
   const heroMinPrice = (() => {
     const prices = visiblePackages
@@ -660,6 +667,42 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
               </div>
             )}
 
+            {/* Month picker — for liveaboard / dive-resort */}
+            {usesMonthPicker && (
+              <div style={{ marginBottom: 14, padding: "12px 14px", background: "#141414", border: "1px solid #1f1f1f", borderRadius: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  เลือกเดือน / ปี
+                </label>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  min={todayISO().slice(0, 7)}
+                  onChange={e => { setSelectedMonth(e.target.value); setExpandedPkg(null); }}
+                  style={{ background: "#0d0d0d", border: "1px solid #262626", borderRadius: 8, color: "#f5f5f5", fontSize: 13, padding: "8px 12px", outline: "none", colorScheme: "dark", flex: 1, minWidth: 160 }}
+                />
+                <span style={{ fontSize: 11, color: "#666" }}>{matchingSchedules.length} รอบ</span>
+              </div>
+            )}
+
+            {/* Date-range chips — liveaboard schedules within selected month */}
+            {usesMonthPicker && matchingSchedules.length > 0 && (
+              <div style={{ marginBottom: 14, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {matchingSchedules.map(s => {
+                  const dep = s.departureDate ? new Date(s.departureDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "";
+                  const ret = s.returnDate ? new Date(s.returnDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "";
+                  return (
+                    <span key={s.id}
+                      style={{ fontSize: 11, fontWeight: 600, color: "#bbb", background: "#161616", border: "1px solid #262626", borderRadius: 20, padding: "4px 12px" }}>
+                      📅 {dep}{ret ? ` → ${ret}` : ""}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Schedule excerpt for the selected date */}
             {usesDatePicker && matchingSchedules.length > 0 && (() => {
               const sExcerpt = pickTrans(matchingSchedules[0].translations, lang)?.excerpt || "";
@@ -673,7 +716,11 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
 
             {visiblePackages.length === 0 ? (
               <div style={{ textAlign: "center", padding: "32px 0", color: "#555", fontSize: 13, background: "#0f0f0f", border: "1px dashed #1f1f1f", borderRadius: 12 }}>
-                {usesDatePicker ? "ไม่มี Schedule ในวันที่เลือก ลองเลือกวันที่อื่น" : "ยังไม่มีแพ็กเกจ"}
+                {usesDatePicker
+                  ? "ไม่มี Schedule ในวันที่เลือก ลองเลือกวันที่อื่น"
+                  : usesMonthPicker
+                    ? "ไม่มี Schedule ในเดือนที่เลือก ลองเลือกเดือนอื่น"
+                    : "ยังไม่มีแพ็กเกจ"}
               </div>
             ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -688,7 +735,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                 const minPrice  = getCurrentPackageMinPrice(pkg);
                 const hasSale   = pkg.priceTiers.some(t => t.salePrice != null && t.salePrice < t.regularPrice);
                 // Check if this package is marked FULL in any matching schedule
-                const pkgIsFull = usesDatePicker && matchingSchedules.some(s => s.packages.some(p => p.packageId === pkg.id && p.isFull));
+                const pkgIsFull = (usesDatePicker || usesMonthPicker) && matchingSchedules.length > 0 && matchingSchedules.every(s => s.packages.some(p => p.packageId === pkg.id && p.isFull));
                 const isOpen    = expandedPkg === pkg.id;
                 return (
                   <div key={pkg.id} style={{
