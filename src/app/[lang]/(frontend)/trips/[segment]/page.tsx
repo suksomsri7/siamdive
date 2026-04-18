@@ -1,8 +1,8 @@
 import { unstable_cache } from "next/cache";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import TripListClient, { type TripListItem } from "@/components/TripListClient";
+import TripDetailPage from "@/components/TripDetailPage";
 
 const SEGMENT_TO_TYPE: Record<string, string> = {
   "daytrip":    "DAYTRIP",
@@ -89,9 +89,9 @@ export const dynamic = "force-dynamic";
 export default async function TripSegmentPage({
   params,
 }: {
-  params: Promise<{ segment: string }>;
+  params: Promise<{ lang: string; segment: string }>;
 }) {
-  const { segment } = await params;
+  const { lang, segment } = await params;
   const boatType = SEGMENT_TO_TYPE[segment];
 
   // ── Listing page ────────────────────────────────────────────────────────────
@@ -123,51 +123,30 @@ export default async function TripSegmentPage({
   if (!trans || trans.boat.status !== "PUBLISHED") return notFound();
 
   const b = trans.boat;
-  const enTrans = b.translations.find(t => t.lang === "en") || trans;
+  const langTrans = b.translations.find(t => t.lang === lang)
+    || b.translations.find(t => t.lang === "en")
+    || trans;
   const prices = b.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
   const minPrice = prices.length ? Math.min(...prices) : 0;
-  const area = b.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === "en")
+  const area = b.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === lang)
+    || b.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === "en")
     || b.serviceAreas[0]?.serviceArea.translations[0];
+
+  const trip = {
+    slug:            langTrans.slug,
+    title:           langTrans.title,
+    description:     langTrans.excerpt || undefined,
+    price:           minPrice,
+    duration:        "",
+    type:            (["LIVEABOARD", "DIVE_RESORT"].includes(b.type) ? "LIVEABOARD" : "DAYTRIP") as "LIVEABOARD" | "DAYTRIP",
+    destinationName: area?.name || "",
+    imageUrl:        b.covers[0] || undefined,
+    boatId:          b.id,
+  };
 
   return (
     <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
-      {/* Hero */}
-      <div style={{ position: "relative", height: "55vh", minHeight: 320 }}>
-        {b.covers[0]
-          ? <Image src={b.covers[0]} alt={enTrans.title} fill className="object-cover" priority sizes="100vw" />
-          : <div style={{ width: "100%", height: "100%", background: "linear-gradient(160deg,#0f172a,#1e3a5f)" }} />
-        }
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 0%, rgba(13,13,13,0.3) 60%, transparent 100%)" }} />
-      </div>
-
-      {/* Content */}
-      <div style={{ maxWidth: 860, margin: "-80px auto 0", padding: "0 24px 80px", position: "relative" }}>
-        {area?.name && (
-          <p style={{ fontSize: 11, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>{area.name}</p>
-        )}
-        <h1 style={{ fontSize: "clamp(1.8rem,5vw,3rem)", fontWeight: 900, lineHeight: 1.1, color: "#fff", marginBottom: 22 }}>{enTrans.title}</h1>
-
-        {minPrice > 0 && (
-          <div style={{ display: "inline-block", background: "#111", border: "1px solid #1a1a1a", borderRadius: 12, padding: "12px 22px", marginBottom: 28 }}>
-            <p style={{ fontSize: 10, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>ราคาเริ่มต้น</p>
-            <p style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
-          </div>
-        )}
-
-        {enTrans.excerpt && (
-          <p style={{ fontSize: 15, color: "#888", lineHeight: 1.8, marginBottom: 28 }}>{enTrans.excerpt}</p>
-        )}
-        {enTrans.content && (
-          <div style={{ color: "#777", fontSize: 14, lineHeight: 1.9 }} dangerouslySetInnerHTML={{ __html: enTrans.content }} />
-        )}
-
-        <div style={{ marginTop: 36, display: "flex", gap: 12 }}>
-          <a href="https://lin.ee/wayWuGH" target="_blank" rel="noopener noreferrer"
-            style={{ background: "#3b82f6", color: "#fff", padding: "13px 32px", borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-            Schedule / Book
-          </a>
-        </div>
-      </div>
+      <TripDetailPage trip={trip} lang={lang} />
     </main>
   );
 }
