@@ -378,7 +378,6 @@ export default function FreedivePage() {
                       </div>
                       <div><label style={lbl}>Excerpt</label><textarea value={lf.excerpt} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), excerpt: e.target.value } }))} style={{ ...inp, minHeight: 60, resize: "vertical", fontFamily: "inherit" }} /></div>
                       <div><label style={lbl}>Detail</label><RichEditor value={lf.content} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), content: h } }))} /></div>
-                      <div><label style={lbl}>Itinerary</label><RichEditor value={lf.itinerary} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), itinerary: h } }))} /></div>
                       <div>
                         <label style={lbl}>Keywords</label>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>

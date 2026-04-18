@@ -720,7 +720,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                     const minPrice = pool.length ? Math.min(...pool) : 0;
                     const allFull = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
                     const isOpen  = expandedSched === s.id;
-                    const hasDetail = !!(st?.excerpt || st?.content || st?.itinerary || st?.route);
+                    const hasDetail = !!(st?.excerpt || st?.content || st?.route);
                     return (
                       <div key={s.id} style={{
                         background: isOpen ? "#161616" : "#121212",
@@ -785,12 +785,6 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                                 <div style={{ marginTop: 14 }}>
                                   <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>เส้นทาง</p>
                                   <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.route }} />
-                                </div>
-                              )}
-                              {st?.itinerary && (
-                                <div style={{ marginTop: 14 }}>
-                                  <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>กำหนดการ</p>
-                                  <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.itinerary }} />
                                 </div>
                               )}
                               {st?.content && (
