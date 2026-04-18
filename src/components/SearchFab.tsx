@@ -311,46 +311,44 @@ export default function SearchFab() {
                           {/* Packages */}
                           {r.packages.length > 0 && (
                             <div style={{ borderTop: "1px solid #1f1f1f", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-                              {r.packages.map(p => {
-                                const interactive = !p.isFull;
-                                const row = (
-                                  <>
-                                    <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>
-                                      📦 {p.title}
-                                      {p.availableSeats != null && (
-                                        <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
-                                          ({p.availableSeats} ที่นั่ง)
-                                        </span>
-                                      )}
-                                    </span>
-                                    {p.isFull ? (
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
-                                    ) : p.minPrice > 0 ? (
-                                      <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
-                                        ฿{p.minPrice.toLocaleString()}
-                                      </span>
-                                    ) : (
-                                      <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
-                                        Contact
+                              {r.packages.map(p => (
+                                <div key={p.id}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 8,
+                                    padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
+                                    opacity: p.isFull ? 0.5 : 1,
+                                  }}>
+                                  <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    📦 {p.title}
+                                    {p.availableSeats != null && (
+                                      <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
+                                        ({p.availableSeats} ที่นั่ง)
                                       </span>
                                     )}
-                                  </>
-                                );
-                                const sharedStyle: React.CSSProperties = {
-                                  display: "flex", alignItems: "center", gap: 10,
-                                  padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
-                                  opacity: p.isFull ? 0.5 : 1,
-                                  width: "100%", textAlign: "left",
-                                  border: "none", cursor: interactive ? "pointer" : "default",
-                                };
-                                return interactive ? (
-                                  <button key={p.id} onClick={(e) => { e.stopPropagation(); setContactFor(p.id); }} style={sharedStyle}>
-                                    {row}
-                                  </button>
-                                ) : (
-                                  <div key={p.id} style={sharedStyle}>{row}</div>
-                                );
-                              })}
+                                  </span>
+                                  {!p.isFull && (
+                                    <button onClick={() => openResult(r)} title="Info"
+                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+                                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                                      </svg>
+                                    </button>
+                                  )}
+                                  {p.isFull ? (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                                  ) : p.minPrice > 0 ? (
+                                    <button onClick={() => setContactFor(p.id)}
+                                      style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0, padding: 0 }}>
+                                      ฿{p.minPrice.toLocaleString()}
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => setContactFor(p.id)}
+                                      style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
+                                      Contact
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -431,21 +429,30 @@ function LiveaboardResults({
                 {schedules.map(s => {
                   const schedPkgPrices = s.packages.map(p => p.minPrice).filter(x => x > 0);
                   const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
-                  const handleClick = schedMin > 0 ? () => openResult(s) : () => onContact(s.scheduleId);
                   return (
-                    <button key={s.scheduleId} onClick={handleClick}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                    <div key={s.scheduleId}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#0d0d0d", borderRadius: 7 }}>
                       <span style={{ fontSize: 12, color: "#bbb", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
                       </span>
+                      <button onClick={() => openResult(s)} title="Info"
+                        style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
+                          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                      </button>
                       {schedMin > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>฿{schedMin.toLocaleString()}</span>
+                        <button onClick={() => onContact(s.scheduleId)}
+                          style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0, padding: 0 }}>
+                          ฿{schedMin.toLocaleString()}
+                        </button>
                       ) : (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
+                        <button onClick={() => onContact(s.scheduleId)}
+                          style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
                           Contact
-                        </span>
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
