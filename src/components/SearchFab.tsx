@@ -47,16 +47,25 @@ export default function SearchFab() {
   const pathname = usePathname();
   const lang = pathname?.split("/")[1] || "en";
 
-  const [open,       setOpen]       = useState(false);
-  const [type,       setType]       = useState<TripType>("DAYTRIP");
-  const [date,       setDate]       = useState<string>(todayISO());
-  const [month,      setMonth]      = useState<string>(thisMonthISO());
-  const [areaId,     setAreaId]     = useState<string>("");
-  const [areas,      setAreas]      = useState<Area[]>([]);
-  const [loading,    setLoading]    = useState(false);
-  const [results,    setResults]    = useState<Result[] | null>(null);
-  const [collapsed,  setCollapsed]  = useState(false);
-  const [contactFor, setContactFor] = useState<string | null>(null);
+  const [open,         setOpen]         = useState(false);
+  const [type,         setType]         = useState<TripType>("DAYTRIP");
+  const [date,         setDate]         = useState<string>(todayISO());
+  const [month,        setMonth]        = useState<string>(thisMonthISO());
+  const [areaId,       setAreaId]       = useState<string>("");
+  const [areas,        setAreas]        = useState<Area[]>([]);
+  const [loading,      setLoading]      = useState(false);
+  const [results,      setResults]      = useState<Result[] | null>(null);
+  const [resultsType,  setResultsType]  = useState<TripType | null>(null);
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [contactFor,   setContactFor]   = useState<string | null>(null);
+
+  const switchType = (t: TripType) => {
+    if (t === type) return;
+    setType(t);
+    setResults(null);
+    setResultsType(null);
+    setCollapsed(false);
+  };
 
   // Fetch service areas once when modal opens
   useEffect(() => {
@@ -81,11 +90,13 @@ export default function SearchFab() {
       const res = await fetch(`/api/public/search?${params}`).then(r => r.ok ? r.json() : []);
       const arr = Array.isArray(res) ? res : [];
       setResults(arr);
+      setResultsType(type);
       // Collapse the form after a successful search to free up result space.
       // Keep expanded when no results so user can tweak query.
       if (arr.length > 0) setCollapsed(true);
     } catch {
       setResults([]);
+      setResultsType(type);
     } finally {
       setLoading(false);
     }
@@ -189,7 +200,7 @@ export default function SearchFab() {
                   {(["DAYTRIP", "LIVEABOARD"] as const).map(t => {
                     const active = type === t;
                     return (
-                      <button key={t} onClick={() => setType(t)}
+                      <button key={t} onClick={() => switchType(t)}
                         style={{
                           padding: "10px 0", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
                           background: active ? "#3b82f6" : "transparent", color: active ? "#fff" : "#666",
@@ -250,6 +261,8 @@ export default function SearchFab() {
                     <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
                     <p style={{ fontSize: 13, color: "#555" }}>ไม่พบทริปในช่วงเวลานี้</p>
                   </div>
+                ) : resultsType === "LIVEABOARD" ? (
+                  <LiveaboardResults results={results} openResult={openResult} onContact={(id) => setContactFor(id)} />
                 ) : (
                   <>
                     <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
@@ -356,7 +369,94 @@ export default function SearchFab() {
   );
 }
 
-// ── Contact popup (LINE / WhatsApp / Messenger) ─────────────────────────────
+// ── Liveaboard results: group by boat, show date ranges + min price ─────────
+function LiveaboardResults({
+  results, openResult, onContact,
+}: {
+  results: Result[];
+  openResult: (r: Result) => void;
+  onContact: (id: string) => void;
+}) {
+  // Group schedules by boat id; within each boat, dedupe by schedule id.
+  const groups = new Map<string, { boat: Result["boat"]; schedules: Result[] }>();
+  for (const r of results) {
+    const g = groups.get(r.boat.id);
+    if (g) g.schedules.push(r);
+    else groups.set(r.boat.id, { boat: r.boat, schedules: [r] });
+  }
+  const boats = Array.from(groups.values());
+
+  return (
+    <>
+      <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
+        พบ {boats.length} เรือ · {results.length} รอบ
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {boats.map(({ boat, schedules }) => {
+          // Boat-level min price = lowest across all its schedules/packages.
+          const pkgPrices = schedules.flatMap(s => s.packages.map(p => p.minPrice).filter(x => x > 0));
+          const boatMin = pkgPrices.length ? Math.min(...pkgPrices) : 0;
+
+          return (
+            <div key={boat.id} style={{ background: "#161616", border: "1px solid #1f1f1f", borderRadius: 12, overflow: "hidden" }}>
+              {/* Boat header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px" }}>
+                {boat.cover
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={boat.cover} alt="" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+                  : <div style={{ width: 64, height: 48, background: "#222", borderRadius: 6, flexShrink: 0 }} />
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {boat.area && (
+                    <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{boat.area}</p>
+                  )}
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{boat.title}</p>
+                  <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{schedules.length} รอบในเดือนนี้</p>
+                </div>
+                {boatMin > 0 ? (
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                    <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa" }}>฿{boatMin.toLocaleString()}</p>
+                  </div>
+                ) : (
+                  <button onClick={() => onContact(boat.id)}
+                    style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "5px 12px", cursor: "pointer", flexShrink: 0 }}>
+                    Contact
+                  </button>
+                )}
+              </div>
+
+              {/* Date ranges */}
+              <div style={{ borderTop: "1px solid #1f1f1f", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
+                {schedules.map(s => {
+                  const schedPkgPrices = s.packages.map(p => p.minPrice).filter(x => x > 0);
+                  const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
+                  return (
+                    <button key={s.scheduleId} onClick={() => openResult(s)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                      <span style={{ fontSize: 12, color: "#bbb", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                      </span>
+                      {schedMin > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>฿{schedMin.toLocaleString()}</span>
+                      ) : (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
+                          Contact
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// ── Contact popup (LINE / WhatsApp / Messenger / WeChat) ─────────────────────
 function ContactSheet({ onClose }: { onClose: () => void }) {
   const channels = [
     {
@@ -410,7 +510,7 @@ function ContactSheet({ onClose }: { onClose: () => void }) {
         animation: "contactUp 0.25s ease both",
       }}>
         <style>{`@keyframes contactUp { from { opacity:0; transform: translate(-50%, 16px); } to { opacity:1; transform: translate(-50%, 0); } }`}</style>
-        <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12, textAlign: "center" }}>สอบถามราคา</p>
+        <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12, textAlign: "center" }}>Booking</p>
         <div style={{ display: "flex", gap: 14 }}>
           {channels.map(c => (
             <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer" title={c.label}
