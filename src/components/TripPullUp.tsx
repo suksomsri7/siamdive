@@ -687,23 +687,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
               </div>
             )}
 
-            {/* Date-range chips — liveaboard schedules within selected month */}
-            {usesMonthPicker && matchingSchedules.length > 0 && (
-              <div style={{ marginBottom: 14, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {matchingSchedules.map(s => {
-                  const dep = s.departureDate ? new Date(s.departureDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "";
-                  const ret = s.returnDate ? new Date(s.returnDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "";
-                  return (
-                    <span key={s.id}
-                      style={{ fontSize: 11, fontWeight: 600, color: "#bbb", background: "#161616", border: "1px solid #262626", borderRadius: 20, padding: "4px 12px" }}>
-                      📅 {dep}{ret ? ` → ${ret}` : ""}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Schedule excerpt for the selected date */}
+            {/* Schedule excerpt for the selected date — daytrip only */}
             {usesDatePicker && matchingSchedules.length > 0 && (() => {
               const sExcerpt = pickTrans(matchingSchedules[0].translations, lang)?.excerpt || "";
               if (!sExcerpt) return null;
@@ -714,13 +698,61 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
               );
             })()}
 
-            {visiblePackages.length === 0 ? (
+            {/* Liveaboard — schedule list (date range + min price), no packages */}
+            {usesMonthPicker && boat && (
+              matchingSchedules.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "#555", fontSize: 13, background: "#0f0f0f", border: "1px dashed #1f1f1f", borderRadius: 12 }}>
+                  ไม่มี Schedule ในเดือนที่เลือก ลองเลือกเดือนอื่น
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {matchingSchedules.map(s => {
+                    const dep = s.departureDate ? new Date(s.departureDate).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "";
+                    const ret = s.returnDate ? new Date(s.returnDate).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "";
+                    const st = pickTrans(s.translations, lang);
+                    const overrides = s.packages.flatMap(sp => sp.priceTiers.map(t => t.salePrice ?? t.regularPrice)).filter(p => p > 0);
+                    const fallbackPrices = s.packages.flatMap(sp => {
+                      const pkg = boat.packages.find(p => p.id === sp.packageId);
+                      return pkg ? [getCurrentPackageMinPrice(pkg)].filter((n): n is number => n != null && n > 0) : [];
+                    });
+                    const pool = overrides.length ? overrides : fallbackPrices;
+                    const minPrice = pool.length ? Math.min(...pool) : 0;
+                    const allFull = s.packages.length > 0 && s.packages.every(p => p.isFull);
+                    return (
+                      <div key={s.id}
+                        style={{ background: "#121212", border: "1px solid #1f1f1f", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, opacity: allFull ? 0.5 : 1 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>
+                            📅 {dep}{ret ? ` → ${ret}` : ""}
+                          </p>
+                          {st?.title && (
+                            <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {st.title}
+                            </p>
+                          )}
+                        </div>
+                        {allFull ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                        ) : minPrice > 0 ? (
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                            <p style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#aaa" }}>Contact</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Day-trip / non-picker: package list (skip for liveaboard) */}
+            {!usesMonthPicker && (
+            visiblePackages.length === 0 ? (
               <div style={{ textAlign: "center", padding: "32px 0", color: "#555", fontSize: 13, background: "#0f0f0f", border: "1px dashed #1f1f1f", borderRadius: 12 }}>
-                {usesDatePicker
-                  ? "ไม่มี Schedule ในวันที่เลือก ลองเลือกวันที่อื่น"
-                  : usesMonthPicker
-                    ? "ไม่มี Schedule ในเดือนที่เลือก ลองเลือกเดือนอื่น"
-                    : "ยังไม่มีแพ็กเกจ"}
+                {usesDatePicker ? "ไม่มี Schedule ในวันที่เลือก ลองเลือกวันที่อื่น" : "ยังไม่มีแพ็กเกจ"}
               </div>
             ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -881,6 +913,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                 );
               })}
             </div>
+            )
             )}
           </div>
         )}
