@@ -422,6 +422,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const [showVideos, setShowVideos]   = useState(false);
   const [selectedDate,  setSelectedDate]  = useState<string>(() => initialDate || todayISO());
   const [selectedMonth, setSelectedMonth] = useState<string>(() => (initialDate || todayISO()).slice(0, 7));
+  const [expandedSched, setExpandedSched] = useState<string | null>(null);
   const [showShare,    setShowShare]     = useState(false);
 
   // Lock body scroll while InfoModal is open
@@ -717,29 +718,89 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                     });
                     const pool = overrides.length ? overrides : fallbackPrices;
                     const minPrice = pool.length ? Math.min(...pool) : 0;
-                    const allFull = s.packages.length > 0 && s.packages.every(p => p.isFull);
+                    const allFull = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
+                    const isOpen  = expandedSched === s.id;
+                    const hasDetail = !!(st?.excerpt || st?.content || st?.itinerary || st?.route);
                     return (
-                      <div key={s.id}
-                        style={{ background: "#121212", border: "1px solid #1f1f1f", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, opacity: allFull ? 0.5 : 1 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>
-                            📅 {dep}{ret ? ` → ${ret}` : ""}
-                          </p>
-                          {st?.title && (
-                            <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {st.title}
+                      <div key={s.id} style={{
+                        background: isOpen ? "#161616" : "#121212",
+                        border: `1px solid ${isOpen ? "#2a3a52" : "#1f1f1f"}`,
+                        borderRadius: 14, overflow: "hidden",
+                        transition: "background 0.25s, border-color 0.25s",
+                        opacity: allFull ? 0.6 : 1,
+                      }}>
+                        <button
+                          onClick={() => setExpandedSched(isOpen ? null : s.id)}
+                          style={{ width: "100%", background: "transparent", border: "none", padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", textAlign: "left" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>
+                              📅 {dep}{ret ? ` → ${ret}` : ""}
                             </p>
-                          )}
-                        </div>
-                        {allFull ? (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
-                        ) : minPrice > 0 ? (
-                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
-                            <p style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
+                            {st?.title && (
+                              <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {st.title}
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#aaa" }}>Contact</span>
+                          {allFull ? (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                          ) : minPrice > 0 ? (
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                              <p style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#aaa" }}>Contact</span>
+                          )}
+                          {hasDetail && (
+                            <span style={{
+                              width: 28, height: 28, borderRadius: "50%",
+                              background: isOpen ? "#3b82f6" : "rgba(255,255,255,0.06)",
+                              color: isOpen ? "#fff" : "#666",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "transform 0.25s ease, background 0.2s",
+                              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                              flexShrink: 0,
+                            }}>
+                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Expanded detail */}
+                        {hasDetail && (
+                          <div style={{
+                            maxHeight: isOpen ? 4000 : 0,
+                            opacity: isOpen ? 1 : 0,
+                            overflow: "hidden",
+                            transition: "max-height 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.3s",
+                          }}>
+                            <div style={{ padding: "0 16px 16px", borderTop: isOpen ? "1px solid #1f1f1f" : "none", marginTop: isOpen ? 0 : 0 }}>
+                              {st?.excerpt && (
+                                <div className="rich-content" style={{ margin: "14px 0" }} dangerouslySetInnerHTML={{ __html: st.excerpt }} />
+                              )}
+                              {st?.route && (
+                                <div style={{ marginTop: 14 }}>
+                                  <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>เส้นทาง</p>
+                                  <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.route }} />
+                                </div>
+                              )}
+                              {st?.itinerary && (
+                                <div style={{ marginTop: 14 }}>
+                                  <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>กำหนดการ</p>
+                                  <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.itinerary }} />
+                                </div>
+                              )}
+                              {st?.content && (
+                                <div style={{ marginTop: 14 }}>
+                                  <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>รายละเอียด</p>
+                                  <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.content }} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
                     );
