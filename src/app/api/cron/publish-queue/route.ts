@@ -22,8 +22,6 @@ type BlogCandidate = {
   translations: Array<{ lang: string; title: string; excerpt: string; content: string; slug: string }>;
 };
 
-// A translation is "complete" when title/slug/excerpt/content are all non-empty
-// and content meets a minimum length.
 function translationsOk(b: BlogCandidate): { ok: true } | { ok: false; reason: string } {
   const byLang = new Map(b.translations.map((t) => [t.lang, t]));
   for (const lang of REQUIRED_LANGS) {
@@ -42,11 +40,11 @@ function translationsOk(b: BlogCandidate): { ok: true } | { ok: false; reason: s
 /**
  * POST /api/cron/publish-queue
  *
- * Walk the DRAFT queue oldest-first. For each candidate:
- *   - validate 8 languages + per-lang content completeness
- *   - if valid & no cover → generate cover with Nano Banana 2 (fal.ai)
- *   - transition DRAFT → PUBLISHED and bump the daily counter
- *   - on failure, skip and try the next candidate
+ * Priority order:
+ *   1. APPROVED queue — pick oldest with cover + 8 langs, flip to PUBLISHED
+ *      (the human already reviewed and approved it).
+ *   2. DRAFT queue (fallback) — oldest that passes content validation.
+ *      Generates the cover with Nano Banana 2 if missing, then publishes.
  *
  * Honours the daily cap (4/day) and the autoPublishEnabled kill switch.
  */
@@ -86,8 +84,58 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Oldest DRAFT first. Take a small batch so we can skip incomplete ones.
-  const candidates = await prisma.blog.findMany({
+  // ── Path A: APPROVED queue (preferred) ────────────────────────────────
+  const approved = await prisma.blog.findMany({
+    where: { status: "APPROVED" },
+    include: { translations: { select: { lang: true } } },
+    orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
+    take: 10,
+  });
+
+  const approvedReady = approved.find((b) => {
+    const hasCover = b.covers.length > 0 && b.covers[0]?.trim();
+    const langs = new Set(b.translations.map((t) => t.lang));
+    const hasAllLangs = REQUIRED_LANGS.every((l) => langs.has(l));
+    return hasCover && hasAllLangs;
+  });
+
+  if (approvedReady) {
+    const published = await prisma.blog.update({
+      where: { id: approvedReady.id },
+      data: { status: "PUBLISHED" },
+      include: { translations: { where: { lang: "en" }, select: { slug: true, title: true } } },
+    });
+
+    await prisma.cronState.update({
+      where: { id: "default" },
+      data: {
+        lastPublishedAt: new Date(),
+        publishedToday: publishedToday + 1,
+        publishedDate: today,
+      },
+    });
+
+    await prisma.cronAuditLog.create({
+      data: {
+        event: "publisher.published",
+        blogId: approvedReady.id,
+        detail: `source=approved, slug=${published.translations[0]?.slug ?? ""}, dailyCount=${publishedToday + 1}/${MAX_PUBLISH_PER_DAY}`,
+      },
+    });
+
+    return NextResponse.json({
+      source: "approved",
+      blogId: approvedReady.id,
+      slug: published.translations[0]?.slug ?? null,
+      title: published.translations[0]?.title ?? null,
+      coverGenerated: false,
+      publishedToday: publishedToday + 1,
+      dailyCap: MAX_PUBLISH_PER_DAY,
+    });
+  }
+
+  // ── Path B: DRAFT queue (fallback) ────────────────────────────────────
+  const drafts = await prisma.blog.findMany({
     where: { status: "DRAFT" },
     include: {
       translations: { select: { lang: true, title: true, excerpt: true, content: true, slug: true } },
@@ -98,7 +146,7 @@ export async function POST(req: NextRequest) {
 
   const skipped: Array<{ id: string; reason: string }> = [];
   let chosen: BlogCandidate | null = null;
-  for (const c of candidates) {
+  for (const c of drafts) {
     const check = translationsOk(c);
     if (check.ok) { chosen = c; break; }
     skipped.push({ id: c.id, reason: check.reason });
@@ -108,13 +156,15 @@ export async function POST(req: NextRequest) {
     await prisma.cronAuditLog.create({
       data: {
         event: "publisher.empty",
-        detail: `draft=${candidates.length}, none passed validation. skipped=${JSON.stringify(skipped).slice(0, 400)}`,
+        detail: `approved=${approved.length} none-ready, draft=${drafts.length} none-passed. draftSkips=${JSON.stringify(skipped).slice(0, 300)}`,
       },
     });
-    return NextResponse.json({ skipped: true, reason: "no ready draft blogs", validationSkips: skipped }, { status: 204 });
+    return NextResponse.json(
+      { skipped: true, reason: "no ready approved or draft blogs", validationSkips: skipped },
+      { status: 204 },
+    );
   }
 
-  // Generate cover if missing. Requires mjPrompt to be non-empty.
   let generatedCover: string | null = null;
   if (chosen.covers.length === 0) {
     if (!chosen.mjPrompt?.trim()) {
@@ -122,11 +172,11 @@ export async function POST(req: NextRequest) {
         data: {
           event: "publisher.skipped",
           blogId: chosen.id,
-          detail: "no cover and mjPrompt is empty — cannot generate",
+          detail: "draft had no cover and mjPrompt is empty — cannot generate",
         },
       });
       return NextResponse.json(
-        { skipped: true, reason: "no cover and no mjPrompt", blogId: chosen.id },
+        { skipped: true, reason: "draft has no cover and no mjPrompt", blogId: chosen.id },
         { status: 202 },
       );
     }
@@ -144,7 +194,10 @@ export async function POST(req: NextRequest) {
       await prisma.cronAuditLog.create({
         data: { event: "publisher.skipped", blogId: chosen.id, detail: `cover gen failed: ${msg}`.slice(0, 500) },
       });
-      return NextResponse.json({ skipped: true, reason: "cover generation failed", error: msg, blogId: chosen.id }, { status: 502 });
+      return NextResponse.json(
+        { skipped: true, reason: "cover generation failed", error: msg, blogId: chosen.id },
+        { status: 502 },
+      );
     }
   }
 
@@ -167,11 +220,12 @@ export async function POST(req: NextRequest) {
     data: {
       event: "publisher.published",
       blogId: chosen.id,
-      detail: `slug=${published.translations[0]?.slug ?? ""}, cover=${generatedCover ? "generated" : "existing"}, dailyCount=${publishedToday + 1}/${MAX_PUBLISH_PER_DAY}, skipped=${skipped.length}`,
+      detail: `source=draft, slug=${published.translations[0]?.slug ?? ""}, cover=${generatedCover ? "generated" : "existing"}, dailyCount=${publishedToday + 1}/${MAX_PUBLISH_PER_DAY}, draftSkips=${skipped.length}`,
     },
   });
 
   return NextResponse.json({
+    source: "draft",
     blogId: chosen.id,
     slug: published.translations[0]?.slug ?? null,
     title: published.translations[0]?.title ?? null,
