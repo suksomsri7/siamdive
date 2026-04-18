@@ -57,7 +57,6 @@ export default function SearchFab() {
   const [results,      setResults]      = useState<Result[] | null>(null);
   const [resultsType,  setResultsType]  = useState<TripType | null>(null);
   const [collapsed,    setCollapsed]    = useState(false);
-  const [contactFor,   setContactFor]   = useState<string | null>(null);
 
   const switchType = (t: TripType) => {
     if (t === type) return;
@@ -262,7 +261,7 @@ export default function SearchFab() {
                     <p style={{ fontSize: 13, color: "#555" }}>ไม่พบทริปในช่วงเวลานี้</p>
                   </div>
                 ) : resultsType === "LIVEABOARD" ? (
-                  <LiveaboardResults results={results} openResult={openResult} onContact={(id) => setContactFor(id)} />
+                  <LiveaboardResults results={results} openResult={openResult} />
                 ) : (
                   <>
                     <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
@@ -311,46 +310,39 @@ export default function SearchFab() {
                           {/* Packages */}
                           {r.packages.length > 0 && (
                             <div style={{ borderTop: "1px solid #1f1f1f", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-                              {r.packages.map(p => (
-                                <div key={p.id}
-                                  style={{
-                                    display: "flex", alignItems: "center", gap: 8,
-                                    padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
-                                    opacity: p.isFull ? 0.5 : 1,
-                                  }}>
-                                  <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    📦 {p.title}
-                                    {p.availableSeats != null && (
-                                      <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
-                                        ({p.availableSeats} ที่นั่ง)
+                              {r.packages.map(p => {
+                                const rowStyle: React.CSSProperties = {
+                                  display: "flex", alignItems: "center", gap: 10,
+                                  padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
+                                  opacity: p.isFull ? 0.5 : 1,
+                                  width: "100%", textAlign: "left",
+                                  border: "none", cursor: p.isFull ? "default" : "pointer",
+                                };
+                                const inner = (
+                                  <>
+                                    <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      📦 {p.title}
+                                      {p.availableSeats != null && (
+                                        <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
+                                          ({p.availableSeats} ที่นั่ง)
+                                        </span>
+                                      )}
+                                    </span>
+                                    {p.isFull ? (
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                                    ) : p.minPrice > 0 ? (
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
+                                        ฿{p.minPrice.toLocaleString()}
                                       </span>
-                                    )}
-                                  </span>
-                                  {!p.isFull && (
-                                    <button onClick={() => openResult(r)} title="Info"
-                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
-                                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                                      </svg>
-                                    </button>
-                                  )}
-                                  {p.isFull ? (
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
-                                  ) : p.minPrice > 0 ? (
-                                    <button onClick={() => setContactFor(p.id)}
-                                      style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0, padding: 0 }}>
-                                      ฿{p.minPrice.toLocaleString()}
-                                    </button>
-                                  ) : (
-                                    <button onClick={() => setContactFor(p.id)} title="Booking"
-                                      style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
-                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                                      </svg>
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                                    ) : null}
+                                  </>
+                                );
+                                return p.isFull ? (
+                                  <div key={p.id} style={rowStyle}>{inner}</div>
+                                ) : (
+                                  <button key={p.id} onClick={() => openResult(r)} style={rowStyle}>{inner}</button>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -362,7 +354,6 @@ export default function SearchFab() {
             </div>
           </div>
 
-          {contactFor && <ContactSheet onClose={() => setContactFor(null)} />}
         </>
       )}
     </>
@@ -371,11 +362,10 @@ export default function SearchFab() {
 
 // ── Liveaboard results: group by boat, show date ranges + min price ─────────
 function LiveaboardResults({
-  results, openResult, onContact,
+  results, openResult,
 }: {
   results: Result[];
   openResult: (r: Result) => void;
-  onContact: (id: string) => void;
 }) {
   // Group schedules by boat id; within each boat, dedupe by schedule id.
   const groups = new Map<string, { boat: Result["boat"]; schedules: Result[] }>();
@@ -427,31 +417,17 @@ function LiveaboardResults({
                   const schedPkgPrices = s.packages.map(p => p.minPrice).filter(x => x > 0);
                   const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
                   return (
-                    <div key={s.scheduleId}
-                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#0d0d0d", borderRadius: 7 }}>
+                    <button key={s.scheduleId} onClick={() => openResult(s)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
                       <span style={{ fontSize: 12, color: "#bbb", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
                       </span>
-                      <button onClick={() => openResult(s)} title="Info"
-                        style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
-                          <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                      </button>
-                      {schedMin > 0 ? (
-                        <button onClick={() => onContact(s.scheduleId)}
-                          style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0, padding: 0 }}>
+                      {schedMin > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
                           ฿{schedMin.toLocaleString()}
-                        </button>
-                      ) : (
-                        <button onClick={() => onContact(s.scheduleId)} title="Booking"
-                          style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width={13} height={13}>
-                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                          </svg>
-                        </button>
+                        </span>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -463,70 +439,3 @@ function LiveaboardResults({
   );
 }
 
-// ── Contact popup (LINE / WhatsApp / Messenger / WeChat) ─────────────────────
-function ContactSheet({ onClose }: { onClose: () => void }) {
-  const channels = [
-    {
-      label: "LINE",
-      href:  "https://lin.ee/wayWuGH",
-      bg:    "#06C755",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
-          <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.494.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
-        </svg>
-      ),
-    },
-    {
-      label: "WhatsApp",
-      href:  "https://wa.me/66983768135",
-      bg:    "#25D366",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-        </svg>
-      ),
-    },
-    {
-      label: "Messenger",
-      href:  "https://m.me/siamdive",
-      bg:    "#0084FF",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
-          <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.975 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.26L19.752 8l-6.561 6.963z"/>
-        </svg>
-      ),
-    },
-    {
-      label: "WeChat",
-      href:  "weixin://dl/moments",
-      bg:    "#07C160",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
-          <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.49.49 0 01.177-.554C22.922 18.487 24 16.866 24 15.054c0-3.227-2.993-5.988-7.062-6.196zM14 12.271c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982zm4.943 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982z"/>
-        </svg>
-      ),
-    },
-  ];
-  return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(0,0,0,0.55)" }} />
-      <div style={{
-        position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 1301,
-        background: "#1a1a1a", border: "1px solid #262626", borderRadius: 16,
-        padding: "18px 22px", boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
-        animation: "contactUp 0.25s ease both",
-      }}>
-        <style>{`@keyframes contactUp { from { opacity:0; transform: translate(-50%, 16px); } to { opacity:1; transform: translate(-50%, 0); } }`}</style>
-        <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12, textAlign: "center" }}>Booking</p>
-        <div style={{ display: "flex", gap: 14 }}>
-          {channels.map(c => (
-            <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer" title={c.label}
-              style={{ width: 56, height: 56, borderRadius: "50%", background: c.bg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-              {c.icon}
-            </a>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
