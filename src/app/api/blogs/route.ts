@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, canDo } from "@/lib/apiAuth";
 import { normalizeStatus } from "@/lib/blogStatus";
+import { validateTranslationParity } from "@/lib/blogParity";
 
 // GET /api/blogs — list all blogs with translations
 export async function GET(req: NextRequest) {
@@ -38,6 +39,32 @@ export async function POST(req: NextRequest) {
       { error: "New blogs must be created in DRAFT status" },
       { status: 400 },
     );
+  }
+
+  // Translation-parity guard. The EN translation is the baseline — every other
+  // translation must carry the same structural skeleton (h2/ul/table/li/a count)
+  // and meet a character-length floor. This exists because the generator (AI)
+  // repeatedly collapses CJK translations by ~60% and quietly drops sections.
+  // The server is the last line of defence. See src/lib/blogParity.ts.
+  // Bypass allowed for admin sessions that explicitly opt out (manual backoffice
+  // edits where incomplete drafts are legit).
+  const parityBypass =
+    auth.source === "session" && req.headers.get("x-skip-parity") === "1";
+  if (!parityBypass) {
+    const parity = validateTranslationParity(valid);
+    if (!parity.ok) {
+      return NextResponse.json(
+        {
+          error: "translation_parity_failed",
+          message:
+            "One or more non-EN translations are structurally incomplete vs the EN baseline. Fix and resubmit. See `failures[]` for details and `baseline` for expected counts.",
+          baseline: parity.baseline,
+          failures: parity.failures,
+          hint: "Likely cause: AI translator collapsed sections. Re-run the translation with explicit instruction to preserve every <h2>, <ul>, <table>, and <a> from EN.",
+        },
+        { status: 422 },
+      );
+    }
   }
 
   const blog = await prisma.blog.create({
