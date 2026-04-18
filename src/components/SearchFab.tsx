@@ -416,9 +416,10 @@ function LiveaboardResults({
                 {schedules.map(s => {
                   const schedPkgPrices = s.packages.map(p => p.minPrice).filter(x => x > 0);
                   const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
+                  const isFull   = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
                   return (
                     <button key={s.scheduleId} onClick={() => openResult(s)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%", opacity: isFull ? 0.55 : 1 }}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={15} height={15}
                         style={{ color: "#fff", flexShrink: 0, opacity: 0.9 }}>
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -434,11 +435,15 @@ function LiveaboardResults({
                           </span>
                         )}
                       </span>
-                      {schedMin > 0 && (
+                      {isFull ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 6, padding: "3px 8px", flexShrink: 0 }}>
+                          FULL
+                        </span>
+                      ) : schedMin > 0 ? (
                         <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
                           ฿{schedMin.toLocaleString()}
                         </span>
-                      )}
+                      ) : null}
                     </button>
                   );
                 })}
