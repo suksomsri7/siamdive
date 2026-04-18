@@ -448,6 +448,18 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     return () => { alive = false; };
   }, [trip.boatId]);
 
+  useEffect(() => {
+    if (!boat || !initialDate) return;
+    if (!TRIP_TYPES_WITH_MONTH_PICKER.includes(boat.type)) return;
+    const match = boat.schedules.find(s => s.departureDate && s.departureDate.slice(0, 10) === initialDate);
+    if (!match) return;
+    setExpandedSched(match.id);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-schedule-id="${match.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [boat, initialDate]);
+
   const boatTrans = pickTrans(boat?.translations, lang);
   const title     = boatTrans?.title || trip.title;
   const excerpt   = boatTrans?.excerpt || trip.description || "";
@@ -722,7 +734,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                     const isOpen  = expandedSched === s.id;
                     const hasDetail = !!(st?.excerpt || st?.content || st?.route);
                     return (
-                      <div key={s.id} style={{
+                      <div key={s.id} data-schedule-id={s.id} style={{
                         background: isOpen ? "#161616" : "#121212",
                         border: `1px solid ${isOpen ? "#2a3a52" : "#1f1f1f"}`,
                         borderRadius: 14, overflow: "hidden",
