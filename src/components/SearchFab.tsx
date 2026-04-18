@@ -431,8 +431,9 @@ function LiveaboardResults({
                 {schedules.map(s => {
                   const schedPkgPrices = s.packages.map(p => p.minPrice).filter(x => x > 0);
                   const schedMin = schedPkgPrices.length ? Math.min(...schedPkgPrices) : 0;
+                  const handleClick = schedMin > 0 ? () => openResult(s) : () => onContact(s.scheduleId);
                   return (
-                    <button key={s.scheduleId} onClick={() => openResult(s)}
+                    <button key={s.scheduleId} onClick={handleClick}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", background: "#0d0d0d", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left", width: "100%" }}>
                       <span style={{ fontSize: 12, color: "#bbb", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         📅 {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
