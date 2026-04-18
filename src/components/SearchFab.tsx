@@ -15,6 +15,7 @@ type Pkg = {
 
 type Result = {
   scheduleId: string;
+  scheduleTitle: string | null;
   departureDate: string | null;
   returnDate: string | null;
   status: string;
@@ -247,6 +248,11 @@ export default function SearchFab() {
                                 <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{r.boat.area}</p>
                               )}
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.boat.title}</p>
+                              {r.scheduleTitle && (
+                                <p style={{ fontSize: 11, color: "#aaa", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {r.scheduleTitle}
+                                </p>
+                              )}
                               <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
                                 {fmtDate(r.departureDate)}{r.returnDate ? ` → ${fmtDate(r.returnDate)}` : ""}
                               </p>

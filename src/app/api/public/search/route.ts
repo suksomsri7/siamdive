@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
       boat: boatWhere,
     },
     include: {
+      translations: { select: { lang: true, title: true } },
       boat: {
         include: {
           translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
           package: {
             include: {
               translations: { select: { lang: true, title: true } },
+              priceTiers:   { select: { regularPrice: true, salePrice: true } },
             },
           },
           priceTiers: true,
@@ -100,10 +102,15 @@ export async function GET(req: NextRequest) {
 
     const packages = s.packages.map(sp => {
       const pt = pick(sp.package.translations);
-      const pkgPrices = sp.priceTiers
+      // Prefer schedule-package overrides; fall back to package defaults.
+      const overrides = sp.priceTiers
         .map(t => t.salePrice ?? t.regularPrice)
         .filter(p => p > 0);
-      const minPrice = pkgPrices.length ? Math.min(...pkgPrices) : 0;
+      const defaults = sp.package.priceTiers
+        .map(t => t.salePrice ?? t.regularPrice)
+        .filter(p => p > 0);
+      const effective = overrides.length ? overrides : defaults;
+      const minPrice = effective.length ? Math.min(...effective) : 0;
       return {
         id:             sp.package.id,
         title:          pt?.title || sp.package.name,
@@ -113,8 +120,11 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const scheduleTitle = pick(s.translations)?.title || null;
+
     return {
       scheduleId:    s.id,
+      scheduleTitle,
       departureDate: s.departureDate,
       returnDate:    s.returnDate,
       status:        s.status,
