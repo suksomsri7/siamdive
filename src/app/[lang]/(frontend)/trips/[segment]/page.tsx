@@ -88,10 +88,13 @@ export const dynamic = "force-dynamic";
 
 export default async function TripSegmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; segment: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { lang, segment } = await params;
+  const { date } = await searchParams;
   const boatType = SEGMENT_TO_TYPE[segment];
 
   // ── Listing page ────────────────────────────────────────────────────────────
@@ -144,9 +147,11 @@ export default async function TripSegmentPage({
     boatId:          b.id,
   };
 
+  const initialDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined;
+
   return (
     <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
-      <TripDetailPage trip={trip} lang={lang} />
+      <TripDetailPage trip={trip} lang={lang} initialDate={initialDate} />
     </main>
   );
 }

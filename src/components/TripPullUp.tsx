@@ -414,12 +414,12 @@ function GallerySlider({ photos }: { photos: string[] }) {
   );
 }
 
-export function InfoModal({ trip, lang = "en", onClose }: { trip: Trip; lang?: string; onClose: () => void }) {
+export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: Trip; lang?: string; initialDate?: string; onClose: () => void }) {
   const [boat, setBoat]         = useState<BoatData | null>(null);
   const [loading, setLoading]   = useState<boolean>(!!trip.boatId);
   const [expandedPkg, setExpandedPkg] = useState<string | null>(null);
   const [showVideos, setShowVideos]   = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(todayISO);
+  const [selectedDate, setSelectedDate] = useState<string>(() => initialDate || todayISO());
   const [showShare,   setShowShare]   = useState(false);
 
   // Lock body scroll while InfoModal is open
@@ -497,7 +497,7 @@ export function InfoModal({ trip, lang = "en", onClose }: { trip: Trip; lang?: s
 
     {showShare && (
       <ShareMenu
-        url={typeof window !== "undefined" ? `${window.location.origin}/${lang}/trips/${trip.slug}` : `/${lang}/trips/${trip.slug}`}
+        url={(typeof window !== "undefined" ? window.location.origin : "") + `/${lang}/trips/${trip.slug}?date=${selectedDate}`}
         title={trip.title}
         onClose={() => setShowShare(false)}
       />
