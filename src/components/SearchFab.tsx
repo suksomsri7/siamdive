@@ -298,35 +298,46 @@ export default function SearchFab() {
                           {/* Packages */}
                           {r.packages.length > 0 && (
                             <div style={{ borderTop: "1px solid #1f1f1f", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-                              {r.packages.map(p => (
-                                <div key={p.id}
-                                  style={{
-                                    display: "flex", alignItems: "center", gap: 10,
-                                    padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
-                                    opacity: p.isFull ? 0.5 : 1,
-                                  }}>
-                                  <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    📦 {p.title}
-                                    {p.availableSeats != null && (
-                                      <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
-                                        ({p.availableSeats} ที่นั่ง)
+                              {r.packages.map(p => {
+                                const interactive = !p.isFull;
+                                const row = (
+                                  <>
+                                    <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>
+                                      📦 {p.title}
+                                      {p.availableSeats != null && (
+                                        <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
+                                          ({p.availableSeats} ที่นั่ง)
+                                        </span>
+                                      )}
+                                    </span>
+                                    {p.isFull ? (
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                                    ) : p.minPrice > 0 ? (
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
+                                        ฿{p.minPrice.toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 10px", flexShrink: 0 }}>
+                                        Contact
                                       </span>
                                     )}
-                                  </span>
-                                  {p.isFull ? (
-                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
-                                  ) : p.minPrice > 0 ? (
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
-                                      ฿{p.minPrice.toLocaleString()}
-                                    </span>
-                                  ) : (
-                                    <button onClick={(e) => { e.stopPropagation(); setContactFor(p.id); }}
-                                      style={{ fontSize: 11, fontWeight: 700, color: "#eab308", background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.35)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", flexShrink: 0 }}>
-                                      Contact
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                                  </>
+                                );
+                                const sharedStyle: React.CSSProperties = {
+                                  display: "flex", alignItems: "center", gap: 10,
+                                  padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
+                                  opacity: p.isFull ? 0.5 : 1,
+                                  width: "100%", textAlign: "left",
+                                  border: "none", cursor: interactive ? "pointer" : "default",
+                                };
+                                return interactive ? (
+                                  <button key={p.id} onClick={(e) => { e.stopPropagation(); setContactFor(p.id); }} style={sharedStyle}>
+                                    {row}
+                                  </button>
+                                ) : (
+                                  <div key={p.id} style={sharedStyle}>{row}</div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -375,6 +386,16 @@ function ContactSheet({ onClose }: { onClose: () => void }) {
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
           <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.975 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.26L19.752 8l-6.561 6.963z"/>
+        </svg>
+      ),
+    },
+    {
+      label: "WeChat",
+      href:  "weixin://dl/moments",
+      bg:    "#07C160",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" width={26} height={26}>
+          <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.49.49 0 01.177-.554C22.922 18.487 24 16.866 24 15.054c0-3.227-2.993-5.988-7.062-6.196zM14 12.271c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982zm4.943 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.969-.982z"/>
         </svg>
       ),
     },
