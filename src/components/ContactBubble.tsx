@@ -49,7 +49,7 @@ export default function ContactBubble() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 20, zIndex: 1100, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+    <div style={{ position: "fixed", bottom: 90, right: 20, zIndex: 1100, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
       {/* Contact icons — slide up when open */}
       <div style={{
         display: "flex",

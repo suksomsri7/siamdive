@@ -118,16 +118,16 @@ export default function SearchFab() {
 
   return (
     <>
-      {/* Floating action button */}
+      {/* Floating action button — below the chat bubble (right-side stack) */}
       <button
         onClick={() => setOpen(true)}
         aria-label="Search trips"
         style={{
-          position: "fixed", bottom: 24, left: 24, zIndex: 100,
-          width: 56, height: 56, borderRadius: "50%",
+          position: "fixed", bottom: 24, right: 22, zIndex: 1099,
+          width: 52, height: 52, borderRadius: "50%",
           background: "#3b82f6", border: "none", color: "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 8px 28px rgba(59,130,246,0.45)", cursor: "pointer",
+          boxShadow: "0 4px 20px rgba(59,130,246,0.5)", cursor: "pointer",
         }}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" width={22} height={22}>
