@@ -5,6 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 
 type TripType = "DAYTRIP" | "LIVEABOARD";
 
+type Pkg = {
+  id: string;
+  title: string;
+  availableSeats: number | null;
+  isFull: boolean;
+  minPrice: number;
+};
+
 type Result = {
   scheduleId: string;
   departureDate: string | null;
@@ -20,7 +28,10 @@ type Result = {
     area: string;
     minPrice: number;
   };
+  packages: Pkg[];
 };
+
+type Area = { id: string; name: string };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const thisMonthISO = () => new Date().toISOString().slice(0, 7);
@@ -39,15 +50,30 @@ export default function SearchFab() {
   const [type,    setType]    = useState<TripType>("DAYTRIP");
   const [date,    setDate]    = useState<string>(todayISO());
   const [month,   setMonth]   = useState<string>(thisMonthISO());
+  const [areaId,  setAreaId]  = useState<string>("");
+  const [areas,   setAreas]   = useState<Area[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Result[] | null>(null);
+
+  // Fetch service areas once when modal opens
+  useEffect(() => {
+    if (!open || areas.length) return;
+    fetch(`/api/public/service-areas?lang=${lang}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Area[]) => setAreas(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [open, lang, areas.length]);
 
   const search = useCallback(async () => {
     setLoading(true);
     setResults(null);
     const params = new URLSearchParams({ type, lang });
-    if (type === "DAYTRIP") params.set("date", date);
-    else params.set("month", month);
+    if (type === "DAYTRIP") {
+      params.set("date", date);
+      if (areaId) params.set("serviceAreaId", areaId);
+    } else {
+      params.set("month", month);
+    }
     try {
       const res = await fetch(`/api/public/search?${params}`).then(r => r.ok ? r.json() : []);
       setResults(Array.isArray(res) ? res : []);
@@ -56,7 +82,7 @@ export default function SearchFab() {
     } finally {
       setLoading(false);
     }
-  }, [type, date, month, lang]);
+  }, [type, date, month, areaId, lang]);
 
   useEffect(() => {
     if (!open) return;
@@ -106,7 +132,7 @@ export default function SearchFab() {
           }}>
             <div style={{
               pointerEvents: "auto",
-              width: "min(520px, 100%)",
+              width: "min(560px, 100%)",
               background: "#0d0d0d", color: "#e5e5e5",
               borderRadius: "20px 20px 0 0",
               border: "1px solid #1f1f1f", borderBottom: "none",
@@ -116,12 +142,10 @@ export default function SearchFab() {
             }}>
               <style>{`@keyframes searchSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
-              {/* Handle */}
               <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
                 <div style={{ width: 36, height: 4, borderRadius: 2, background: "#3a3a3a" }} />
               </div>
 
-              {/* Header */}
               <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a" }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>ค้นหาทริป</div>
                 <div style={{ flex: 1 }} />
@@ -130,8 +154,7 @@ export default function SearchFab() {
               </div>
 
               {/* Controls */}
-              <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Type toggle */}
+              <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, background: "#161616", padding: 4, borderRadius: 12 }}>
                   {(["DAYTRIP", "LIVEABOARD"] as const).map(t => {
                     const active = type === t;
@@ -141,13 +164,12 @@ export default function SearchFab() {
                           padding: "10px 0", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
                           background: active ? "#3b82f6" : "transparent", color: active ? "#fff" : "#666",
                         }}>
-                        {t === "DAYTRIP" ? "🤿 Day Trip" : "🚢 Liveaboard"}
+                        {t === "DAYTRIP" ? "🤿 Scuba Day Trips" : "🚢 Liveaboard"}
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Date / Month picker */}
                 <div>
                   <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
                     {type === "DAYTRIP" ? "วันที่" : "เดือน / ปี"}
@@ -161,7 +183,22 @@ export default function SearchFab() {
                   )}
                 </div>
 
-                {/* Search button */}
+                {/* Location filter — Scuba Day Trips only */}
+                {type === "DAYTRIP" && (
+                  <div>
+                    <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
+                      Location (พื้นที่ให้บริการ)
+                    </label>
+                    <select value={areaId} onChange={e => setAreaId(e.target.value)}
+                      style={{ width: "100%", background: "#161616", border: "1px solid #262626", borderRadius: 10, color: "#f5f5f5", fontSize: 14, padding: "10px 14px", outline: "none", colorScheme: "dark", boxSizing: "border-box" }}>
+                      <option value="">— ทุกพื้นที่ —</option>
+                      {areas.map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <button onClick={search} disabled={loading}
                   style={{
                     width: "100%", background: "#3b82f6", border: "none", color: "#fff", fontWeight: 700, fontSize: 14,
@@ -175,7 +212,7 @@ export default function SearchFab() {
               <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 28px", minHeight: 120 }}>
                 {results === null ? (
                   <p style={{ fontSize: 12, color: "#444", textAlign: "center", padding: "20px 0" }}>
-                    เลือก {type === "DAYTRIP" ? "วันที่" : "เดือน"} แล้วกดค้นหา
+                    เลือก{type === "DAYTRIP" ? "วันที่" : "เดือน"} แล้วกดค้นหา
                   </p>
                 ) : results.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 0" }}>
@@ -185,36 +222,73 @@ export default function SearchFab() {
                 ) : (
                   <>
                     <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
-                      พบ {results.length} ทริป
+                      พบ {results.length} เรือ
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {results.map(r => (
-                        <button key={r.scheduleId} onClick={() => openResult(r)}
+                        <div key={r.scheduleId}
                           style={{
-                            display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
-                            background: "#161616", border: "1px solid #1f1f1f", borderRadius: 10,
-                            cursor: "pointer", textAlign: "left", width: "100%",
+                            background: "#161616", border: "1px solid #1f1f1f", borderRadius: 12,
+                            overflow: "hidden",
                           }}>
-                          {r.boat.cover
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={r.boat.cover} alt="" style={{ width: 56, height: 42, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
-                            : <div style={{ width: 56, height: 42, background: "#222", borderRadius: 6, flexShrink: 0 }} />
-                          }
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            {r.boat.area && (
-                              <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{r.boat.area}</p>
+                          {/* Boat header — clickable */}
+                          <button onClick={() => openResult(r)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 12, padding: "10px 12px",
+                              background: "transparent", border: "none", cursor: "pointer", textAlign: "left", width: "100%",
+                            }}>
+                            {r.boat.cover
+                              // eslint-disable-next-line @next/next/no-img-element
+                              ? <img src={r.boat.cover} alt="" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+                              : <div style={{ width: 64, height: 48, background: "#222", borderRadius: 6, flexShrink: 0 }} />
+                            }
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {r.boat.area && (
+                                <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{r.boat.area}</p>
+                              )}
+                              <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.boat.title}</p>
+                              <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
+                                {fmtDate(r.departureDate)}{r.returnDate ? ` → ${fmtDate(r.returnDate)}` : ""}
+                              </p>
+                            </div>
+                            {r.boat.minPrice > 0 && (
+                              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                                <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa" }}>฿{r.boat.minPrice.toLocaleString()}</p>
+                              </div>
                             )}
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.boat.title}</p>
-                            <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
-                              {fmtDate(r.departureDate)}{r.returnDate ? ` → ${fmtDate(r.returnDate)}` : ""}
-                            </p>
-                          </div>
-                          {r.boat.minPrice > 0 && (
-                            <div style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa", flexShrink: 0 }}>
-                              ฿{r.boat.minPrice.toLocaleString()}
+                          </button>
+
+                          {/* Packages */}
+                          {r.packages.length > 0 && (
+                            <div style={{ borderTop: "1px solid #1f1f1f", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
+                              {r.packages.map(p => (
+                                <div key={p.id}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 10,
+                                    padding: "6px 8px", background: "#0d0d0d", borderRadius: 7,
+                                    opacity: p.isFull ? 0.5 : 1,
+                                  }}>
+                                  <span style={{ fontSize: 11, color: "#888", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    📦 {p.title}
+                                    {p.availableSeats != null && (
+                                      <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
+                                        ({p.availableSeats} ที่นั่ง)
+                                      </span>
+                                    )}
+                                  </span>
+                                  {p.isFull ? (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                                  ) : p.minPrice > 0 ? (
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", flexShrink: 0 }}>
+                                      ฿{p.minPrice.toLocaleString()}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ))}
                             </div>
                           )}
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </>
