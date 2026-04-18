@@ -7,7 +7,6 @@ import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroSlider from "./HeroSlider";
-import SearchFab from "./SearchFab";
 
 export type Section = {
   id:       string;
@@ -188,8 +187,6 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
         />,
         document.body
       )}
-
-      <SearchFab />
     </>
   );
 }
