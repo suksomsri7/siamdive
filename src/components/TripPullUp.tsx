@@ -1082,8 +1082,8 @@ function ShareMenu({ url, title, onClose }: { url: string; title: string; onClos
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.5)" }} />
-      <div style={{ position: "fixed", bottom: 80, right: 16, zIndex: 151, background: "#1e1e1e", borderRadius: 16, padding: "16px", boxShadow: "0 8px 40px rgba(0,0,0,0.8)", minWidth: 220, animation: "shareIn 0.2s ease both" }}>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1050, background: "rgba(0,0,0,0.5)" }} />
+      <div style={{ position: "fixed", bottom: 80, right: 16, zIndex: 1051, background: "#1e1e1e", borderRadius: 16, padding: "16px", boxShadow: "0 8px 40px rgba(0,0,0,0.8)", minWidth: 220, animation: "shareIn 0.2s ease both" }}>
         <style>{`@keyframes shareIn { from { opacity:0; transform:scale(0.9) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
         <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>แชร์</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
