@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       NULLIF(AVG(e."dwellMs" )::int, 0)  AS "avgDwellMs",
       NULLIF(AVG(e."scrollPct")::int, 0) AS "avgScrollPct",
       COUNT(*) FILTER (WHERE e.type = 'BLOG_READ_COMPLETE')::int AS reads,
-      COUNT(*) FILTER (WHERE e.type LIKE 'BOOKING_INTENT_%')::int AS intents
+      COUNT(*) FILTER (WHERE e.type::text LIKE 'BOOKING_INTENT_%')::int AS intents
     FROM "AnalyticsEvent" e
     JOIN "AnalyticsSession" s ON s.id = e."sessionId"
     WHERE e.ts >= ${dayStart} AND e.ts < ${dayEnd}

@@ -28,7 +28,7 @@ export async function topTrips(range: RangeKey, limit = 10) {
       COUNT(*)::int AS views,
       COUNT(DISTINCT e."visitorId")::int AS "uniqueVisitors",
       COUNT(DISTINCT e."sessionId")::int AS "uniqueSessions",
-      COUNT(*) FILTER (WHERE e.type LIKE 'BOOKING_INTENT_%')::int AS intents
+      COUNT(*) FILTER (WHERE e.type::text LIKE 'BOOKING_INTENT_%')::int AS intents
     FROM "AnalyticsEvent" e
     JOIN "AnalyticsSession" s ON s.id = e."sessionId"
     WHERE e.ts >= ${start}
@@ -156,7 +156,7 @@ export async function countryHeatmap(range: RangeKey) {
       COALESCE(e."entityType", 'PATH') AS "entityType",
       COUNT(*)::int AS views,
       COUNT(DISTINCT e."sessionId")::int AS "uniqueSessions",
-      COUNT(*) FILTER (WHERE e.type LIKE 'BOOKING_INTENT_%')::int AS intents
+      COUNT(*) FILTER (WHERE e.type::text LIKE 'BOOKING_INTENT_%')::int AS intents
     FROM "AnalyticsEvent" e
     JOIN "AnalyticsSession" s ON s.id = e."sessionId"
     WHERE e.ts >= ${start} AND s."isBot" = FALSE
@@ -176,7 +176,7 @@ export async function funnel(range: RangeKey) {
     SELECT
       COUNT(DISTINCT s.id)::int AS sessions,
       COUNT(DISTINCT s.id) FILTER (WHERE e.type = 'TRIP_VIEW')::int AS "sessionsWithTripView",
-      COUNT(DISTINCT s.id) FILTER (WHERE e.type LIKE 'BOOKING_INTENT_%')::int AS "sessionsWithIntent"
+      COUNT(DISTINCT s.id) FILTER (WHERE e.type::text LIKE 'BOOKING_INTENT_%')::int AS "sessionsWithIntent"
     FROM "AnalyticsSession" s
     LEFT JOIN "AnalyticsEvent" e ON e."sessionId" = s.id
     WHERE s."startedAt" >= ${start} AND s."isBot" = FALSE
