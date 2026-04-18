@@ -84,22 +84,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Path A: APPROVED queue (preferred) ────────────────────────────────
-  const approved = await prisma.blog.findMany({
-    where: { status: "APPROVED" },
-    include: { translations: { select: { lang: true } } },
-    orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
-    take: 10,
-  });
+  // ── Path A: APPROVED exists → original behaviour ─────────────────────
+  // If any APPROVED blog exists at all, stay in the classic flow — do not
+  // touch the DRAFT queue even when no APPROVED is "ready" yet. This keeps
+  // the cron from racing a human review.
+  const approvedCount = await prisma.blog.count({ where: { status: "APPROVED" } });
+  if (approvedCount > 0) {
+    const approved = await prisma.blog.findMany({
+      where: { status: "APPROVED" },
+      include: { translations: { select: { lang: true } } },
+      orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
+      take: 10,
+    });
 
-  const approvedReady = approved.find((b) => {
-    const hasCover = b.covers.length > 0 && b.covers[0]?.trim();
-    const langs = new Set(b.translations.map((t) => t.lang));
-    const hasAllLangs = REQUIRED_LANGS.every((l) => langs.has(l));
-    return hasCover && hasAllLangs;
-  });
+    const approvedReady = approved.find((b) => {
+      const hasCover = b.covers.length > 0 && b.covers[0]?.trim();
+      const langs = new Set(b.translations.map((t) => t.lang));
+      const hasAllLangs = REQUIRED_LANGS.every((l) => langs.has(l));
+      return hasCover && hasAllLangs;
+    });
 
-  if (approvedReady) {
+    if (!approvedReady) {
+      await prisma.cronAuditLog.create({
+        data: {
+          event: "publisher.empty",
+          detail: `approved=${approvedCount}, none ready (needs cover + 8 langs). DRAFT fallback skipped while approved queue non-empty.`,
+        },
+      });
+      return NextResponse.json(
+        { skipped: true, reason: "approved exist but none ready", approvedCount },
+        { status: 204 },
+      );
+    }
+
     const published = await prisma.blog.update({
       where: { id: approvedReady.id },
       data: { status: "PUBLISHED" },
@@ -134,7 +151,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ── Path B: DRAFT queue (fallback) ────────────────────────────────────
+  // ── Path B: No APPROVED at all → fall back to DRAFT queue ─────────────
   const drafts = await prisma.blog.findMany({
     where: { status: "DRAFT" },
     include: {
@@ -156,11 +173,11 @@ export async function POST(req: NextRequest) {
     await prisma.cronAuditLog.create({
       data: {
         event: "publisher.empty",
-        detail: `approved=${approved.length} none-ready, draft=${drafts.length} none-passed. draftSkips=${JSON.stringify(skipped).slice(0, 300)}`,
+        detail: `approved=0, draft=${drafts.length} none-passed. draftSkips=${JSON.stringify(skipped).slice(0, 300)}`,
       },
     });
     return NextResponse.json(
-      { skipped: true, reason: "no ready approved or draft blogs", validationSkips: skipped },
+      { skipped: true, reason: "no ready draft blogs", validationSkips: skipped },
       { status: 204 },
     );
   }
