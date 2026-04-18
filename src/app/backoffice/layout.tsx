@@ -7,7 +7,10 @@ import { useState } from "react";
 const NAV = [
   {
     section: "Overview",
-    items: [{ label: "Dashboard", href: "/backoffice", icon: "▦" }],
+    items: [
+      { label: "Dashboard", href: "/backoffice", icon: "▦" },
+      { label: "Analytics",  href: "/backoffice/analytics", icon: "📊" },
+    ],
   },
   {
     section: "Trips",
