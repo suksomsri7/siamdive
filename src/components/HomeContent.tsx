@@ -136,8 +136,17 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   )}
                 </div>
                 <div
-                  className="flex overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4 snap-x snap-mandatory sm:snap-none scroll-pl-4 sm:scroll-pl-10"
-                  style={{ gap: 0, paddingBottom: 14, paddingTop: 4, overflowY: "visible" }}
+                  className="flex overflow-x-auto row-scroll pr-4 snap-x snap-mandatory sm:snap-none"
+                  style={{
+                    gap: 0,
+                    // Container padding-left needs to fit the first slot's
+                    // leftward-extending numeral without clipping it off-screen.
+                    paddingLeft: "clamp(55px, 14vw, 85px)",
+                    paddingBottom: 14,
+                    paddingTop: 4,
+                    overflowY: "visible",
+                    scrollPaddingLeft: "clamp(55px, 14vw, 85px)",
+                  }}
                 >
                   {section.trips.map((trip, idx) => {
                     const rank = idx + 1;
@@ -147,13 +156,16 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                         key={trip.id}
                         className="flex-shrink-0 snap-start"
                         style={{
-                          // Slot = visible numeral column (paddingLeft) + card.
-                          // Numeral is absolute-positioned inside this padding
-                          // and overflows right under the card, so the left
-                          // portion is always visible regardless of digit width.
+                          // Netflix-true layout: slot is just the card. The
+                          // numeral extends LEFT of the slot boundary, landing
+                          // on top of the previous card's right edge. Cards
+                          // sit flush with almost no gap between them.
                           position: "relative",
-                          paddingLeft: "clamp(40px, 11vw, 65px)",
                           marginRight: 2,
+                          // Explicit z-index so each slot owns a stacking
+                          // context. Later slots paint above earlier slots,
+                          // so slot N+1's numeral sits on slot N's card.
+                          zIndex: idx + 1,
                         }}
                       >
                         <span
@@ -161,7 +173,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                           className="select-none"
                           style={{
                             position: "absolute",
-                            left: 0,
+                            left: "clamp(-45px, -12vw, -65px)",
                             bottom: -6,
                             fontSize: isTwoDigit
                               ? "clamp(130px, 38vw, 180px)"
