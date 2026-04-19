@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Prompt, Inter, Geist, Noto_Sans_Osage } from "next/font/google";
+import { Prompt, Inter, Geist, Noto_Sans_Osage, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
@@ -31,6 +31,14 @@ const notoSansOsage = Noto_Sans_Osage({
   variable: "--font-osage",
 });
 
+// Tall condensed display face for the Netflix-style Top Trips ranking numerals.
+const bebasNeue = Bebas_Neue({
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  variable: "--font-bebas",
+});
+
 export const metadata: Metadata = {
   title: "SIAMDIVE — ทริปดำน้ำในประเทศไทย",
   description: "ทริปดำน้ำ Scuba Daytrip และ Liveaboard คัดสรรสถานที่ดีที่สุดในประเทศไทย",
@@ -38,7 +46,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th" className={`${prompt.variable} ${inter.variable} ${geist.variable} ${notoSansOsage.variable}`}>
+    <html lang="th" className={`${prompt.variable} ${inter.variable} ${geist.variable} ${notoSansOsage.variable} ${bebasNeue.variable}`}>
       <body style={{ background: "#0d0d0d" }}>
         <Providers>{children}</Providers>
       </body>

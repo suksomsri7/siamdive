@@ -145,36 +145,38 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     return (
                       <div
                         key={trip.id}
-                        className="flex-shrink-0 flex items-end snap-start"
+                        className="flex-shrink-0 snap-start"
                         style={{
-                          // Trailing gap between slots. Larger on mobile so cards
-                          // don't collide with the next slot's numeral.
-                          marginRight: isTwoDigit ? 10 : 6,
+                          // Slot = visible numeral column (paddingLeft) + card.
+                          // Numeral is absolute-positioned inside this padding
+                          // and overflows right under the card, so the left
+                          // portion is always visible regardless of digit width.
+                          position: "relative",
+                          paddingLeft: "clamp(60px, 16vw, 90px)",
+                          marginRight: 6,
                         }}
                       >
                         <span
                           aria-hidden
                           className="select-none"
                           style={{
-                            // Numeral scales with viewport and stays proportional
-                            // to the card. Mobile gets larger ratios so the card
-                            // remains legible (~65vw) alongside the numeral.
+                            position: "absolute",
+                            left: 0,
+                            bottom: -6,
                             fontSize: isTwoDigit
                               ? "clamp(130px, 38vw, 180px)"
                               : "clamp(150px, 45vw, 220px)",
-                            fontFamily: "'Bebas Neue', 'Arial Black', Impact, system-ui, sans-serif",
-                            fontWeight: 900,
+                            fontFamily: "var(--font-bebas), 'Arial Black', Impact, system-ui, sans-serif",
+                            fontWeight: 400,
                             lineHeight: 0.82,
-                            color: "#0d0d0d",
-                            WebkitTextStroke: "2px #525252",
+                            // Dark slate fill + brighter stroke so numerals
+                            // read clearly against the #0d0d0d page bg.
+                            color: "#1f2937",
+                            WebkitTextStroke: "3px #9ca3af",
                             letterSpacing: "-0.05em",
-                            marginRight: isTwoDigit
-                              ? "clamp(-58px, -14vw, -36px)"
-                              : "clamp(-68px, -16vw, -40px)",
-                            marginBottom: "-8px",
-                            position: "relative",
-                            zIndex: 1,
-                            textShadow: "0 0 0 transparent",
+                            whiteSpace: "nowrap",
+                            pointerEvents: "none",
+                            zIndex: 0,
                           }}
                         >
                           {rank}
@@ -182,7 +184,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                         <div
                           style={{
                             position: "relative",
-                            zIndex: 2,
+                            zIndex: 1,
                             // Mobile: ~65% viewport → 1 card snapped centre,
                             // reads like a focused "now playing" poster.
                             // Desktop: capped so multiple slots fit the row.
