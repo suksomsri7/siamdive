@@ -22,6 +22,18 @@ const TYPE_LABEL: Record<string, string> = {
   "freedive":   "Freedive Trips",
 };
 
+// Country-specific liveaboard listings. The segment maps to a region keyword
+// matched case-insensitively against ServiceAreaTranslation.name (any lang).
+// Empty listings are fine — these URLs exist as menu entries, content is
+// added by tagging boats with a matching service area.
+const LIVEABOARD_COUNTRY_SEGMENT: Record<string, { region: string; label: string }> = {
+  "liveaboard-maldives":    { region: "maldives",    label: "Maldives Liveaboards"    },
+  "liveaboard-red-sea":     { region: "red sea",     label: "Red Sea Liveaboards"     },
+  "liveaboard-indonesia":   { region: "indonesia",   label: "Indonesia Liveaboards"   },
+  "liveaboard-palau":       { region: "palau",       label: "Palau Liveaboards"       },
+  "liveaboard-philippines": { region: "philippines", label: "Philippines Liveaboards" },
+};
+
 function boatToListItem(b: {
   id: string; name: string; type: string; covers: string[];
   translations: { lang: string; title: string; slug: string; excerpt: string }[];
@@ -84,6 +96,41 @@ const getBoatsByType = unstable_cache(
   { revalidate: 60 },
 );
 
+// Same shape as getBoatsByType but with a region filter — any boat whose
+// ServiceArea has a translation.name containing the region keyword (case
+// insensitive) is included. Cached per region so lookups are cheap.
+const getLiveaboardsByRegion = unstable_cache(
+  async (region: string) => prisma.boat.findMany({
+    where: {
+      type: "LIVEABOARD",
+      status: "PUBLISHED",
+      serviceAreas: {
+        some: {
+          serviceArea: {
+            translations: {
+              some: { name: { contains: region, mode: "insensitive" } },
+            },
+          },
+        },
+      },
+    },
+    include: {
+      translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
+      priceTiers:   { select: { regularPrice: true, salePrice: true } },
+      serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
+      schedules: {
+        where: { status: { in: ["OPEN", "FULL"] }, departureDate: { gte: new Date() } },
+        orderBy: { departureDate: "asc" },
+        take: 1,
+        select: { departureDate: true, returnDate: true, status: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  }),
+  ["liveaboards-by-region"],
+  { revalidate: 60 },
+);
+
 export const dynamic = "force-dynamic";
 
 export default async function TripSegmentPage({
@@ -105,6 +152,19 @@ export default async function TripSegmentPage({
     return (
       <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
         <TripListClient label={TYPE_LABEL[segment]} trips={trips} />
+      </main>
+    );
+  }
+
+  // ── Country-filtered liveaboard listing ─────────────────────────────────────
+  const countrySeg = LIVEABOARD_COUNTRY_SEGMENT[segment];
+  if (countrySeg) {
+    const boats = await getLiveaboardsByRegion(countrySeg.region);
+    const trips = boats.map(boatToListItem);
+
+    return (
+      <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
+        <TripListClient label={countrySeg.label} trips={trips} />
       </main>
     );
   }
