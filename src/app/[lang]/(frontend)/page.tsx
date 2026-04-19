@@ -93,7 +93,10 @@ const getHomepageData = unstable_cache(
       scheduleIds.length
         ? prisma.schedule.findMany({
             where: { id: { in: scheduleIds } },
-            include: { boat: { include: boatInclude } },
+            include: {
+              boat: { include: boatInclude },
+              translations: { select: { lang: true, title: true } },
+            },
           })
         : Promise.resolve([]),
 
@@ -240,6 +243,13 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
         const area = s.boat.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === l)
           || s.boat.serviceAreas[0]?.serviceArea.translations.find(t => t.lang === "en")
           || s.boat.serviceAreas[0]?.serviceArea.translations[0];
+        // Schedule translation (when present) holds the specific trip title
+        // like "Racha Island" or "North Andaman 4D5N". Top Trips row uses
+        // this instead of the service area so each card advertises the
+        // actual schedule, not just the region.
+        const schedTrans = s.translations?.find(t => t.lang === l)
+          || s.translations?.find(t => t.lang === "en")
+          || s.translations?.[0];
         const isLiveaboard = ["LIVEABOARD", "DIVE_RESORT"].includes(s.boat.type);
         trips.push({
           id:              item.refId,
@@ -248,7 +258,9 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           price:           minPrice,
           duration:        getDuration(s.departureDate, s.returnDate, s.boat.type),
           type:            isLiveaboard ? "LIVEABOARD" : "DAYTRIP",
-          destinationName: area?.name || "",
+          destinationName: useAllTrips && schedTrans?.title
+            ? schedTrans.title
+            : (area?.name || ""),
           imageUrl:        s.boat.covers[0] || undefined,
           covers:          s.boat.covers,
           description:     bt?.excerpt || undefined,

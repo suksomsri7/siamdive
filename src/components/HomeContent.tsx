@@ -32,6 +32,9 @@ export type Section = {
 type SelectedTrip = {
   slug: string; title: string; description?: string; price: number;
   duration: string; type: "DAYTRIP" | "LIVEABOARD"; destinationName: string; imageUrl?: string; boatId?: string;
+  // YYYY-MM-DD — when set, InfoModal scrolls to and expands that schedule
+  // on open. Used by TOP_RANKED rows where each card represents one schedule.
+  initialDate?: string;
 };
 
 // Map our short lang codes to BCP 47 tags Intl understands.
@@ -244,6 +247,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                                 slug: trip.slug, title: trip.title, description: trip.description,
                                 price: trip.price, duration: trip.duration, type: trip.type,
                                 destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
+                                initialDate: trip.departureDate?.slice(0, 10),
                               });
                             }}
                           />
@@ -335,6 +339,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
             destinationName: selected.destinationName, imageUrl: selected.imageUrl, boatId: selected.boatId,
           }}
           lang={lang}
+          initialDate={selected.initialDate}
           onClose={() => setSelected(null)}
         />,
         document.body
