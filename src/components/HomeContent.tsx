@@ -152,8 +152,8 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                           // and overflows right under the card, so the left
                           // portion is always visible regardless of digit width.
                           position: "relative",
-                          paddingLeft: "clamp(60px, 16vw, 90px)",
-                          marginRight: 6,
+                          paddingLeft: "clamp(40px, 11vw, 65px)",
+                          marginRight: 2,
                         }}
                       >
                         <span
@@ -169,10 +169,11 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                             fontFamily: "var(--font-bebas), 'Arial Black', Impact, system-ui, sans-serif",
                             fontWeight: 400,
                             lineHeight: 0.82,
-                            // Dark slate fill + brighter stroke so numerals
-                            // read clearly against the #0d0d0d page bg.
-                            color: "#1f2937",
-                            WebkitTextStroke: "3px #9ca3af",
+                            // White outline, transparent fill — true Netflix
+                            // Top-10 treatment. Stroke thickness picked so it
+                            // reads at every numeral size without filling in.
+                            color: "transparent",
+                            WebkitTextStroke: "2.5px #ffffff",
                             letterSpacing: "-0.05em",
                             whiteSpace: "nowrap",
                             pointerEvents: "none",
