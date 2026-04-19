@@ -23,11 +23,15 @@ type TripCardProps = {
   boatType?: string;
   description?: string;
   variant?: "vertical" | "horizontal";
+  // When set, rendered between destination (route) and title (boat name)
+  // so the card reads as route / date / boat. Used by the Top Trips row
+  // where each card represents a specific schedule departure.
+  dateLabel?: string;
   onClick?: () => void;
 };
 
 export default function TripCard({
-  slug, title, price, duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", onClick,
+  slug, title, price, duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", dateLabel, onClick,
 }: TripCardProps) {
   const [hovered, setHovered] = useState(false);
   const isHorizontal = variant === "horizontal";
@@ -75,6 +79,9 @@ export default function TripCard({
       </div>
       <div className="absolute bottom-0 left-0 right-0 p-3">
         <p style={{ fontSize: 10, color: "#93c5fd", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{destinationName}</p>
+        {dateLabel && (
+          <p style={{ fontSize: 10, color: "#fbbf24", fontWeight: 600, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dateLabel}</p>
+        )}
         <p style={{ fontSize: isHorizontal ? 14 : 12, fontWeight: 700, lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{title}</p>
         {isHorizontal ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>

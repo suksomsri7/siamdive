@@ -20,6 +20,9 @@ export type Section = {
     id: string; slug: string; title: string; price: number;
     duration: string; type: "DAYTRIP" | "LIVEABOARD";
     destinationName: string; imageUrl?: string; covers?: string[]; description?: string; boatId?: string; boatType?: string; hasVideos?: boolean;
+    // ISO string — only populated for SCHEDULE-refType items (TOP_RANKED rows
+    // display it as a dateLabel on the card).
+    departureDate?: string;
   }[];
   blogs: {
     id: string; slug: string; title: string; excerpt: string; cover: string;
@@ -30,6 +33,25 @@ type SelectedTrip = {
   slug: string; title: string; description?: string; price: number;
   duration: string; type: "DAYTRIP" | "LIVEABOARD"; destinationName: string; imageUrl?: string; boatId?: string;
 };
+
+// Map our short lang codes to BCP 47 tags Intl understands.
+const DATE_LOCALE: Record<string, string> = {
+  en: "en", th: "th", cn: "zh-CN", ja: "ja",
+  ko: "ko", de: "de", fr: "fr", ru: "ru",
+};
+
+function formatDateLabel(iso: string, lang: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const locale = DATE_LOCALE[lang] ?? "en";
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric", month: "short", year: "numeric",
+    }).format(d);
+  } catch {
+    return "";
+  }
+}
 
 export default function HomeContent({ sections, lang }: { sections: Section[]; lang: string }) {
   const [selected, setSelected] = useState<SelectedTrip | null>(null);
@@ -214,6 +236,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                             boatType={trip.boatType}
                             description={trip.description}
                             variant="vertical"
+                            dateLabel={trip.departureDate ? formatDateLabel(trip.departureDate, lang) : undefined}
                             onClick={() => {
                               trackRowClick(section.id, "TRIP", trip.id, idx + 1);
                               if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });

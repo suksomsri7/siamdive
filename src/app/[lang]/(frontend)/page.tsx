@@ -255,6 +255,12 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           boatId:          s.boat.id,
           boatType:        s.boat.type,
           hasVideos:       (s.boat.videos?.length ?? 0) > 0,
+          // ISO string survives unstable_cache serialisation; HomeContent
+          // formats it per-lang. Only SCHEDULE items have this; BOAT items
+          // (no specific departure) leave it undefined.
+          departureDate:   s.departureDate
+            ? (typeof s.departureDate === "string" ? s.departureDate : s.departureDate.toISOString())
+            : undefined,
         });
       }
 
