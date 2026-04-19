@@ -198,10 +198,10 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                           style={{
                             position: "relative",
                             zIndex: 1,
-                            // Mobile: ~65% viewport → 1 card snapped centre,
-                            // reads like a focused "now playing" poster.
-                            // Desktop: capped so multiple slots fit the row.
-                            width: "clamp(220px, 65vw, 260px)",
+                            // Width comes from TripCard (vertical variant is
+                            // clamp(140px, 14vw, 200px)). An outer fixed width
+                            // would leave empty space to the right of the
+                            // card, which reads as a gap between slots.
                           }}
                         >
                           <TripCard
