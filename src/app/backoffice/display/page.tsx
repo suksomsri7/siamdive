@@ -36,6 +36,7 @@ const SOURCES = [
   { value: "SCUBA_INSTRUCTOR", label: "Scuba Dive Instructor", icon: "🎖",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "FREEDIVE_INSTRUCTOR", label: "Freedive Instructor", icon: "🏅",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "BLOG",             label: "Blog",               icon: "📝",  itemRefType: "BLOG"     as const, boatLabel: ""            },
+  { value: "ALL_TRIPS",        label: "Top Trips (Analytics)", icon: "🏆",  itemRefType: "SCHEDULE" as const, boatLabel: ""            },
 ] as const;
 type SourceValue = typeof SOURCES[number]["value"];
 
@@ -633,6 +634,14 @@ export default function DisplayPage() {
                     <input type="checkbox" checked={autoTrending} onChange={e => { setAutoTrending(e.target.checked); if (e.target.checked) { setRandomMode(false); setAutoLatest(false); } }} style={{ accentColor:"#f97316", width:15, height:15 }} />
                     <span style={{ fontSize:13, color: autoTrending ? "#f97316" : "#555" }}>
                       🔥 เอา {maxItems || "6"} อันดับจาก Analytics (7 วันล่าสุด) {autoTrending && `— เรียงตามยอดวิว`}
+                    </span>
+                  </label>
+                )}
+                {(rowItemType === "ALL_TRIPS" || pickerSource === "ALL_TRIPS") && (
+                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
+                    <input type="checkbox" checked={autoTrending} onChange={e => { setAutoTrending(e.target.checked); if (e.target.checked) { setRandomMode(false); setAutoLatest(false); } }} style={{ accentColor:"#f97316", width:15, height:15 }} />
+                    <span style={{ fontSize:13, color: autoTrending ? "#f97316" : "#555" }}>
+                      🏆 Top {maxItems || "21"} ทริปจาก Analytics (30 วันล่าสุด, ยังไม่ออกเดินทาง){autoTrending && " — 1 ทริปต่อ 1 เรือ, ทุกประเภท"}
                     </span>
                   </label>
                 )}

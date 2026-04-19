@@ -2,7 +2,13 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import HeroSlider from "@/components/HeroSlider";
 import HomeContent, { type Section } from "@/components/HomeContent";
-import { trendingBoatIdsByType, isTrendingAllowed, type TrendingItemType } from "@/lib/analytics/trending";
+import {
+  trendingBoatIdsByType,
+  trendingUpcomingScheduleIds,
+  isTrendingAllowed,
+  ALL_TRIPS_ITEM_TYPE,
+  type TrendingItemType,
+} from "@/lib/analytics/trending";
 
 const VALID_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
 
@@ -54,6 +60,25 @@ const getHomepageData = unstable_cache(
       for (const ids of results) for (const id of ids.ids) boatIds.push(id);
     }
 
+    // ALL_TRIPS autoTrending rows: monthly top upcoming schedules across all
+    // boat types, dedup'd one-per-boat. Separate from the BOAT-level trending
+    // above because the return type is schedule IDs, not boat IDs.
+    const allTripsRows = rows.filter(r => r.autoTrending && r.itemType === ALL_TRIPS_ITEM_TYPE);
+    const allTripsByRowId: Record<string, string[]> = {};
+    if (allTripsRows.length > 0) {
+      const results = await Promise.all(
+        allTripsRows.map(r =>
+          trendingUpcomingScheduleIds(30, r.maxItems ?? 21)
+            .then(ids => ({ rowId: r.id, ids }))
+            .catch(() => ({ rowId: r.id, ids: [] as string[] })),
+        ),
+      );
+      for (const r of results) {
+        allTripsByRowId[r.rowId] = r.ids;
+        for (const id of r.ids) scheduleIds.push(id);
+      }
+    }
+
     const boatInclude = {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
       priceTiers:   { select: { regularPrice: true, salePrice: true } },
@@ -98,7 +123,7 @@ const getHomepageData = unstable_cache(
     const trendingByRowId: Record<string, string[]> = {};
     for (const [k, v] of trendingById) trendingByRowId[k] = v;
 
-    return { rows, schedules, boats, blogs, latestBlogs, trendingByRowId };
+    return { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId };
   },
   ["homepage-data"],
   { revalidate: 60 },
@@ -110,7 +135,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   const l = VALID_LANGS.includes(lang) ? lang : "en";
 
-  const { rows, schedules, boats, blogs, latestBlogs, trendingByRowId } = await getHomepageData();
+  const { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId } = await getHomepageData();
 
   const schedMap = new Map(schedules.map(s => [s.id, s]));
   const boatMap  = new Map(boats.map(b => [b.id, b]));
@@ -122,7 +147,11 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       || row.translations.find(t => t.lang === "en");
     const title    = trans?.title    || row.topic;
     const subtitle = trans?.subtitle || undefined;
-    const limit    = row.maxItems ?? row.items.length;
+    // ALL_TRIPS rows have no curated items so fall back to the trending-ids
+    // count instead of 0 when maxItems is null.
+    const allTripsCount = allTripsByRowId[row.id]?.length ?? 0;
+    const limit    = row.maxItems
+      ?? (row.itemType === "ALL_TRIPS" && row.autoTrending ? allTripsCount : row.items.length);
 
     const trips: Section["trips"] = [];
     const resolvedBlogs: Section["blogs"] = [];
@@ -157,13 +186,32 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
     const trendingIds = trendingByRowId[row.id];
     const useTrending = row.autoTrending
       && row.itemType !== "BLOG"
+      && row.itemType !== "ALL_TRIPS"
       && Array.isArray(trendingIds)
       && trendingIds.length > 0;
+
+    // ALL_TRIPS autoTrending row: synthetic SCHEDULE items from monthly-top
+    // upcoming schedule IDs. Skip curated items entirely — there's no fallback
+    // pool for this mode (the trending function already falls back to
+    // soonest-upcoming when analytics is sparse).
+    const allTripsIds = allTripsByRowId[row.id];
+    const useAllTrips = row.autoTrending
+      && row.itemType === "ALL_TRIPS"
+      && Array.isArray(allTripsIds)
+      && allTripsIds.length > 0;
 
     // Non-BLOG row with randomMode: shuffle the curated items on every page load,
     // then slice maxItems. User controls the pool via backoffice; we randomise order.
     let itemsForRow: Array<{ id: string; rowId: string; refId: string; refType: string; order: number }>;
-    if (useTrending) {
+    if (useAllTrips) {
+      itemsForRow = allTripsIds.map((id, i) => ({
+        id: `alltrip-${row.id}-${id}`,
+        rowId: row.id,
+        refId: id,
+        refType: "SCHEDULE",
+        order: i,
+      }));
+    } else if (useTrending) {
       itemsForRow = trendingIds.map((id, i) => ({
         id: `trend-${row.id}-${id}`,
         rowId: row.id,
