@@ -1,20 +1,21 @@
-// Client-side "recently viewed" tracking. Stored in localStorage, capped
-// at MAX entries, most-recent-first, dedup'd by id. Anonymous (device-
-// scoped). Updated via trackTripView so every TRIP_VIEW analytics call
-// also seeds this list.
+// Client-side "recently viewed schedules" tracking. Stored in localStorage,
+// capped at MAX entries, most-recent-first, dedup'd by scheduleId. Anonymous
+// (device-scoped). Pushed explicitly from card click handlers that know a
+// specific schedule was opened — NOT from trackTripView, since TRIP_VIEW
+// records the boat and the row is about specific departures.
 
-const KEY = "siamdive:recentlyViewed";
+const KEY = "siamdive:recentSchedules";
 const MAX = 20;
 
 type Entry = { id: string; at: number };
 
-export function pushRecentlyViewed(boatId: string) {
-  if (typeof window === "undefined") return;
+export function pushRecentSchedule(scheduleId: string) {
+  if (typeof window === "undefined" || !scheduleId) return;
   try {
     const raw = localStorage.getItem(KEY);
     const list: Entry[] = raw ? JSON.parse(raw) : [];
-    const filtered = list.filter((e) => e.id !== boatId);
-    filtered.unshift({ id: boatId, at: Date.now() });
+    const filtered = list.filter((e) => e.id !== scheduleId);
+    filtered.unshift({ id: scheduleId, at: Date.now() });
     localStorage.setItem(KEY, JSON.stringify(filtered.slice(0, MAX)));
   } catch {
     // localStorage can throw (quota, disabled). Swallow — recently-viewed
@@ -22,7 +23,7 @@ export function pushRecentlyViewed(boatId: string) {
   }
 }
 
-export function readRecentlyViewed(): string[] {
+export function readRecentSchedules(): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(KEY);

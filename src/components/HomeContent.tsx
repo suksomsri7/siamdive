@@ -7,8 +7,10 @@ import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroSlider from "./HeroSlider";
-import RecentlyViewedRow from "./RecentlyViewedRow";
+import RecentlyViewedRow, { type RecentSchedule } from "./RecentlyViewedRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
+import { pushRecentSchedule } from "@/lib/recentlyViewed";
+import { formatDateLabel } from "@/lib/formatDate";
 
 export type Section = {
   id:       string;
@@ -37,25 +39,6 @@ type SelectedTrip = {
   // on open. Used by TOP_RANKED rows where each card represents one schedule.
   initialDate?: string;
 };
-
-// Map our short lang codes to BCP 47 tags Intl understands.
-const DATE_LOCALE: Record<string, string> = {
-  en: "en", th: "th", cn: "zh-CN", ja: "ja",
-  ko: "ko", de: "de", fr: "fr", ru: "ru",
-};
-
-function formatDateLabel(iso: string, lang: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    const locale = DATE_LOCALE[lang] ?? "en";
-    return new Intl.DateTimeFormat(locale, {
-      day: "numeric", month: "short", year: "numeric",
-    }).format(d);
-  } catch {
-    return "";
-  }
-}
 
 export default function HomeContent({ sections, lang }: { sections: Section[]; lang: string }) {
   const [selected, setSelected] = useState<SelectedTrip | null>(null);
@@ -247,6 +230,10 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                             onClick={() => {
                               trackRowClick(section.id, "TRIP", trip.id, idx + 1);
                               if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
+                              // trip.id is a scheduleId when trip.departureDate
+                              // is set (SCHEDULE-refType items) — record it for
+                              // the Recently Viewed row.
+                              if (trip.departureDate) pushRecentSchedule(trip.id);
                               setSelected({
                                 slug: trip.slug, title: trip.title, description: trip.description,
                                 price: trip.price, duration: trip.duration, type: trip.type,
@@ -263,16 +250,17 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
               </section>
               <RecentlyViewedRow
                 lang={lang}
-                onSelect={(b) => setSelected({
-                  slug: b.slug,
-                  title: b.title,
+                onSelect={(s: RecentSchedule) => setSelected({
+                  slug: s.slug,
+                  title: s.title,
                   description: "",
-                  price: b.price,
+                  price: s.price,
                   duration: "",
-                  type: b.type,
-                  destinationName: b.destinationName,
-                  imageUrl: b.imageUrl,
-                  boatId: b.id,
+                  type: s.type,
+                  destinationName: s.scheduleTitle,
+                  imageUrl: s.imageUrl,
+                  boatId: s.boatId,
+                  initialDate: s.departureDate?.slice(0, 10),
                 })}
               />
               </div>
@@ -320,10 +308,12 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     onClick={() => {
                       trackRowClick(section.id, "TRIP", trip.id, idx + 1);
                       if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
+                      if (trip.departureDate) pushRecentSchedule(trip.id);
                       setSelected({
                         slug: trip.slug, title: trip.title, description: trip.description,
                         price: trip.price, duration: trip.duration, type: trip.type,
                         destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
+                        initialDate: trip.departureDate?.slice(0, 10),
                       });
                     }}
                   />
