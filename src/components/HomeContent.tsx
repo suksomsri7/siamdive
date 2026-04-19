@@ -138,14 +138,14 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                 <div
                   className="flex overflow-x-auto row-scroll pr-4 snap-x snap-mandatory sm:snap-none"
                   style={{
-                    gap: 0,
-                    // Container padding-left needs to fit the first slot's
-                    // leftward-extending numeral without clipping it off-screen.
-                    paddingLeft: "clamp(55px, 14vw, 85px)",
+                    // Gap is the "numeral corridor" between cards — the
+                    // numeral sits inside this gap, not on top of cards.
+                    gap: "clamp(55px, 13vw, 90px)",
+                    paddingLeft: "clamp(55px, 13vw, 90px)",
                     paddingBottom: 14,
                     paddingTop: 4,
                     overflowY: "visible",
-                    scrollPaddingLeft: "clamp(55px, 14vw, 85px)",
+                    scrollPaddingLeft: "clamp(55px, 13vw, 90px)",
                   }}
                 >
                   {section.trips.map((trip, idx) => {
@@ -156,15 +156,13 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                         key={trip.id}
                         className="flex-shrink-0 snap-start"
                         style={{
-                          // Netflix-true layout: slot is just the card. The
-                          // numeral extends LEFT of the slot boundary, landing
-                          // on top of the previous card's right edge. Cards
-                          // sit flush with almost no gap between them.
+                          // Slot hugs TripCard width. Container gap provides
+                          // the space between slots where each numeral lives.
                           position: "relative",
-                          marginRight: 2,
                           // Explicit z-index so each slot owns a stacking
-                          // context. Later slots paint above earlier slots,
-                          // so slot N+1's numeral sits on slot N's card.
+                          // context. Numerals that fall slightly inside the
+                          // next card get covered; numerals that fall in the
+                          // gap stay visible.
                           zIndex: idx + 1,
                         }}
                       >
@@ -173,7 +171,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                           className="select-none"
                           style={{
                             position: "absolute",
-                            left: "clamp(-45px, -12vw, -65px)",
+                            left: "clamp(-45px, -11vw, -72px)",
                             bottom: -6,
                             fontSize: isTwoDigit
                               ? "clamp(130px, 38vw, 180px)"
