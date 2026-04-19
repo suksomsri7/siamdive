@@ -12,9 +12,12 @@ import {
 
 const VALID_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
 
-function getDuration(dep: Date | null, ret: Date | null, boatType: string): string {
+function getDuration(dep: Date | string | null, ret: Date | string | null, boatType: string): string {
   if (dep && ret) {
-    const days = Math.round((ret.getTime() - dep.getTime()) / 86400000);
+    // unstable_cache serialises Dates to ISO strings — accept both shapes.
+    const d = typeof dep === "string" ? new Date(dep) : dep;
+    const r = typeof ret === "string" ? new Date(ret) : ret;
+    const days = Math.round((r.getTime() - d.getTime()) / 86400000);
     return `${days + 1}D${days}N`;
   }
   if (["DAYTRIP", "SNORKELING", "LAND_TOUR"].includes(boatType)) return "1 Day";
@@ -301,7 +304,10 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       }
     }
 
-    return { id: row.id, layout: row.layout, title, subtitle, trips, blogs: resolvedBlogs };
+    const variant: Section["variant"] | undefined =
+      row.itemType === "ALL_TRIPS" && row.autoTrending ? "TOP_RANKED" : undefined;
+
+    return { id: row.id, layout: row.layout, title, subtitle, variant, trips, blogs: resolvedBlogs };
   });
 
   return (

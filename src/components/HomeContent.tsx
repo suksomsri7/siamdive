@@ -14,6 +14,8 @@ export type Section = {
   layout:   string;
   title:    string;
   subtitle?: string;
+  // "TOP_RANKED" = Netflix-style numbered row. Unset = default trip/blog render.
+  variant?: "TOP_RANKED";
   trips: {
     id: string; slug: string; title: string; price: number;
     duration: string; type: "DAYTRIP" | "LIVEABOARD";
@@ -106,6 +108,97 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                       </div>
                     </Link>
                   ))}
+                </div>
+              </section>
+            );
+          }
+
+          // ── TOP_RANKED row (Netflix Top-10 style) ─────────────────────────
+          // Huge outlined numeral behind each card. Cards are forced portrait
+          // so the numeral-behind-card composition reads correctly on both
+          // desktop and mobile. Only used for ALL_TRIPS+autoTrending rows today.
+          if (section.variant === "TOP_RANKED" && section.trips.length > 0) {
+            return (
+              <section key={section.id} className="mb-10 group/row">
+                <div className="px-4 sm:px-10 mb-3">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
+                      {section.title}
+                    </h2>
+                    <Link href={`/${lang}/trips`}
+                      className="text-xs font-medium opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
+                      style={{ color: "#f97316" }}>
+                      Explore All &rsaquo;
+                    </Link>
+                  </div>
+                  {section.subtitle && (
+                    <p style={{ fontSize: 11, color: "#444", marginTop: 2 }}>{section.subtitle}</p>
+                  )}
+                </div>
+                <div
+                  className="flex overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4"
+                  style={{ gap: 0, paddingBottom: 14, paddingTop: 4, overflowY: "visible" }}
+                >
+                  {section.trips.map((trip, idx) => {
+                    const rank = idx + 1;
+                    const isTwoDigit = rank >= 10;
+                    return (
+                      <div
+                        key={trip.id}
+                        className="flex-shrink-0 flex items-end"
+                        style={{
+                          // Widen slot for double-digit numerals so card doesn't clip them.
+                          marginRight: isTwoDigit ? 4 : 0,
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          className="select-none"
+                          style={{
+                            // Clamp scales from phone to desktop without a breakpoint toggle.
+                            fontSize: isTwoDigit ? "clamp(90px, 18vw, 180px)" : "clamp(110px, 22vw, 220px)",
+                            fontFamily: "'Bebas Neue', 'Arial Black', Impact, system-ui, sans-serif",
+                            fontWeight: 900,
+                            lineHeight: 0.82,
+                            color: "#0d0d0d",
+                            WebkitTextStroke: "2px #525252",
+                            letterSpacing: "-0.05em",
+                            marginRight: isTwoDigit ? "-38px" : "-42px",
+                            marginBottom: "-8px",
+                            position: "relative",
+                            zIndex: 1,
+                            textShadow: "0 0 0 transparent",
+                          }}
+                        >
+                          {rank}
+                        </span>
+                        <div style={{ position: "relative", zIndex: 2, width: "clamp(140px, 26vw, 200px)" }}>
+                          <TripCard
+                            slug={trip.slug}
+                            title={trip.title}
+                            price={trip.price}
+                            duration={trip.duration}
+                            type={trip.type}
+                            destinationName={trip.destinationName}
+                            imageUrl={trip.imageUrl}
+                            covers={trip.covers}
+                            boatType={trip.boatType}
+                            description={trip.description}
+                            variant="vertical"
+                            onClick={() => {
+                              trackRowClick(section.id, "TRIP", trip.id, idx + 1);
+                              if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
+                              setSelected({
+                                slug: trip.slug, title: trip.title, description: trip.description,
+                                price: trip.price, duration: trip.duration, type: trip.type,
+                                destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
+                              });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );
