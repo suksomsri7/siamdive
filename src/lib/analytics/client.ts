@@ -278,8 +278,12 @@ export function onRouteChange(path: string): void {
 
 // ── Domain-event helpers (thin wrappers so components stay small) ──
 
-export const trackTripView = (boatId: string, extra?: Record<string, unknown>) =>
+export const trackTripView = (boatId: string, extra?: Record<string, unknown>) => {
+  // Seed the anon recently-viewed list alongside the analytics event so the
+  // homepage's RecentlyViewedRow stays in sync without extra hook points.
+  import("@/lib/recentlyViewed").then(({ pushRecentlyViewed }) => pushRecentlyViewed(boatId)).catch(() => {});
   track("TRIP_VIEW", { entityType: "BOAT", entityId: boatId, properties: extra ?? null });
+};
 
 export const trackScheduleView = (scheduleId: string, extra?: Record<string, unknown>) =>
   track("SCHEDULE_VIEW", { entityType: "SCHEDULE", entityId: scheduleId, properties: extra ?? null });

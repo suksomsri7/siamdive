@@ -7,6 +7,7 @@ import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroSlider from "./HeroSlider";
+import RecentlyViewedRow from "./RecentlyViewedRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 
 export type Section = {
@@ -142,9 +143,12 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           // Huge outlined numeral behind each card. Cards are forced portrait
           // so the numeral-behind-card composition reads correctly on both
           // desktop and mobile. Only used for ALL_TRIPS+autoTrending rows today.
+          // The RecentlyViewedRow is mounted right after this section so the
+          // user's personal row sits next to the global trending row.
           if (section.variant === "TOP_RANKED" && section.trips.length > 0) {
             return (
-              <section key={section.id} className="mb-10 group/row">
+              <div key={section.id}>
+              <section className="mb-10 group/row">
                 <div className="px-4 sm:px-10 mb-3">
                   <div className="flex items-center gap-3">
                     <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
@@ -257,6 +261,21 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   })}
                 </div>
               </section>
+              <RecentlyViewedRow
+                lang={lang}
+                onSelect={(b) => setSelected({
+                  slug: b.slug,
+                  title: b.title,
+                  description: "",
+                  price: b.price,
+                  duration: "",
+                  type: b.type,
+                  destinationName: b.destinationName,
+                  imageUrl: b.imageUrl,
+                  boatId: b.id,
+                })}
+              />
+              </div>
             );
           }
 

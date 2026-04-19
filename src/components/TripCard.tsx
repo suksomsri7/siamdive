@@ -80,7 +80,7 @@ export default function TripCard({
       <div className="absolute bottom-0 left-0 right-0 p-3">
         <p style={{ fontSize: 10, color: "#93c5fd", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{destinationName}</p>
         {dateLabel && (
-          <p style={{ fontSize: 10, color: "#fbbf24", fontWeight: 300, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dateLabel}</p>
+          <p style={{ fontSize: 10, color: "#ffffff", fontWeight: 300, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dateLabel}</p>
         )}
         <p style={{ fontSize: isHorizontal ? 14 : 12, fontWeight: 700, lineHeight: 1.35, whiteSpace: dateLabel ? "nowrap" as const : undefined, display: dateLabel ? "block" : "-webkit-box", WebkitLineClamp: dateLabel ? 1 : 2, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: dateLabel ? "ellipsis" as const : undefined }}>{title}</p>
         {isHorizontal ? (
