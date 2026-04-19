@@ -136,7 +136,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   )}
                 </div>
                 <div
-                  className="flex overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4"
+                  className="flex overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4 snap-x snap-mandatory sm:snap-none scroll-pl-4 sm:scroll-pl-10"
                   style={{ gap: 0, paddingBottom: 14, paddingTop: 4, overflowY: "visible" }}
                 >
                   {section.trips.map((trip, idx) => {
@@ -145,25 +145,32 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     return (
                       <div
                         key={trip.id}
-                        className="flex-shrink-0 flex items-end"
+                        className="flex-shrink-0 flex items-end snap-start"
                         style={{
-                          // Widen slot for double-digit numerals so card doesn't clip them.
-                          marginRight: isTwoDigit ? 4 : 0,
+                          // Trailing gap between slots. Larger on mobile so cards
+                          // don't collide with the next slot's numeral.
+                          marginRight: isTwoDigit ? 10 : 6,
                         }}
                       >
                         <span
                           aria-hidden
                           className="select-none"
                           style={{
-                            // Clamp scales from phone to desktop without a breakpoint toggle.
-                            fontSize: isTwoDigit ? "clamp(90px, 18vw, 180px)" : "clamp(110px, 22vw, 220px)",
+                            // Numeral scales with viewport and stays proportional
+                            // to the card. Mobile gets larger ratios so the card
+                            // remains legible (~65vw) alongside the numeral.
+                            fontSize: isTwoDigit
+                              ? "clamp(130px, 38vw, 180px)"
+                              : "clamp(150px, 45vw, 220px)",
                             fontFamily: "'Bebas Neue', 'Arial Black', Impact, system-ui, sans-serif",
                             fontWeight: 900,
                             lineHeight: 0.82,
                             color: "#0d0d0d",
                             WebkitTextStroke: "2px #525252",
                             letterSpacing: "-0.05em",
-                            marginRight: isTwoDigit ? "-38px" : "-42px",
+                            marginRight: isTwoDigit
+                              ? "clamp(-58px, -14vw, -36px)"
+                              : "clamp(-68px, -16vw, -40px)",
                             marginBottom: "-8px",
                             position: "relative",
                             zIndex: 1,
@@ -172,7 +179,16 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                         >
                           {rank}
                         </span>
-                        <div style={{ position: "relative", zIndex: 2, width: "clamp(140px, 26vw, 200px)" }}>
+                        <div
+                          style={{
+                            position: "relative",
+                            zIndex: 2,
+                            // Mobile: ~65% viewport → 1 card snapped centre,
+                            // reads like a focused "now playing" poster.
+                            // Desktop: capped so multiple slots fit the row.
+                            width: "clamp(220px, 65vw, 260px)",
+                          }}
+                        >
                           <TripCard
                             slug={trip.slug}
                             title={trip.title}
