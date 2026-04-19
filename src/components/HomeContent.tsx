@@ -136,8 +136,17 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   )}
                 </div>
                 <div
-                  className="flex gap-2 overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4 snap-x snap-mandatory sm:snap-none scroll-pl-4 sm:scroll-pl-10"
-                  style={{ paddingBottom: 14, paddingTop: 4, overflowY: "visible" }}
+                  className="flex overflow-x-auto row-scroll pr-4 snap-x snap-mandatory sm:snap-none"
+                  style={{
+                    // Gap is the "numeral corridor" between cards — the
+                    // numeral sits inside this gap, not on top of cards.
+                    gap: "clamp(55px, 13vw, 90px)",
+                    paddingLeft: "clamp(55px, 13vw, 90px)",
+                    paddingBottom: 14,
+                    paddingTop: 4,
+                    overflowY: "visible",
+                    scrollPaddingLeft: "clamp(55px, 13vw, 90px)",
+                  }}
                 >
                   {section.trips.map((trip, idx) => {
                     const rank = idx + 1;
@@ -145,51 +154,77 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     return (
                       <div
                         key={trip.id}
-                        className="flex-shrink-0 snap-start flex items-end"
-                        style={{ gap: 2 }}
+                        className="flex-shrink-0 snap-start"
+                        style={{
+                          // Slot hugs TripCard width. Container gap provides
+                          // the space between slots where each numeral lives.
+                          position: "relative",
+                          // Explicit z-index so each slot owns a stacking
+                          // context. Numerals that fall slightly inside the
+                          // next card get covered; numerals that fall in the
+                          // gap stay visible.
+                          zIndex: idx + 1,
+                        }}
                       >
-                        <TripCard
-                          slug={trip.slug}
-                          title={trip.title}
-                          price={trip.price}
-                          duration={trip.duration}
-                          type={trip.type}
-                          destinationName={trip.destinationName}
-                          imageUrl={trip.imageUrl}
-                          covers={trip.covers}
-                          boatType={trip.boatType}
-                          description={trip.description}
-                          variant="vertical"
-                          onClick={() => {
-                            trackRowClick(section.id, "TRIP", trip.id, idx + 1);
-                            if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
-                            setSelected({
-                              slug: trip.slug, title: trip.title, description: trip.description,
-                              price: trip.price, duration: trip.duration, type: trip.type,
-                              destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
-                            });
-                          }}
-                        />
                         <span
                           aria-hidden
                           className="select-none"
                           style={{
+                            position: "absolute",
+                            left: "clamp(-45px, -11vw, -72px)",
+                            bottom: -6,
                             fontSize: isTwoDigit
-                              ? "clamp(110px, 32vw, 160px)"
-                              : "clamp(130px, 40vw, 200px)",
+                              ? "clamp(130px, 38vw, 180px)"
+                              : "clamp(150px, 45vw, 220px)",
                             fontFamily: "var(--font-bebas), 'Arial Black', Impact, system-ui, sans-serif",
                             fontWeight: 400,
                             lineHeight: 0.82,
+                            // White outline, transparent fill — true Netflix
+                            // Top-10 treatment. Stroke thickness picked so it
+                            // reads at every numeral size without filling in.
                             color: "transparent",
                             WebkitTextStroke: "2.5px #ffffff",
                             letterSpacing: "-0.05em",
                             whiteSpace: "nowrap",
                             pointerEvents: "none",
-                            marginBottom: -6,
+                            zIndex: 0,
                           }}
                         >
                           {rank}
                         </span>
+                        <div
+                          style={{
+                            position: "relative",
+                            zIndex: 1,
+                            // Width comes from TripCard (vertical variant is
+                            // clamp(140px, 14vw, 200px)). An outer fixed width
+                            // would leave empty space to the right of the
+                            // card, which reads as a gap between slots.
+                          }}
+                        >
+                          <TripCard
+                            slug={trip.slug}
+                            title={trip.title}
+                            price={trip.price}
+                            duration={trip.duration}
+                            type={trip.type}
+                            destinationName={trip.destinationName}
+                            imageUrl={trip.imageUrl}
+                            covers={trip.covers}
+                            boatType={trip.boatType}
+                            description={trip.description}
+                            variant="vertical"
+                            onClick={() => {
+                              trackRowClick(section.id, "TRIP", trip.id, idx + 1);
+                              if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
+                              setSelected({
+                                slug: trip.slug, title: trip.title, description: trip.description,
+                                price: trip.price, duration: trip.duration, type: trip.type,
+                                destinationName: trip.destinationName, imageUrl: trip.imageUrl, boatId: trip.boatId,
+                              });
+                            }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
