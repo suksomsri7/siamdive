@@ -95,6 +95,26 @@ a { text-decoration: none; color: inherit; }
   margin: 24px 0;
 }
 
-.blog-content table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
-.blog-content th { background: #161616; color: #e5e5e5; padding: 8px 12px; text-align: left; border: 1px solid #2a2a2a; }
+/* Tables: on narrow screens (mobile portrait), wrap in overflow container so wide
+   tables become horizontally scrollable rather than crushing the page layout.
+   Generator skill prefers <ul>+<strong> for label-value pairs; <table> is reserved
+   for genuinely tabular ≤2-column data. This wrapper catches legacy tables. */
+.blog-content table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.blog-content th { background: #161616; color: #e5e5e5; padding: 8px 12px; text-align: left; border: 1px solid #2a2a2a; white-space: nowrap; }
 .blog-content td { padding: 8px 12px; border: 1px solid #1e1e1e; color: #aaa; }
+
+/* Description lists: semantic label-value format (recommended for data blocks).
+   Stacks naturally on mobile, no overflow. Skill STEP 8.4.2 default. */
+.blog-content dl { margin: 12px 0; padding: 0; }
+.blog-content dt { font-weight: 700; color: #e5e5e5; margin-top: 10px; }
+.blog-content dt:first-child { margin-top: 0; }
+.blog-content dd { margin: 4px 0 0 0; padding-left: 14px; color: #aaa; border-left: 2px solid #2a2a2a; }
