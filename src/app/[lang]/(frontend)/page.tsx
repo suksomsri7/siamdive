@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import HeroSlider from "@/components/HeroSlider";
 import HomeContent, { type Section } from "@/components/HomeContent";
+import { trendingBoatIdsByType, isTrendingAllowed, type TrendingItemType } from "@/lib/analytics/trending";
 
 const VALID_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
 
@@ -33,6 +34,25 @@ const getHomepageData = unstable_cache(
     const hasRandomBlog     = rows.some(r => r.itemType === "BLOG" && r.randomMode);
     const autoLatestCap     = Math.max(...rows.filter(r => r.itemType === "BLOG" && r.autoLatest).map(r => r.maxItems ?? 20), 20);
     const latestBlogsLimit  = hasRandomBlog ? Math.max(autoLatestCap, 50) : autoLatestCap;
+
+    // autoTrending rows: query analytics for top boat IDs per row. Map rowId →
+    // ranked boat IDs so the resolver can swap curated items with trending.
+    // Run queries in parallel; each query is a single grouped-count read.
+    const trendingRows = rows.filter(r => r.autoTrending && isTrendingAllowed(r.itemType));
+    const trendingById = new Map<string, string[]>();
+    if (trendingRows.length > 0) {
+      const results = await Promise.all(
+        trendingRows.map(r =>
+          trendingBoatIdsByType(r.itemType as TrendingItemType, 7, r.maxItems ?? 6)
+            .then(ids => ({ rowId: r.id, ids }))
+            .catch(() => ({ rowId: r.id, ids: [] as string[] })), // analytics tables may not exist in dev — fail open
+        ),
+      );
+      for (const r of results) trendingById.set(r.rowId, r.ids);
+      // Feed trending IDs into the batched Boat fetch below so we don't make
+      // a second round-trip per row.
+      for (const ids of results) for (const id of ids.ids) boatIds.push(id);
+    }
 
     const boatInclude = {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
@@ -73,7 +93,12 @@ const getHomepageData = unstable_cache(
         : Promise.resolve([]),
     ]);
 
-    return { rows, schedules, boats, blogs, latestBlogs };
+    // Convert trendingById Map to plain object so it survives the
+    // unstable_cache boundary (Maps aren't serialisable).
+    const trendingByRowId: Record<string, string[]> = {};
+    for (const [k, v] of trendingById) trendingByRowId[k] = v;
+
+    return { rows, schedules, boats, blogs, latestBlogs, trendingByRowId };
   },
   ["homepage-data"],
   { revalidate: 60 },
@@ -85,7 +110,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   const l = VALID_LANGS.includes(lang) ? lang : "en";
 
-  const { rows, schedules, boats, blogs, latestBlogs } = await getHomepageData();
+  const { rows, schedules, boats, blogs, latestBlogs, trendingByRowId } = await getHomepageData();
 
   const schedMap = new Map(schedules.map(s => [s.id, s]));
   const boatMap  = new Map(boats.map(b => [b.id, b]));
@@ -125,11 +150,32 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       return { id: row.id, layout: row.layout, title, subtitle, trips, blogs: resolvedBlogs };
     }
 
+    // autoTrending row: swap curated items with synthetic BOAT items whose
+    // refId is the top-N trending boat IDs for this row's itemType. If
+    // analytics returned nothing (cold start or query error), fall back to the
+    // curated items so the row still renders something.
+    const trendingIds = trendingByRowId[row.id];
+    const useTrending = row.autoTrending
+      && row.itemType !== "BLOG"
+      && Array.isArray(trendingIds)
+      && trendingIds.length > 0;
+
     // Non-BLOG row with randomMode: shuffle the curated items on every page load,
     // then slice maxItems. User controls the pool via backoffice; we randomise order.
-    const itemsForRow = row.randomMode && row.itemType !== "BLOG"
-      ? [...row.items].sort(() => Math.random() - 0.5)
-      : row.items;
+    let itemsForRow: Array<{ id: string; rowId: string; refId: string; refType: string; order: number }>;
+    if (useTrending) {
+      itemsForRow = trendingIds.map((id, i) => ({
+        id: `trend-${row.id}-${id}`,
+        rowId: row.id,
+        refId: id,
+        refType: "BOAT",
+        order: i,
+      }));
+    } else if (row.randomMode && row.itemType !== "BLOG") {
+      itemsForRow = [...row.items].sort(() => Math.random() - 0.5);
+    } else {
+      itemsForRow = row.items;
+    }
 
     for (const item of itemsForRow.slice(0, limit)) {
       if (item.refType === "SCHEDULE") {

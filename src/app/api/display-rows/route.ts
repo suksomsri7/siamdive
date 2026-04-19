@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
   if (!canDo(auth, "display-rows.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { topic, layout, itemType, order, active, maxItems, autoLatest, randomMode, items, translations } = await req.json();
+  const { topic, layout, itemType, order, active, maxItems, autoLatest, randomMode, autoTrending, items, translations } = await req.json();
   const row = await prisma.displayRow.create({
     data: {
       topic, layout: layout ?? "HORIZONTAL",
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       maxItems: maxItems ?? null,
       autoLatest: autoLatest === true,
       randomMode: randomMode === true,
+      autoTrending: autoTrending === true,
       items: items?.length ? {
         create: (items as { refId: string; refType: string; order: number }[]).map(i => ({ refId: i.refId, refType: i.refType ?? "SCHEDULE", order: i.order })),
       } : undefined,

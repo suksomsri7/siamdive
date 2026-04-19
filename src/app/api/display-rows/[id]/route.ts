@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!canDo(auth, "display-rows.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const { topic, layout, itemType, order, active, maxItems, autoLatest, randomMode, items, translations } = await req.json();
+  const { topic, layout, itemType, order, active, maxItems, autoLatest, randomMode, autoTrending, items, translations } = await req.json();
 
   await prisma.displayRowItem.deleteMany({ where: { rowId: id } });
   await prisma.displayRowTranslation.deleteMany({ where: { rowId: id } });
@@ -27,6 +27,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       maxItems: maxItems ?? null,
       autoLatest: autoLatest === true,
       randomMode: randomMode === true,
+      autoTrending: autoTrending === true,
       items: items?.length ? {
         create: (items as { refId: string; refType: string; order: number }[]).map(i => ({ refId: i.refId, refType: i.refType ?? "SCHEDULE", order: i.order })),
       } : undefined,

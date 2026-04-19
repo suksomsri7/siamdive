@@ -451,6 +451,12 @@ model DisplayRow {
   // from the newest 50 pool, capped at maxItems ?? 20. Reshuffles on every page
   // load. If both autoLatest and randomMode are true, randomMode wins.
   randomMode   Boolean                  @default(false)
+  // When true (non-BLOG rows with itemType in LIVEABOARD|DAYTRIP|DIVE_RESORT|
+  // LAND_TOUR): replace curated `items` with the top boats ranked by TRIP_VIEW
+  // events over the last 7 days, capped at maxItems ?? 6. Only counts events
+  // from bot-filtered sessions. Falls back to curated items if analytics returns
+  // fewer boats than maxItems.
+  autoTrending Boolean                  @default(false)
   items        DisplayRowItem[]
   translations DisplayRowTranslation[]
   createdAt    DateTime                 @default(now())

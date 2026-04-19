@@ -103,6 +103,7 @@ export default function DisplayPage() {
   const [maxItems,   setMaxItems]  = useState<string>("");
   const [autoLatest, setAutoLatest] = useState<boolean>(false);
   const [randomMode, setRandomMode] = useState<boolean>(false);
+  const [autoTrending, setAutoTrending] = useState<boolean>(false);
 
   // ── Picker state ──
   const [pickerSource,  setPickerSource]  = useState<SourceValue | "">("");
@@ -224,7 +225,7 @@ export default function DisplayPage() {
 
   const openNew = () => {
     setForm(emptyForm()); setEditId(null);
-    setTransForm(emptyTransForm()); setMaxItems(""); setAutoLatest(false); setRandomMode(false); setActiveLang("en");
+    setTransForm(emptyTransForm()); setMaxItems(""); setAutoLatest(false); setRandomMode(false); setAutoTrending(false); setActiveLang("en");
     setSelected([]); setPickerSource(""); setPickerBoat(""); setRowItemType(""); setPanelOpen(true);
   };
 
@@ -234,6 +235,7 @@ export default function DisplayPage() {
     setMaxItems(row.maxItems != null ? String(row.maxItems) : "");
     setAutoLatest((row as any).autoLatest === true);
     setRandomMode((row as any).randomMode === true);
+    setAutoTrending((row as any).autoTrending === true);
     setActiveLang("en");
     // load translations
     const tf = emptyTransForm();
@@ -341,6 +343,7 @@ export default function DisplayPage() {
       maxItems: parsedMax,
       autoLatest,
       randomMode,
+      autoTrending,
       translations,
       items: entries.map((e, i) => ({ refId: e.refId, refType: e.refType, order: i })),
     };
@@ -613,32 +616,43 @@ export default function DisplayPage() {
                 </div>
               </div>
 
-              {/* Auto modes — autoLatest only for BLOG, randomMode for any itemType */}
+              {/* Auto modes — autoLatest only for BLOG, randomMode for any itemType,
+                  autoTrending only for LIVEABOARD/DAYTRIP/DIVE_RESORT/LAND_TOUR (pulls top boats by analytics TRIP_VIEW in last 7 days) */}
               <div>
                 <label style={lbl}>โหมดอัตโนมัติ</label>
                 {(rowItemType === "BLOG" || pickerSource === "BLOG") && (
                   <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
-                    <input type="checkbox" checked={autoLatest} onChange={e => { setAutoLatest(e.target.checked); if (e.target.checked) setRandomMode(false); }} style={{ accentColor:"#3b82f6", width:15, height:15 }} />
+                    <input type="checkbox" checked={autoLatest} onChange={e => { setAutoLatest(e.target.checked); if (e.target.checked) { setRandomMode(false); setAutoTrending(false); } }} style={{ accentColor:"#3b82f6", width:15, height:15 }} />
                     <span style={{ fontSize:13, color: autoLatest ? "#3b82f6" : "#555" }}>
                       ดึง blog ล่าสุดอัตโนมัติ {autoLatest && `(${maxItems || "20"} ตัวล่าสุด ที่ PUBLISHED)`}
                     </span>
                   </label>
                 )}
+                {["LIVEABOARD","DAYTRIP","DIVE_RESORT","LAND_TOUR"].includes(rowItemType || pickerSource) && (
+                  <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
+                    <input type="checkbox" checked={autoTrending} onChange={e => { setAutoTrending(e.target.checked); if (e.target.checked) { setRandomMode(false); setAutoLatest(false); } }} style={{ accentColor:"#f97316", width:15, height:15 }} />
+                    <span style={{ fontSize:13, color: autoTrending ? "#f97316" : "#555" }}>
+                      🔥 เอา {maxItems || "6"} อันดับจาก Analytics (7 วันล่าสุด) {autoTrending && `— เรียงตามยอดวิว`}
+                    </span>
+                  </label>
+                )}
                 <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-                  <input type="checkbox" checked={randomMode} onChange={e => { setRandomMode(e.target.checked); if (e.target.checked) setAutoLatest(false); }} style={{ accentColor:"#a855f7", width:15, height:15 }} />
+                  <input type="checkbox" checked={randomMode} onChange={e => { setRandomMode(e.target.checked); if (e.target.checked) { setAutoLatest(false); setAutoTrending(false); } }} style={{ accentColor:"#a855f7", width:15, height:15 }} />
                   <span style={{ fontSize:13, color: randomMode ? "#a855f7" : "#555" }}>
                     {rowItemType === "BLOG" || pickerSource === "BLOG"
                       ? `สุ่มจาก blog 50 ล่าสุด ${randomMode ? `(แสดง ${maxItems || "20"} ตัว, สุ่มใหม่ทุกครั้งที่โหลด)` : ""}`
                       : `สุ่มลำดับ items ที่เลือก ${randomMode ? `(แสดง ${maxItems || "ทั้งหมด"} ตัวแบบสุ่มใหม่ทุกครั้งที่โหลด)` : ""}`}
                   </span>
                 </label>
-                {(autoLatest || randomMode) && (
+                {(autoLatest || randomMode || autoTrending) && (
                   <p style={{ fontSize:11, color:"#444", marginTop:6, lineHeight:1.4 }}>
-                    {autoLatest
-                      ? "⚡ ใช้ blog ล่าสุดที่ publish เสมอ — ignore รายการที่เลือกด้านบน"
-                      : rowItemType === "BLOG" || pickerSource === "BLOG"
-                        ? "🎲 สุ่มจาก pool 50 ล่าสุด — ignore รายการที่เลือกด้านบน"
-                        : "🎲 สุ่มลำดับจาก items ที่คุณเลือกด้านบน — ทุกครั้งที่เปิดเว็บจะสลับใหม่"}
+                    {autoTrending
+                      ? "🔥 ดึงทริปยอดนิยม 7 วันล่าสุดจาก Analytics — ignore รายการที่เลือกด้านบน (fallback เป็นรายการเลือกถ้ายังไม่มีข้อมูล)"
+                      : autoLatest
+                        ? "⚡ ใช้ blog ล่าสุดที่ publish เสมอ — ignore รายการที่เลือกด้านบน"
+                        : rowItemType === "BLOG" || pickerSource === "BLOG"
+                          ? "🎲 สุ่มจาก pool 50 ล่าสุด — ignore รายการที่เลือกด้านบน"
+                          : "🎲 สุ่มลำดับจาก items ที่คุณเลือกด้านบน — ทุกครั้งที่เปิดเว็บจะสลับใหม่"}
                   </p>
                 )}
               </div>
