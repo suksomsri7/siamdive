@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const DAYTRIP_TYPES: BoatType[] = ["DAYTRIP", "SNORKELING", "LAND_TOUR", "FREEDIVE"];
 const LIVEABOARD_TYPES: BoatType[] = ["LIVEABOARD", "DIVE_RESORT"];
 const COURSE_TYPES: BoatType[] = ["SCUBA_COURSES", "FREEDIVE_COURSES", "SCUBA_INSTRUCTOR", "FREEDIVE_INSTRUCTOR"];
-const BLOG_CATEGORIES: BlogCategory[] = ["INSPIRATION", "LIFESTYLE", "GEAR", "GUIDE", "SAFETY", "EDUCATION"];
+const BLOG_CATEGORIES: BlogCategory[] = ["DIVE_SITES", "MARINE_LIFE", "GEAR", "WHY_THAILAND", "SAFETY", "EDUCATION", "CONSERVATION", "WORLD_DIVE_SITES"];
 
 const QUICK_LINKS = [
   { label: "Add Scuba Day Trip", href: "/backoffice/trips/daytrip/new", icon: "+" },

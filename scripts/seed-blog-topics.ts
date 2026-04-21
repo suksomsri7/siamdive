@@ -6,52 +6,52 @@
  */
 import { prisma } from "../src/lib/prisma";
 
-type Seed = { category: "INSPIRATION" | "LIFESTYLE" | "GEAR" | "GUIDE" | "SAFETY" | "EDUCATION"; title: string; keywords: string[]; note?: string };
+type Seed = { category: "DIVE_SITES" | "MARINE_LIFE" | "GEAR" | "WHY_THAILAND" | "SAFETY" | "EDUCATION" | "CONSERVATION" | "WORLD_DIVE_SITES"; title: string; keywords: string[]; note?: string };
 
 const TOPICS: Seed[] = [
-  // ── 1. INSPIRATION (discovery, dive sites, species, trip ideas) ──
-  { category: "INSPIRATION", title: "Why Thailand's Andaman Sea Beats the Gulf in March", keywords: ["Andaman vs Gulf", "best March diving Thailand"] },
-  { category: "INSPIRATION", title: "One Week, Three Coasts: A Thailand Dive Sampler Route", keywords: ["Thailand dive route", "7-day itinerary"] },
-  { category: "INSPIRATION", title: "The Case for Diving Koh Tao Over Labour Day Weekend", keywords: ["Koh Tao long weekend diving"] },
-  { category: "INSPIRATION", title: "Richelieu Rock at Dawn: What You Actually See in the First 5 Minutes", keywords: ["Richelieu Rock morning dive", "whale shark time"] },
-  { category: "INSPIRATION", title: "Purple Coral Season: When Hin Daeng Lights Up", keywords: ["Hin Daeng soft coral", "Hin Muang purple season"] },
-  { category: "INSPIRATION", title: "7 Dive Sites in Thailand That Still Aren't on Instagram", keywords: ["underrated Thailand dive sites"] },
-  { category: "INSPIRATION", title: "Manta Ray Odds at Koh Bon by Month (Data From 2024-2025)", keywords: ["manta season Koh Bon", "probability sightings"] },
-  { category: "INSPIRATION", title: "The Khao Lak Liveaboard: Why Divers Keep Coming Back", keywords: ["Khao Lak liveaboard", "Similan trip"] },
-  { category: "INSPIRATION", title: "Leopard Sharks at Shark Point: Where to Look, When to Wait", keywords: ["Shark Point Phuket", "leopard shark diving"] },
-  { category: "INSPIRATION", title: "Cape Panwa to Phi Phi: The Day-Trip That Beats Most Liveaboards", keywords: ["Phi Phi day trip Phuket"] },
-  { category: "INSPIRATION", title: "Why We Keep Picking Koh Lipe for February Diving", keywords: ["Koh Lipe diving February"] },
-  { category: "INSPIRATION", title: "Night Diving at Koh Tao: The Species You Never See in Daylight", keywords: ["Koh Tao night dive"] },
-  { category: "INSPIRATION", title: "Pattaya Navy Wrecks After Ten Years: Coral Recovery Report", keywords: ["Pattaya wrecks coral", "HTMS Khram"] },
-  { category: "INSPIRATION", title: "Koh Haa's Cathedral: Why Cavern Divers Go Silent Inside", keywords: ["Koh Haa cathedral dive"] },
-  { category: "INSPIRATION", title: "The Quiet Case for Chumphon Over the Similans", keywords: ["Chumphon diving", "alternative to Similans"] },
-  { category: "INSPIRATION", title: "Whale Sharks in April: Three Places That Still Deliver", keywords: ["whale shark April Thailand"] },
-  { category: "INSPIRATION", title: "Turtle Season on Koh Tao: Practical Honest Odds", keywords: ["Koh Tao turtles season"] },
-  { category: "INSPIRATION", title: "Trang's Emerald Cave: The Dive-Adjacent Day Everyone Skips", keywords: ["Trang Emerald Cave", "Koh Mook"] },
-  { category: "INSPIRATION", title: "Why the Similan Liveaboard Season Ends on May 15 (And What to Do Before)", keywords: ["Similan season closing"] },
-  { category: "INSPIRATION", title: "Racha Noi's West Ridge at Slack Tide: The Big-Fish Window", keywords: ["Racha Noi pelagics"] },
+  // ── 1. DIVE_SITES (จุดดำน้ำน่าสนใจทั่วไทย — ไซต์ + ไฮไลต์) ──
+  { category: "DIVE_SITES", title: "Why Thailand's Andaman Sea Beats the Gulf in March", keywords: ["Andaman vs Gulf", "best March diving Thailand"] },
+  { category: "DIVE_SITES", title: "One Week, Three Coasts: A Thailand Dive Sampler Route", keywords: ["Thailand dive route", "7-day itinerary"] },
+  { category: "DIVE_SITES", title: "The Case for Diving Koh Tao Over Labour Day Weekend", keywords: ["Koh Tao long weekend diving"] },
+  { category: "DIVE_SITES", title: "Richelieu Rock at Dawn: What You Actually See in the First 5 Minutes", keywords: ["Richelieu Rock morning dive", "whale shark time"] },
+  { category: "DIVE_SITES", title: "Purple Coral Season: When Hin Daeng Lights Up", keywords: ["Hin Daeng soft coral", "Hin Muang purple season"] },
+  { category: "DIVE_SITES", title: "7 Dive Sites in Thailand That Still Aren't on Instagram", keywords: ["underrated Thailand dive sites"] },
+  { category: "DIVE_SITES", title: "Manta Ray Odds at Koh Bon by Month (Data From 2024-2025)", keywords: ["manta season Koh Bon", "probability sightings"] },
+  { category: "DIVE_SITES", title: "The Khao Lak Liveaboard: Why Divers Keep Coming Back", keywords: ["Khao Lak liveaboard", "Similan trip"] },
+  { category: "DIVE_SITES", title: "Leopard Sharks at Shark Point: Where to Look, When to Wait", keywords: ["Shark Point Phuket", "leopard shark diving"] },
+  { category: "DIVE_SITES", title: "Cape Panwa to Phi Phi: The Day-Trip That Beats Most Liveaboards", keywords: ["Phi Phi day trip Phuket"] },
+  { category: "DIVE_SITES", title: "Why We Keep Picking Koh Lipe for February Diving", keywords: ["Koh Lipe diving February"] },
+  { category: "DIVE_SITES", title: "Night Diving at Koh Tao: The Species You Never See in Daylight", keywords: ["Koh Tao night dive"] },
+  { category: "DIVE_SITES", title: "Pattaya Navy Wrecks After Ten Years: Coral Recovery Report", keywords: ["Pattaya wrecks coral", "HTMS Khram"] },
+  { category: "DIVE_SITES", title: "Koh Haa's Cathedral: Why Cavern Divers Go Silent Inside", keywords: ["Koh Haa cathedral dive"] },
+  { category: "DIVE_SITES", title: "The Quiet Case for Chumphon Over the Similans", keywords: ["Chumphon diving", "alternative to Similans"] },
+  { category: "DIVE_SITES", title: "Whale Sharks in April: Three Places That Still Deliver", keywords: ["whale shark April Thailand"] },
+  { category: "DIVE_SITES", title: "Turtle Season on Koh Tao: Practical Honest Odds", keywords: ["Koh Tao turtles season"] },
+  { category: "DIVE_SITES", title: "Trang's Emerald Cave: The Dive-Adjacent Day Everyone Skips", keywords: ["Trang Emerald Cave", "Koh Mook"] },
+  { category: "DIVE_SITES", title: "Why the Similan Liveaboard Season Ends on May 15 (And What to Do Before)", keywords: ["Similan season closing"] },
+  { category: "DIVE_SITES", title: "Racha Noi's West Ridge at Slack Tide: The Big-Fish Window", keywords: ["Racha Noi pelagics"] },
 
-  // ── 2. LIFESTYLE / COMMUNITY (long-stay, digital nomad, culture) ──
-  { category: "LIFESTYLE", title: "30 Days on Koh Tao Without Going Broke: A Real Budget", keywords: ["Koh Tao long stay cost"] },
-  { category: "LIFESTYLE", title: "Digital Nomad with a Regulator: Working Remote from Koh Lanta", keywords: ["digital nomad diver", "Koh Lanta coworking"] },
-  { category: "LIFESTYLE", title: "What a Monthly Dive Club Membership Actually Includes in Thailand", keywords: ["dive club Thailand monthly"] },
-  { category: "LIFESTYLE", title: "Divers Who Stayed: Three Expats on What Made Them Move", keywords: ["Koh Tao expat divers"] },
-  { category: "LIFESTYLE", title: "The Unpublished Etiquette of the Thai Dive Boat", keywords: ["dive boat etiquette Thailand"] },
-  { category: "LIFESTYLE", title: "Why Divemasters in Thailand Seem to Drink a Lot of Coffee", keywords: ["divemaster life Thailand"] },
-  { category: "LIFESTYLE", title: "Shoulder-Season Rent on Phuket: Real Numbers From 2026", keywords: ["Phuket shoulder season rent"] },
-  { category: "LIFESTYLE", title: "Finding a Dive Buddy When You Arrive Alone in Thailand", keywords: ["solo diver Thailand"] },
-  { category: "LIFESTYLE", title: "What Divers Eat After Six Dives: Koh Tao Restaurant Picks", keywords: ["Koh Tao restaurants divers"] },
-  { category: "LIFESTYLE", title: "Workouts That Actually Match a Thailand Dive Week", keywords: ["diver fitness routine"] },
-  { category: "LIFESTYLE", title: "The Quiet Friendship Economy of Liveaboard Life", keywords: ["liveaboard community"] },
-  { category: "LIFESTYLE", title: "Tipping Crew in Thailand: What Is Normal and What Isn't", keywords: ["tipping dive crew Thailand"] },
-  { category: "LIFESTYLE", title: "Rainy Day in Phuket: How Dive Instructors Spend Them", keywords: ["rest days diver life"] },
-  { category: "LIFESTYLE", title: "Learning Thai on the Boat: The Three Phrases Worth Memorising", keywords: ["Thai phrases diver"] },
-  { category: "LIFESTYLE", title: "Why So Many Divers End Up Teaching Yoga on Koh Phangan", keywords: ["yoga diver community"] },
-  { category: "LIFESTYLE", title: "Slow Travel Diving: Two Weeks on One Island, Not Twelve", keywords: ["slow travel diving Thailand"] },
-  { category: "LIFESTYLE", title: "The Working-Holiday Divemaster: Real Income, Real Days", keywords: ["divemaster trainee income"] },
-  { category: "LIFESTYLE", title: "Full Moon Party and Morning Dive: A Survival Note", keywords: ["Koh Phangan party diver"] },
-  { category: "LIFESTYLE", title: "What to Pack for Three Months on a Thai Dive Island", keywords: ["long stay packing list diver"] },
-  { category: "LIFESTYLE", title: "Why a Dive Shop Is the Best Place to Meet People in Thailand", keywords: ["dive shop social"] },
+  // ── 2. MARINE_LIFE (สัตว์ทะเล ความมหัศจรรย์/แปลก) ──
+  { category: "MARINE_LIFE", title: "30 Days on Koh Tao Without Going Broke: A Real Budget", keywords: ["Koh Tao long stay cost"] },
+  { category: "MARINE_LIFE", title: "Digital Nomad with a Regulator: Working Remote from Koh Lanta", keywords: ["digital nomad diver", "Koh Lanta coworking"] },
+  { category: "MARINE_LIFE", title: "What a Monthly Dive Club Membership Actually Includes in Thailand", keywords: ["dive club Thailand monthly"] },
+  { category: "MARINE_LIFE", title: "Divers Who Stayed: Three Expats on What Made Them Move", keywords: ["Koh Tao expat divers"] },
+  { category: "MARINE_LIFE", title: "The Unpublished Etiquette of the Thai Dive Boat", keywords: ["dive boat etiquette Thailand"] },
+  { category: "MARINE_LIFE", title: "Why Divemasters in Thailand Seem to Drink a Lot of Coffee", keywords: ["divemaster life Thailand"] },
+  { category: "MARINE_LIFE", title: "Shoulder-Season Rent on Phuket: Real Numbers From 2026", keywords: ["Phuket shoulder season rent"] },
+  { category: "MARINE_LIFE", title: "Finding a Dive Buddy When You Arrive Alone in Thailand", keywords: ["solo diver Thailand"] },
+  { category: "MARINE_LIFE", title: "What Divers Eat After Six Dives: Koh Tao Restaurant Picks", keywords: ["Koh Tao restaurants divers"] },
+  { category: "MARINE_LIFE", title: "Workouts That Actually Match a Thailand Dive Week", keywords: ["diver fitness routine"] },
+  { category: "MARINE_LIFE", title: "The Quiet Friendship Economy of Liveaboard Life", keywords: ["liveaboard community"] },
+  { category: "MARINE_LIFE", title: "Tipping Crew in Thailand: What Is Normal and What Isn't", keywords: ["tipping dive crew Thailand"] },
+  { category: "MARINE_LIFE", title: "Rainy Day in Phuket: How Dive Instructors Spend Them", keywords: ["rest days diver life"] },
+  { category: "MARINE_LIFE", title: "Learning Thai on the Boat: The Three Phrases Worth Memorising", keywords: ["Thai phrases diver"] },
+  { category: "MARINE_LIFE", title: "Why So Many Divers End Up Teaching Yoga on Koh Phangan", keywords: ["yoga diver community"] },
+  { category: "MARINE_LIFE", title: "Slow Travel Diving: Two Weeks on One Island, Not Twelve", keywords: ["slow travel diving Thailand"] },
+  { category: "MARINE_LIFE", title: "The Working-Holiday Divemaster: Real Income, Real Days", keywords: ["divemaster trainee income"] },
+  { category: "MARINE_LIFE", title: "Full Moon Party and Morning Dive: A Survival Note", keywords: ["Koh Phangan party diver"] },
+  { category: "MARINE_LIFE", title: "What to Pack for Three Months on a Thai Dive Island", keywords: ["long stay packing list diver"] },
+  { category: "MARINE_LIFE", title: "Why a Dive Shop Is the Best Place to Meet People in Thailand", keywords: ["dive shop social"] },
 
   // ── 3. GEAR & REVIEW ──
   { category: "GEAR", title: "BCD Bladder Flush: The Five-Minute Step That Doubles Its Life", keywords: ["BCD bladder flush"] },
@@ -75,27 +75,27 @@ const TOPICS: Seed[] = [
   { category: "GEAR", title: "Fin Kicks by Body Type: Why Pros Switch Depending on Site", keywords: ["fin kicks diver"] },
   { category: "GEAR", title: "Dive Knife or Shears: The Thai Reef Case for Shears", keywords: ["dive knife vs shears"] },
 
-  // ── 4. THAILAND DIVE GUIDE (location deep dives) ──
-  { category: "GUIDE", title: "Phuket Diving Guide: Every Major Site, Ranked by Entry Port", keywords: ["Phuket dive sites guide"] },
-  { category: "GUIDE", title: "Koh Tao Diving Guide: Schools, Reefs, and the One Site Nobody Books", keywords: ["Koh Tao diving guide"] },
-  { category: "GUIDE", title: "Khao Lak Diving Guide: Liveaboard Piers and Shoulder-Season Day Trips", keywords: ["Khao Lak diving"] },
-  { category: "GUIDE", title: "Koh Lipe Diving Guide: Sites, Season, and the Ferry That Actually Runs", keywords: ["Koh Lipe guide diving"] },
-  { category: "GUIDE", title: "Pattaya Diving Guide: Wrecks, Artificial Reefs, and When Viz Holds", keywords: ["Pattaya diving guide"] },
-  { category: "GUIDE", title: "Koh Chang Diving Guide: The Gulf's East Coast Surprise", keywords: ["Koh Chang diving"] },
-  { category: "GUIDE", title: "Koh Kood Diving Guide: Quiet Reefs Off the Eastern Border", keywords: ["Koh Kood diving"] },
-  { category: "GUIDE", title: "Chumphon Diving Guide: The Pinnacle Route Most Divers Miss", keywords: ["Chumphon diving"] },
-  { category: "GUIDE", title: "Samaesan Diving Guide: Thailand's Wreck Training Corridor", keywords: ["Samaesan diving"] },
-  { category: "GUIDE", title: "Prachuap Diving Guide: Fisher Towns and Offshore Reefs", keywords: ["Prachuap diving"] },
-  { category: "GUIDE", title: "Koh Phi Phi Diving Guide: Bida Nok, Bida Nai, and the King Cruiser Corridor", keywords: ["Phi Phi diving guide"] },
-  { category: "GUIDE", title: "Trang Diving Guide: Koh Haa, Koh Rok, and the Andaman's Quiet South", keywords: ["Trang diving"] },
-  { category: "GUIDE", title: "Krabi Diving Guide: Ao Nang Boats and Shark Point Day Trips", keywords: ["Krabi diving"] },
-  { category: "GUIDE", title: "Similan Islands Diving Guide: Every Ranked Site by Trip Day", keywords: ["Similan dive sites"] },
-  { category: "GUIDE", title: "Koh Racha Diving Guide: The Phuket Day-Trip That Pays for Itself", keywords: ["Racha Yai diving"] },
-  { category: "GUIDE", title: "Koh Samui Diving Guide: Gateway to the Gulf's Signature Pinnacles", keywords: ["Koh Samui diving"] },
-  { category: "GUIDE", title: "Koh Phangan Diving Guide: Sail Rock and the North Shore Reefs", keywords: ["Koh Phangan diving"] },
-  { category: "GUIDE", title: "Hin Daeng and Hin Muang: What a Liveaboard Briefing Actually Says", keywords: ["Hin Daeng guide", "Hin Muang guide"] },
-  { category: "GUIDE", title: "Koh Bon and Koh Tachai Day Trips From Khao Lak", keywords: ["Koh Bon Koh Tachai day trip"] },
-  { category: "GUIDE", title: "Koh Yao Noi Diving: The In-Between Island Nobody Books", keywords: ["Koh Yao Noi diving"] },
+  // ── 4. WHY_THAILAND (ทำไมต้องมาดำน้ำที่ประเทศไทย — ข้อดี) ──
+  { category: "WHY_THAILAND", title: "Phuket Diving Guide: Every Major Site, Ranked by Entry Port", keywords: ["Phuket dive sites guide"] },
+  { category: "WHY_THAILAND", title: "Koh Tao Diving Guide: Schools, Reefs, and the One Site Nobody Books", keywords: ["Koh Tao diving guide"] },
+  { category: "WHY_THAILAND", title: "Khao Lak Diving Guide: Liveaboard Piers and Shoulder-Season Day Trips", keywords: ["Khao Lak diving"] },
+  { category: "WHY_THAILAND", title: "Koh Lipe Diving Guide: Sites, Season, and the Ferry That Actually Runs", keywords: ["Koh Lipe guide diving"] },
+  { category: "WHY_THAILAND", title: "Pattaya Diving Guide: Wrecks, Artificial Reefs, and When Viz Holds", keywords: ["Pattaya diving guide"] },
+  { category: "WHY_THAILAND", title: "Koh Chang Diving Guide: The Gulf's East Coast Surprise", keywords: ["Koh Chang diving"] },
+  { category: "WHY_THAILAND", title: "Koh Kood Diving Guide: Quiet Reefs Off the Eastern Border", keywords: ["Koh Kood diving"] },
+  { category: "WHY_THAILAND", title: "Chumphon Diving Guide: The Pinnacle Route Most Divers Miss", keywords: ["Chumphon diving"] },
+  { category: "WHY_THAILAND", title: "Samaesan Diving Guide: Thailand's Wreck Training Corridor", keywords: ["Samaesan diving"] },
+  { category: "WHY_THAILAND", title: "Prachuap Diving Guide: Fisher Towns and Offshore Reefs", keywords: ["Prachuap diving"] },
+  { category: "WHY_THAILAND", title: "Koh Phi Phi Diving Guide: Bida Nok, Bida Nai, and the King Cruiser Corridor", keywords: ["Phi Phi diving guide"] },
+  { category: "WHY_THAILAND", title: "Trang Diving Guide: Koh Haa, Koh Rok, and the Andaman's Quiet South", keywords: ["Trang diving"] },
+  { category: "WHY_THAILAND", title: "Krabi Diving Guide: Ao Nang Boats and Shark Point Day Trips", keywords: ["Krabi diving"] },
+  { category: "WHY_THAILAND", title: "Similan Islands Diving Guide: Every Ranked Site by Trip Day", keywords: ["Similan dive sites"] },
+  { category: "WHY_THAILAND", title: "Koh Racha Diving Guide: The Phuket Day-Trip That Pays for Itself", keywords: ["Racha Yai diving"] },
+  { category: "WHY_THAILAND", title: "Koh Samui Diving Guide: Gateway to the Gulf's Signature Pinnacles", keywords: ["Koh Samui diving"] },
+  { category: "WHY_THAILAND", title: "Koh Phangan Diving Guide: Sail Rock and the North Shore Reefs", keywords: ["Koh Phangan diving"] },
+  { category: "WHY_THAILAND", title: "Hin Daeng and Hin Muang: What a Liveaboard Briefing Actually Says", keywords: ["Hin Daeng guide", "Hin Muang guide"] },
+  { category: "WHY_THAILAND", title: "Koh Bon and Koh Tachai Day Trips From Khao Lak", keywords: ["Koh Bon Koh Tachai day trip"] },
+  { category: "WHY_THAILAND", title: "Koh Yao Noi Diving: The In-Between Island Nobody Books", keywords: ["Koh Yao Noi diving"] },
 
   // ── 5. SAFETY / TRUST ──
   { category: "SAFETY", title: "Decompression Sickness Risk in Thailand: By Site, By Month", keywords: ["DCS risk Thailand"] },
@@ -158,7 +158,7 @@ async function main() {
   await prisma.blogTopic.createMany({ data: rows });
   const created = await prisma.blogTopic.count();
   console.log(`Seeded ${created} topics:`);
-  for (const cat of ["INSPIRATION", "LIFESTYLE", "GEAR", "GUIDE", "SAFETY", "EDUCATION"] as const) {
+  for (const cat of ["DIVE_SITES", "MARINE_LIFE", "GEAR", "WHY_THAILAND", "SAFETY", "EDUCATION"] as const) {
     const n = await prisma.blogTopic.count({ where: { category: cat as any } });
     console.log(`  ${cat}: ${n}`);
   }

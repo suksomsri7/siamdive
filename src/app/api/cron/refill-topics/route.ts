@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCronSecret } from "@/lib/cronAuth";
 
-const CATEGORIES = ["INSPIRATION", "LIFESTYLE", "GEAR", "GUIDE", "SAFETY", "EDUCATION"] as const;
+const CATEGORIES = ["DIVE_SITES", "MARINE_LIFE", "GEAR", "WHY_THAILAND", "SAFETY", "EDUCATION", "CONSERVATION", "WORLD_DIVE_SITES"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 // Refill tuning: run when any category has < MIN_PER_CAT unused, top up to TARGET_PER_CAT.

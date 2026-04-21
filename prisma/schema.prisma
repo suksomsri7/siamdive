@@ -731,12 +731,14 @@ enum BlogStatus {
 }
 
 enum BlogCategory {
-  INSPIRATION
-  LIFESTYLE
+  DIVE_SITES
+  MARINE_LIFE
   GEAR
-  GUIDE
+  WHY_THAILAND
   SAFETY
   EDUCATION
+  CONSERVATION
+  WORLD_DIVE_SITES
 }
 
 enum ActiveStatus {

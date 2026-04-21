@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCronSecret } from "@/lib/cronAuth";
 
-const ROTATION = ["INSPIRATION", "LIFESTYLE", "GEAR", "GUIDE", "SAFETY", "EDUCATION"] as const;
+const ROTATION = ["DIVE_SITES", "MARINE_LIFE", "GEAR", "WHY_THAILAND", "SAFETY", "EDUCATION", "CONSERVATION", "WORLD_DIVE_SITES"] as const;
 
 /**
  * POST /api/cron/next-topic
