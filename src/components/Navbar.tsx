@@ -92,9 +92,14 @@ export default function Navbar() {
   const lang: LangCode = (LANGS.find(l => l.code === urlLang) ? urlLang : "en") as LangCode;
 
   const switchLang = (newLang: LangCode) => {
+    // Persist choice in a cookie so proxy.ts prefers it over Accept-Language
+    // for any future URL without a lang prefix (e.g. sitemap entry points).
+    document.cookie = `NEXT_LOCALE=${newLang};path=/;max-age=31536000;samesite=lax`;
     // Replace /xx at the start of pathname with /newLang
     const newPath = pathname.replace(/^\/[a-z]{2}(\/|$)/, `/${newLang}$1`);
-    router.push(newPath);
+    // replace (not push): switching language shouldn't add a back-button trap
+    // where pressing Back returns the user to the previous language.
+    router.replace(newPath);
     setLangOpen(false);
   };
 

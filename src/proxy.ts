@@ -28,14 +28,43 @@ export async function proxy(request: NextRequest) {
 
   // ── i18n: redirect paths without a lang prefix ────────────────────────────
   const firstSegment = pathname.split("/")[1];
+  const cookieLang = request.cookies.get("NEXT_LOCALE")?.value;
+
   if (!LANGS.includes(firstSegment)) {
-    const acceptLang = request.headers.get("accept-language") || "";
-    const preferred = acceptLang.split(",")[0].split("-")[0].toLowerCase();
-    const lang = LANGS.includes(preferred) ? preferred : DEFAULT_LANG;
+    // Prefer the user's previously selected language over Accept-Language so
+    // lang-less entry points (/, shared links) honour the last explicit choice.
+    let lang: string;
+    if (cookieLang && LANGS.includes(cookieLang)) {
+      lang = cookieLang;
+    } else {
+      const acceptLang = request.headers.get("accept-language") || "";
+      const preferred = acceptLang.split(",")[0].split("-")[0].toLowerCase();
+      lang = LANGS.includes(preferred) ? preferred : DEFAULT_LANG;
+    }
 
     const url = request.nextUrl.clone();
     url.pathname = `/${lang}${pathname === "/" ? "" : pathname}`;
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    if (!cookieLang) {
+      response.cookies.set("NEXT_LOCALE", lang, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: "lax",
+      });
+    }
+    return response;
+  }
+
+  // Sync cookie when the URL lang differs from the stored preference so the
+  // choice sticks across lang-less entry points.
+  if (cookieLang !== firstSegment) {
+    const response = NextResponse.next();
+    response.cookies.set("NEXT_LOCALE", firstSegment, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+    return response;
   }
 
   return NextResponse.next();
