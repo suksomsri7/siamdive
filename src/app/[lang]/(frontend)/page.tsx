@@ -26,6 +26,12 @@ function getDuration(dep: Date | string | null, ret: Date | string | null, boatT
 
 const getHomepageData = unstable_cache(
   async () => {
+    // Hide schedules that have already departed. Day granularity is enough —
+    // a trip departing earlier today is still "today's" on the homepage until
+    // the cache (60s) rolls past midnight.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const rows = await prisma.displayRow.findMany({
       where: { active: true },
       include: { translations: true, items: { orderBy: { order: "asc" } } },
@@ -82,6 +88,31 @@ const getHomepageData = unstable_cache(
       }
     }
 
+    // Auto service-area rows: query all published boats matching the row's
+    // itemType + serviceAreaId. Map rowId → boat IDs for the resolver.
+    const serviceAreaRows = rows.filter(r => r.serviceAreaId);
+    const serviceAreaBoatsByRowId: Record<string, string[]> = {};
+    if (serviceAreaRows.length > 0) {
+      const results = await Promise.all(
+        serviceAreaRows.map(async (r) => {
+          const areaBoats = await prisma.boat.findMany({
+            where: {
+              status: "PUBLISHED",
+              type: r.itemType,
+              serviceAreas: { some: { serviceAreaId: r.serviceAreaId! } },
+            },
+            select: { id: true },
+            take: r.maxItems ?? 20,
+          });
+          return { rowId: r.id, ids: areaBoats.map(b => b.id) };
+        }),
+      );
+      for (const r of results) {
+        serviceAreaBoatsByRowId[r.rowId] = r.ids;
+        for (const id of r.ids) boatIds.push(id);
+      }
+    }
+
     const boatInclude = {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
       priceTiers:   { select: { regularPrice: true, salePrice: true } },
@@ -92,7 +123,7 @@ const getHomepageData = unstable_cache(
     const [schedules, boats, blogs, latestBlogs] = await Promise.all([
       scheduleIds.length
         ? prisma.schedule.findMany({
-            where: { id: { in: scheduleIds } },
+            where: { id: { in: scheduleIds }, departureDate: { gte: startOfToday }, boat: { status: "PUBLISHED" } },
             include: {
               boat: { include: boatInclude },
               translations: { select: { lang: true, title: true } },
@@ -102,7 +133,7 @@ const getHomepageData = unstable_cache(
 
       boatIds.length
         ? prisma.boat.findMany({
-            where: { id: { in: boatIds } },
+            where: { id: { in: boatIds }, status: "PUBLISHED" },
             include: boatInclude,
           })
         : Promise.resolve([]),
@@ -129,7 +160,7 @@ const getHomepageData = unstable_cache(
     const trendingByRowId: Record<string, string[]> = {};
     for (const [k, v] of trendingById) trendingByRowId[k] = v;
 
-    return { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId };
+    return { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId, serviceAreaBoatsByRowId };
   },
   ["homepage-data"],
   { revalidate: 60 },
@@ -141,14 +172,17 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   const l = VALID_LANGS.includes(lang) ? lang : "en";
 
-  const { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId } = await getHomepageData();
+  const { rows, schedules, boats, blogs, latestBlogs, trendingByRowId, allTripsByRowId, serviceAreaBoatsByRowId } = await getHomepageData();
 
   const schedMap = new Map(schedules.map(s => [s.id, s]));
   const boatMap  = new Map(boats.map(b => [b.id, b]));
   const blogMap  = new Map(blogs.map(b => [b.id, b]));
 
   // ── Resolve each row into a Section ───────────────────────────────────────
-  const sections: Section[] = rows.map(row => {
+  const sections: Section[] = rows.map((row, rowIndex) => {
+    // First two rows (featured) additionally hide FULL schedules — curated
+    // slots there should only show bookable trips.
+    const hideFullSchedules = rowIndex < 2;
     const trans = row.translations.find(t => t.lang === l)
       || row.translations.find(t => t.lang === "en");
     const title    = trans?.title    || row.topic;
@@ -206,10 +240,21 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       && Array.isArray(allTripsIds)
       && allTripsIds.length > 0;
 
-    // Non-BLOG row with randomMode: shuffle the curated items on every page load,
-    // then slice maxItems. User controls the pool via backoffice; we randomise order.
+    const serviceAreaIds = serviceAreaBoatsByRowId[row.id];
+    const useServiceArea = row.serviceAreaId
+      && Array.isArray(serviceAreaIds)
+      && serviceAreaIds.length > 0;
+
     let itemsForRow: Array<{ id: string; rowId: string; refId: string; refType: string; order: number }>;
-    if (useAllTrips) {
+    if (useServiceArea) {
+      itemsForRow = serviceAreaIds.map((id, i) => ({
+        id: `area-${row.id}-${id}`,
+        rowId: row.id,
+        refId: id,
+        refType: "BOAT",
+        order: i,
+      }));
+    } else if (useAllTrips) {
       itemsForRow = allTripsIds.map((id, i) => ({
         id: `alltrip-${row.id}-${id}`,
         rowId: row.id,
@@ -235,6 +280,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       if (item.refType === "SCHEDULE") {
         const s = schedMap.get(item.refId);
         if (!s) continue;
+        if (hideFullSchedules && s.status === "FULL") continue;
         const bt = s.boat.translations.find(t => t.lang === l)
           || s.boat.translations.find(t => t.lang === "en")
           || s.boat.translations[0];

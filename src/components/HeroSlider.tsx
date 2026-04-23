@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { InfoModal, ScheduleSheet, ReelViewer, type Trip } from "./TripPullUp";
@@ -68,6 +68,23 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
     }, 300);
   };
 
+  const touchRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const dy = t.clientY - touchRef.current.y;
+    const dt = Date.now() - touchRef.current.t;
+    touchRef.current = null;
+    if (dt > 500 || Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
+    if (dx < 0) goTo((current + 1) % slides.length);
+    else goTo((current - 1 + slides.length) % slides.length);
+  }, [current, slides.length]);
+
   const slide = slides[current];
   const slideImage = randomCovers[current] || slide.imageUrl;
 
@@ -85,7 +102,7 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
 
   return (
     <>
-      <section className="relative" style={{ height: "95vh", minHeight: 520 }}>
+      <section className="relative" style={{ height: "95vh", minHeight: 520 }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {/* Background image with fade */}
         <div className="absolute inset-0" style={{ transition: "opacity 0.4s ease", opacity: fading ? 0 : 1 }}>
           <Image

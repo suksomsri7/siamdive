@@ -58,6 +58,7 @@ export async function trendingBoatIdsByType(
       AND e.type = 'TRIP_VIEW'
       AND e."entityId" IS NOT NULL
       AND b.type = ${boatType}::"BoatType"
+      AND b.status = 'PUBLISHED'::"PublishStatus"
     GROUP BY e."entityId"
     ORDER BY views DESC
     LIMIT ${limit}

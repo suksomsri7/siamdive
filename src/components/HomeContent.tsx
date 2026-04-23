@@ -7,9 +7,9 @@ import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroSlider from "./HeroSlider";
-import RecentlyViewedRow, { type RecentSchedule } from "./RecentlyViewedRow";
+import RecentlyViewedRow, { type RecentBoat } from "./RecentlyViewedRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
-import { pushRecentSchedule } from "@/lib/recentlyViewed";
+import { pushRecentBoat } from "@/lib/recentlyViewed";
 import { formatDateLabel } from "@/lib/formatDate";
 
 export type Section = {
@@ -43,6 +43,7 @@ type SelectedTrip = {
 export default function HomeContent({ sections, lang }: { sections: Section[]; lang: string }) {
   const [selected, setSelected] = useState<SelectedTrip | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [recentKey, setRecentKey] = useState(0);
   useEffect(() => { setMounted(true); }, []);
 
   if (!sections.length) return null;
@@ -233,7 +234,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                               // trip.id is a scheduleId when trip.departureDate
                               // is set (SCHEDULE-refType items) — record it for
                               // the Recently Viewed row.
-                              if (trip.departureDate) pushRecentSchedule(trip.id);
+                              if (trip.boatId) { pushRecentBoat(trip.boatId); setRecentKey(k => k + 1); }
                               setSelected({
                                 slug: trip.slug, title: trip.title, description: trip.description,
                                 price: trip.price, duration: trip.duration, type: trip.type,
@@ -248,21 +249,6 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   })}
                 </div>
               </section>
-              <RecentlyViewedRow
-                lang={lang}
-                onSelect={(s: RecentSchedule) => setSelected({
-                  slug: s.slug,
-                  title: s.title,
-                  description: "",
-                  price: s.price,
-                  duration: "",
-                  type: s.type,
-                  destinationName: s.scheduleTitle,
-                  imageUrl: s.imageUrl,
-                  boatId: s.boatId,
-                  initialDate: s.departureDate?.slice(0, 10),
-                })}
-              />
               </div>
             );
           }
@@ -308,7 +294,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     onClick={() => {
                       trackRowClick(section.id, "TRIP", trip.id, idx + 1);
                       if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
-                      if (trip.departureDate) pushRecentSchedule(trip.id);
+                      if (trip.boatId) { pushRecentBoat(trip.boatId); setRecentKey(k => k + 1); }
                       setSelected({
                         slug: trip.slug, title: trip.title, description: trip.description,
                         price: trip.price, duration: trip.duration, type: trip.type,
@@ -338,6 +324,22 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
             </section>
           );
         })}
+
+        <RecentlyViewedRow
+          lang={lang}
+          refreshKey={recentKey}
+          onSelect={(s: RecentBoat) => setSelected({
+            slug: s.slug,
+            title: s.title,
+            description: "",
+            price: s.price,
+            duration: "",
+            type: s.type,
+            destinationName: s.destinationName,
+            imageUrl: s.imageUrl,
+            boatId: s.boatId,
+          })}
+        />
       </div>
 
       {mounted && selected && createPortal(

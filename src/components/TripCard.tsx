@@ -27,11 +27,12 @@ type TripCardProps = {
   // so the card reads as route / date / boat. Used by the Top Trips row
   // where each card represents a specific schedule departure.
   dateLabel?: string;
+  lang?: string;
   onClick?: () => void;
 };
 
 export default function TripCard({
-  slug, title, price, duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", dateLabel, onClick,
+  slug, title, price, duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", dateLabel, lang, onClick,
 }: TripCardProps) {
   const [hovered, setHovered] = useState(false);
   const isHorizontal = variant === "horizontal";
@@ -113,7 +114,7 @@ export default function TripCard({
   }
 
   return (
-    <Link href={`/trips/${slug}`} className="relative flex-shrink-0 overflow-hidden cursor-pointer"
+    <Link href={`/${lang || "en"}/trips/${slug}`} className="relative flex-shrink-0 overflow-hidden cursor-pointer"
       style={cardStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {inner}
     </Link>

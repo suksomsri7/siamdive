@@ -2,22 +2,20 @@
 
 import { useEffect, useState } from "react";
 import TripCard from "./TripCard";
-import { readRecentSchedules } from "@/lib/recentlyViewed";
-import { formatDateLabel } from "@/lib/formatDate";
+import { readRecentBoats } from "@/lib/recentlyViewed";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 
-export type RecentSchedule = {
+export type RecentBoat = {
   id: string;
-  scheduleTitle: string;
   slug: string;
   title: string;
+  destinationName: string;
   price: number;
   type: "DAYTRIP" | "LIVEABOARD";
   imageUrl?: string;
   covers?: string[];
   boatType?: string;
   boatId: string;
-  departureDate?: string;
 };
 
 const TITLES: Record<string, string> = {
@@ -36,31 +34,33 @@ const SECTION_ID = "recently-viewed";
 export default function RecentlyViewedRow({
   lang,
   onSelect,
+  refreshKey = 0,
 }: {
   lang: string;
-  onSelect: (s: RecentSchedule) => void;
+  onSelect: (s: RecentBoat) => void;
+  refreshKey?: number;
 }) {
-  const [schedules, setSchedules] = useState<RecentSchedule[]>([]);
+  const [boats, setBoats] = useState<RecentBoat[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const ids = readRecentSchedules();
+    const ids = readRecentBoats();
     if (!ids.length) {
       setLoaded(true);
       return;
     }
     fetch(
-      `/api/schedules/by-ids?ids=${encodeURIComponent(ids.join(","))}&lang=${encodeURIComponent(lang)}`,
+      `/api/boats/by-ids?ids=${encodeURIComponent(ids.join(","))}&lang=${encodeURIComponent(lang)}`,
     )
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: RecentSchedule[]) => {
-        setSchedules(Array.isArray(data) ? data : []);
+      .then((data: RecentBoat[]) => {
+        setBoats(Array.isArray(data) ? data : []);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
-  }, [lang]);
+  }, [lang, refreshKey]);
 
-  if (!loaded || schedules.length === 0) return null;
+  if (!loaded || boats.length === 0) return null;
 
   return (
     <section className="mb-8 group/row">
@@ -73,24 +73,24 @@ export default function RecentlyViewedRow({
         className="flex gap-2 overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4"
         style={{ overflowY: "visible", paddingBottom: 8, paddingTop: 4 }}
       >
-        {schedules.map((s, idx) => (
+        {boats.map((b, idx) => (
           <TripCard
-            key={s.id}
-            slug={s.slug}
-            title={s.title}
-            price={s.price}
+            key={b.id}
+            slug={b.slug}
+            title={b.title}
+            price={b.price}
             duration=""
-            type={s.type}
-            destinationName={s.scheduleTitle}
-            imageUrl={s.imageUrl}
-            covers={s.covers}
-            boatType={s.boatType}
+            type={b.type}
+            destinationName={b.destinationName}
+            imageUrl={b.imageUrl}
+            covers={b.covers}
+            boatType={b.boatType}
             variant="vertical"
-            dateLabel={s.departureDate ? formatDateLabel(s.departureDate, lang) : undefined}
+            lang={lang}
             onClick={() => {
-              trackRowClick(SECTION_ID, "TRIP", s.id, idx + 1);
-              trackTripView(s.boatId, { source: "row", rowId: SECTION_ID });
-              onSelect(s);
+              trackRowClick(SECTION_ID, "TRIP", b.id, idx + 1);
+              trackTripView(b.boatId, { source: "row", rowId: SECTION_ID });
+              onSelect(b);
             }}
           />
         ))}
