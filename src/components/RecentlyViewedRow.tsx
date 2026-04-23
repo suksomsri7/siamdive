@@ -58,10 +58,13 @@ export default function RecentlyViewedRow({
       `/api/boats/by-ids?ids=${encodeURIComponent(ids.join(","))}&lang=${encodeURIComponent(lang)}`,
     )
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: RecentBoat[]) => {
+      .then((data: (RecentBoat & { nextDeparture?: string })[]) => {
         const rows = Array.isArray(data) ? data : [];
         const depById = new Map(entries.map((e) => [e.id, e.dep]));
-        setBoats(rows.map((b) => ({ ...b, departureDate: depById.get(b.boatId) })));
+        setBoats(rows.map((b) => ({
+          ...b,
+          departureDate: depById.get(b.boatId) || b.nextDeparture,
+        })));
         setLoaded(true);
       })
       .catch(() => setLoaded(true));

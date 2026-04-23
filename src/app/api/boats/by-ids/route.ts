@@ -20,6 +20,24 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const nextSchedules = await prisma.schedule.findMany({
+    where: {
+      boatId: { in: ids },
+      departureDate: { gte: startOfToday },
+      status: { not: "CANCELLED" },
+    },
+    orderBy: { departureDate: "asc" },
+    select: { boatId: true, departureDate: true },
+  });
+  const nextDepByBoat = new Map<string, string>();
+  for (const s of nextSchedules) {
+    if (!nextDepByBoat.has(s.boatId)) {
+      nextDepByBoat.set(s.boatId, s.departureDate.toISOString());
+    }
+  }
+
   const byId = new Map(boats.map((b) => [b.id, b]));
   const ordered = ids.map((id) => byId.get(id)).filter((b): b is (typeof boats)[number] => !!b);
 
@@ -44,6 +62,7 @@ export async function GET(req: NextRequest) {
       covers: b.covers,
       boatType: b.type,
       boatId: b.id,
+      nextDeparture: nextDepByBoat.get(b.id) || undefined,
     };
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
@@ -58,24 +58,37 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           // ── FULL layout (HeroSlider) ──────────────────────────────────────
           if (section.layout === "FULL" && section.trips.length > 0) {
             return (
-              <HeroSlider
-                key={section.id}
-                lang={lang}
-                slides={section.trips.map(t => ({
-                  slug: t.slug,
-                  title: t.title,
-                  description: t.description || "",
-                  duration: t.duration,
-                  destinationName: t.destinationName,
-                  imageUrl: t.imageUrl || "",
-                  covers: t.covers && t.covers.length ? t.covers : (t.imageUrl ? [t.imageUrl] : []),
-                  type: t.type,
-                  price: t.price,
-                  boatId: t.boatId,
-                  boatType: t.boatType,
-                  hasVideos: t.hasVideos,
-                }))}
-              />
+              <Fragment key={section.id}>
+                <HeroSlider
+                  lang={lang}
+                  slides={section.trips.map(t => ({
+                    slug: t.slug,
+                    title: t.title,
+                    description: t.description || "",
+                    duration: t.duration,
+                    destinationName: t.destinationName,
+                    imageUrl: t.imageUrl || "",
+                    covers: t.covers && t.covers.length ? t.covers : (t.imageUrl ? [t.imageUrl] : []),
+                    type: t.type,
+                    price: t.price,
+                    boatId: t.boatId,
+                    boatType: t.boatType,
+                    hasVideos: t.hasVideos,
+                  }))}
+                />
+                <RecentlyViewedRow
+                  lang={lang}
+                  refreshKey={recentKey}
+                  onSelect={(s: RecentBoat) => {
+                    if (s.boatId) trackTripView(s.boatId, { source: "row", rowId: "recently-viewed" });
+                    setSelected({
+                      slug: s.slug, title: s.title, description: "",
+                      price: s.price, duration: "", type: s.type,
+                      destinationName: s.destinationName, imageUrl: s.imageUrl, boatId: s.boatId,
+                    });
+                  }}
+                />
+              </Fragment>
             );
           }
 
@@ -325,21 +338,6 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           );
         })}
 
-        <RecentlyViewedRow
-          lang={lang}
-          refreshKey={recentKey}
-          onSelect={(s: RecentBoat) => setSelected({
-            slug: s.slug,
-            title: s.title,
-            description: "",
-            price: s.price,
-            duration: "",
-            type: s.type,
-            destinationName: s.destinationName,
-            imageUrl: s.imageUrl,
-            boatId: s.boatId,
-          })}
-        />
       </div>
 
       {mounted && selected && createPortal(
