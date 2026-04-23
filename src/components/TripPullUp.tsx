@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { pushRecentBoat } from "@/lib/recentlyViewed";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Trip = {
@@ -746,7 +747,12 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                         opacity: allFull ? 0.6 : 1,
                       }}>
                         <button
-                          onClick={() => setExpandedSched(isOpen ? null : s.id)}
+                          onClick={() => {
+                            setExpandedSched(isOpen ? null : s.id);
+                            if (!isOpen && trip.boatId && s.departureDate) {
+                              pushRecentBoat(trip.boatId, s.departureDate);
+                            }
+                          }}
                           style={{ width: "100%", background: "transparent", border: "none", padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", textAlign: "left" }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>

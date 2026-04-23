@@ -50,7 +50,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
   useEffect(() => {
     if (!isModalOpen) return;
     history.pushState({ siamdiveModal: true }, "");
-    const onPop = () => setSelected(null);
+    const onPop = () => { setSelected(null); setRecentKey(k => k + 1); };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [isModalOpen]);
