@@ -86,20 +86,20 @@ export default function TripCard({
         <p style={{ fontSize: isHorizontal ? 14 : 12, fontWeight: 700, lineHeight: 1.35, whiteSpace: dateLabel ? "nowrap" as const : undefined, display: dateLabel ? "block" : "-webkit-box", WebkitLineClamp: dateLabel ? 1 : 2, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: dateLabel ? "ellipsis" as const : undefined }}>{title}</p>
         {isHorizontal ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
-            <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>
-            <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>
+            {duration && <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>}
+            {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>}
           </div>
-        ) : (
+        ) : (description || duration || price > 0) ? (
           <div style={{ maxHeight: hovered ? 80 : 0, opacity: hovered ? 1 : 0, overflow: "hidden", transition: "max-height 0.25s ease, opacity 0.2s ease", marginTop: hovered ? 8 : 0 }}>
             {description && (
               <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, marginBottom: 6, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{description}</p>
             )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>
-              <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>
+              {duration && <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>}
+              {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </>
   );

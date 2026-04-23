@@ -96,7 +96,7 @@ export default function RecentlyViewedRow({
             key={b.id}
             slug={b.slug}
             title={b.title}
-            price={b.price}
+            price={0}
             duration=""
             type={b.type}
             destinationName={b.destinationName}
