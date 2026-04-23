@@ -46,6 +46,15 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
   const [recentKey, setRecentKey] = useState(0);
   useEffect(() => { setMounted(true); }, []);
 
+  const isModalOpen = selected !== null;
+  useEffect(() => {
+    if (!isModalOpen) return;
+    history.pushState({ siamdiveModal: true }, "");
+    const onPop = () => setSelected(null);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [isModalOpen]);
+
   if (!sections.length) return null;
 
   return (
@@ -349,7 +358,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           }}
           lang={lang}
           initialDate={selected.initialDate}
-          onClose={() => setSelected(null)}
+          onClose={() => history.back()}
         />,
         document.body
       )}
