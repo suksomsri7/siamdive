@@ -11,7 +11,7 @@ export function pushRecentBoat(boatId: string, departureDate?: string) {
   try {
     const raw = localStorage.getItem(KEY);
     const list: Entry[] = raw ? JSON.parse(raw) : [];
-    const filtered = list.filter((e) => e.id !== boatId);
+    const filtered = list.filter((e) => !(e.id === boatId && e.dep === departureDate));
     filtered.unshift({ id: boatId, at: Date.now(), dep: departureDate });
     localStorage.setItem(KEY, JSON.stringify(filtered.slice(0, MAX)));
   } catch {}

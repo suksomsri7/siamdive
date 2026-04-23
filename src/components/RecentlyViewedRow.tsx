@@ -53,18 +53,26 @@ export default function RecentlyViewedRow({
       setLoaded(true);
       return;
     }
-    const ids = entries.map((e) => e.id);
+    const uniqueIds = [...new Set(entries.map((e) => e.id))];
     fetch(
-      `/api/boats/by-ids?ids=${encodeURIComponent(ids.join(","))}&lang=${encodeURIComponent(lang)}`,
+      `/api/boats/by-ids?ids=${encodeURIComponent(uniqueIds.join(","))}&lang=${encodeURIComponent(lang)}`,
     )
       .then((r) => (r.ok ? r.json() : []))
       .then((data: (RecentBoat & { nextDeparture?: string })[]) => {
         const rows = Array.isArray(data) ? data : [];
-        const depById = new Map(entries.map((e) => [e.id, e.dep]));
-        setBoats(rows.map((b) => ({
-          ...b,
-          departureDate: depById.get(b.boatId) || b.nextDeparture,
-        })));
+        const boatMap = new Map(rows.map((b) => [b.boatId, b]));
+        const cards = entries
+          .map((e) => {
+            const b = boatMap.get(e.id);
+            if (!b) return null;
+            return {
+              ...b,
+              id: e.dep ? `${e.id}:${e.dep}` : e.id,
+              departureDate: e.dep || b.nextDeparture,
+            };
+          })
+          .filter((c): c is NonNullable<typeof c> => !!c);
+        setBoats(cards);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
