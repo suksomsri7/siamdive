@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import TripCard from "./TripCard";
-import { readRecentBoats } from "@/lib/recentlyViewed";
+import { readRecentBoatEntries } from "@/lib/recentlyViewed";
+import { formatDateLabel } from "@/lib/formatDate";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 
 export type RecentBoat = {
@@ -16,6 +17,9 @@ export type RecentBoat = {
   covers?: string[];
   boatType?: string;
   boatId: string;
+  // ISO departure date captured at view time — displayed on the card so
+  // the user can distinguish the same boat on different departures.
+  departureDate?: string;
 };
 
 const TITLES: Record<string, string> = {
@@ -44,17 +48,20 @@ export default function RecentlyViewedRow({
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const ids = readRecentBoats();
-    if (!ids.length) {
+    const entries = readRecentBoatEntries();
+    if (!entries.length) {
       setLoaded(true);
       return;
     }
+    const ids = entries.map((e) => e.id);
     fetch(
       `/api/boats/by-ids?ids=${encodeURIComponent(ids.join(","))}&lang=${encodeURIComponent(lang)}`,
     )
       .then((r) => (r.ok ? r.json() : []))
       .then((data: RecentBoat[]) => {
-        setBoats(Array.isArray(data) ? data : []);
+        const rows = Array.isArray(data) ? data : [];
+        const depById = new Map(entries.map((e) => [e.id, e.dep]));
+        setBoats(rows.map((b) => ({ ...b, departureDate: depById.get(b.boatId) })));
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -87,6 +94,7 @@ export default function RecentlyViewedRow({
             boatType={b.boatType}
             variant="vertical"
             lang={lang}
+            dateLabel={b.departureDate ? formatDateLabel(b.departureDate, lang) : undefined}
             onClick={() => {
               trackRowClick(SECTION_ID, "TRIP", b.id, idx + 1);
               trackTripView(b.boatId, { source: "row", rowId: SECTION_ID });

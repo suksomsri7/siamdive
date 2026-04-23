@@ -234,7 +234,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                               // trip.id is a scheduleId when trip.departureDate
                               // is set (SCHEDULE-refType items) — record it for
                               // the Recently Viewed row.
-                              if (trip.boatId) { pushRecentBoat(trip.boatId); setRecentKey(k => k + 1); }
+                              if (trip.boatId) { pushRecentBoat(trip.boatId, trip.departureDate); setRecentKey(k => k + 1); }
                               setSelected({
                                 slug: trip.slug, title: trip.title, description: trip.description,
                                 price: trip.price, duration: trip.duration, type: trip.type,
@@ -294,7 +294,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     onClick={() => {
                       trackRowClick(section.id, "TRIP", trip.id, idx + 1);
                       if (trip.boatId) trackTripView(trip.boatId, { source: "row", rowId: section.id });
-                      if (trip.boatId) { pushRecentBoat(trip.boatId); setRecentKey(k => k + 1); }
+                      if (trip.boatId) { pushRecentBoat(trip.boatId, trip.departureDate); setRecentKey(k => k + 1); }
                       setSelected({
                         slug: trip.slug, title: trip.title, description: trip.description,
                         price: trip.price, duration: trip.duration, type: trip.type,
