@@ -94,6 +94,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                       slug: s.slug, title: s.title, description: "",
                       price: s.price, duration: "", type: s.type,
                       destinationName: s.destinationName, imageUrl: s.imageUrl, boatId: s.boatId,
+                      initialDate: s.departureDate?.slice(0, 10),
                     });
                   }}
                 />
