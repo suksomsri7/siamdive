@@ -64,10 +64,13 @@ search_perplexity "<TOPIC> Thailand diving when to go how to get there best oper
 
 เขียน content ภาษาอังกฤษจากข้อมูลที่ได้ โดยมีโครงสร้างดังนี้:
 
-### Title
-- ดึงดูด มี keyword หลักอยู่ด้านหน้า
-- ความยาว 50-60 ตัวอักษร
-- ตัวอย่าง: "Koh Tao Diving Guide: Best Sites, Tips & What to Expect in 2025"
+### Title — ต้องน่าสนใจ อ่านแล้วอยากคลิก!
+- **ห้ามใช้แบบ generic** เช่น "Complete Guide to X", "Everything You Need to Know About X", "Ultimate Guide to X"
+- **ใช้เทคนิค clickbait แบบมีคุณภาพ:** ตัวเลขเจาะจง, คำถามกระตุ้นความอยากรู้, insider knowledge, unexpected angle, urgency
+- **ตรงกลุ่มเป้าหมาย** — นักดำน้ำ, นักท่องเที่ยว, คนวางแผนทริป
+- **ตรงเนื้อหา** — title ต้อง deliver สิ่งที่สัญญาไว้
+- มี keyword หลักอยู่ด้านหน้า, 50-60 ตัวอักษร
+- **ทุกภาษาต้อง localize title ให้น่าสนใจ** — ไม่ใช่แค่แปลจาก EN
 
 ### Slug
 - lowercase, hyphen-separated, ไม่มี special chars

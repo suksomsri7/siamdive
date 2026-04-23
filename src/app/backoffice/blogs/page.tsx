@@ -297,13 +297,18 @@ const TOOLBAR: TBtn[] = [
 
 function RichEditor({ value, onChange, placeholder, minHeight = 300 }: { value: string; onChange: (h: string) => void; placeholder?: string; minHeight?: number }) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const lastHtml = useRef(value);
+  const lastHtml = useRef("");
+  const isLocal = useRef(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [editorState, setEditorState] = useState<{ id: string; url: string } | null>(null);
 
   useEffect(() => {
-    if (editorRef.current && value !== lastHtml.current) { editorRef.current.innerHTML = value; lastHtml.current = value; }
+    if (!editorRef.current) return;
+    if (isLocal.current) { isLocal.current = false; lastHtml.current = value; return; }
+    if (value === lastHtml.current) return;
+    editorRef.current.innerHTML = value;
+    lastHtml.current = value;
   }, [value]);
 
   useEffect(() => {
@@ -316,10 +321,10 @@ function RichEditor({ value, onChange, placeholder, minHeight = 300 }: { value: 
   const exec = useCallback((cmd: string, arg?: string) => {
     editorRef.current?.focus();
     document.execCommand(cmd, false, arg ?? undefined);
-    const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; onChange(html);
+    const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; isLocal.current = true; onChange(html);
   }, [onChange]);
 
-  const handleInput = () => { const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; onChange(html); };
+  const handleInput = () => { const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; isLocal.current = true; onChange(html); };
 
   // Upload original → open Photo Editor → insert processed image into rich text
   const insertImg = async (file: File) => {
@@ -355,8 +360,7 @@ function RichEditor({ value, onChange, placeholder, minHeight = 300 }: { value: 
 
   const area = (
     <div ref={editorRef} contentEditable suppressContentEditableWarning onInput={handleInput} data-placeholder={placeholder}
-      style={{ minHeight: fullscreen ? 0 : minHeight, flex: fullscreen ? 1 : undefined, padding: "14px 16px", outline: "none", color: "#ccc", fontSize: 14, lineHeight: 1.75, background: "#161616", overflowY: "auto" }}
-      dangerouslySetInnerHTML={{ __html: value }} />
+      style={{ minHeight: fullscreen ? 0 : minHeight, flex: fullscreen ? 1 : undefined, padding: "14px 16px", outline: "none", color: "#ccc", fontSize: 14, lineHeight: 1.75, background: "#161616", overflowY: "auto" }} />
   );
 
   const css = (
@@ -380,7 +384,7 @@ function RichEditor({ value, onChange, placeholder, minHeight = 300 }: { value: 
       onSave={(result) => {
         editorRef.current?.focus();
         document.execCommand("insertImage", false, result.coverUrl);
-        const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; onChange(html);
+        const html = editorRef.current?.innerHTML ?? ""; lastHtml.current = html; isLocal.current = true; onChange(html);
         setEditorState(null);
       }}
       onClose={() => setEditorState(null)}

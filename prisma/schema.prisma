@@ -331,6 +331,7 @@ model ServiceArea {
   id           String                   @id @default(cuid())
   translations ServiceAreaTranslation[]
   boats        BoatServiceArea[]
+  displayRows  DisplayRow[]
 }
 
 model ServiceAreaTranslation {
@@ -456,8 +457,10 @@ model DisplayRow {
   // events over the last 7 days, capped at maxItems ?? 6. Only counts events
   // from bot-filtered sessions. Falls back to curated items if analytics returns
   // fewer boats than maxItems.
-  autoTrending Boolean                  @default(false)
-  items        DisplayRowItem[]
+  autoTrending  Boolean                  @default(false)
+  serviceAreaId String?
+  serviceArea   ServiceArea?             @relation(fields: [serviceAreaId], references: [id])
+  items         DisplayRowItem[]
   translations DisplayRowTranslation[]
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
