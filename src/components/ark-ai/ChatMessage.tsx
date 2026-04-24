@@ -145,25 +145,57 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
 
   const parts = parseStructured(content);
 
+  const rendered: React.ReactNode[] = [];
+  let tripBatch: Record<string, unknown>[] = [];
+  let tripBatchStart = 0;
+
+  function flushTrips(key: number) {
+    if (tripBatch.length > 0) {
+      rendered.push(
+        <div key={`row-${key}`} className="ark-trip-row" style={{
+          display: "flex", gap: 8, overflowX: "auto", overflowY: "visible",
+          padding: "8px 0 8px",
+          scrollbarWidth: "none",
+        }}>
+          {tripBatch.map((t, j) => (
+            <ChatTripCard key={j} {...t as any} />
+          ))}
+        </div>
+      );
+      tripBatch = [];
+    }
+  }
+
+  parts.forEach((part, i) => {
+    if (part.type === "trip") {
+      if (tripBatch.length === 0) tripBatchStart = i;
+      tripBatch.push(part.data);
+    } else {
+      flushTrips(tripBatchStart);
+      switch (part.type) {
+        case "blog":
+          rendered.push(<ChatBlogCard key={i} {...part.data as any} />);
+          break;
+        case "compare":
+          rendered.push(<ComparisonTable key={i} boats={(part.data as any).boats || []} />);
+          break;
+        case "itinerary":
+          rendered.push(<ItineraryCard key={i} data={part.data as ItineraryData} onSave={onItinerarySave} />);
+          break;
+        case "booking":
+          rendered.push(<BookingButtons key={i} {...part.data as any} />);
+          break;
+        default:
+          rendered.push(<div key={i}>{renderMarkdown(part.content)}</div>);
+      }
+    }
+  });
+  flushTrips(tripBatchStart);
+
   return (
     <div style={{ padding: "4px 0" }}>
       <div style={{ maxWidth: "92%" }}>
-        {parts.map((part, i) => {
-          switch (part.type) {
-            case "trip":
-              return <ChatTripCard key={i} {...part.data as any} />;
-            case "blog":
-              return <ChatBlogCard key={i} {...part.data as any} />;
-            case "compare":
-              return <ComparisonTable key={i} boats={(part.data as any).boats || []} />;
-            case "itinerary":
-              return <ItineraryCard key={i} data={part.data as ItineraryData} onSave={onItinerarySave} />;
-            case "booking":
-              return <BookingButtons key={i} {...part.data as any} />;
-            default:
-              return <div key={i}>{renderMarkdown(part.content)}</div>;
-          }
-        })}
+        {rendered}
         {isStreaming && (
           <span style={{ display: "inline-block", width: 6, height: 14, background: "#60a5fa", borderRadius: 1, animation: "blink 1s infinite", verticalAlign: "middle", marginLeft: 2 }} />
         )}

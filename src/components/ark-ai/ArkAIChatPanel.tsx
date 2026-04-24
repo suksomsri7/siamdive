@@ -283,6 +283,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       <style>{`
         @keyframes arkSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .ark-trip-row::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* Backdrop */}

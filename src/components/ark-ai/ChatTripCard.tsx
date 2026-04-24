@@ -27,37 +27,46 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover }:
       href={`/${lang}/trips/${slug}`}
       onClick={() => trackChatTripClick(boatId, slug)}
       style={{
-        display: "flex", gap: 12, alignItems: "stretch",
-        background: "#111", border: "1px solid #222", borderRadius: 12,
-        padding: 0, margin: "8px 0", textDecoration: "none",
-        overflow: "hidden", transition: "border-color 0.2s",
+        position: "relative", display: "block", flexShrink: 0, overflow: "hidden",
+        borderRadius: 12, width: 130, aspectRatio: "2/3" as const,
+        textDecoration: "none",
+        transition: "transform 0.25s ease, box-shadow 0.25s ease",
       }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = "#3b82f6")}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = "#222")}
+      onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.06)"; e.currentTarget.style.boxShadow = "0 10px 40px rgba(0,0,0,0.8)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; }}
     >
-      {/* Cover image */}
-      <div style={{ width: 100, minHeight: 80, flexShrink: 0, position: "relative" }}>
-        {cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #0f172a, #1e3a5f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
-            {type === "LAND_TOUR" ? "🌴" : "🤿"}
-          </div>
-        )}
+      {/* Cover */}
+      {cover ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={cover} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #0f172a, #1e3a5f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+          {type === "LAND_TOUR" ? "🌴" : "🤿"}
+        </div>
+      )}
+
+      {/* Gradient overlay */}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.05) 100%)" }} />
+
+      {/* Type badge */}
+      <div style={{ position: "absolute", top: 6, left: 6 }}>
+        <span style={{
+          fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em",
+          padding: "2px 5px", borderRadius: 10, color: "#fff",
+          background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)",
+          border: "1px solid rgba(255,255,255,0.25)",
+        }}>
+          {TYPE_LABEL[type] || type}
+        </span>
       </div>
 
-      {/* Info */}
-      <div style={{ flex: 1, padding: "10px 12px 10px 0", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          {area && <span style={{ fontSize: 10, color: "#93c5fd", fontWeight: 600 }}>{area}</span>}
-          <span style={{ fontSize: 9, color: "#555" }}>•</span>
-          <span style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[type] || type}</span>
-        </div>
-        <p style={{ fontSize: 14, fontWeight: 700, color: "#f0f0f0", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{title}</p>
-        <p style={{ fontSize: 11, color: "#60a5fa", marginTop: 4, fontWeight: 600 }}>
-          {lang === "th" ? "ดูรายละเอียด →" : "View details →"}
-        </p>
+      {/* Bottom info */}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 8px 10px" }}>
+        {area && <p style={{ fontSize: 9, color: "#93c5fd", marginBottom: 2, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{area}</p>}
+        <p style={{
+          fontSize: 11, fontWeight: 700, color: "#fff", lineHeight: 1.3,
+          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+        }}>{title}</p>
       </div>
     </a>
   );
