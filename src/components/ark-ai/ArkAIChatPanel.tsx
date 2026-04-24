@@ -14,14 +14,25 @@ import {
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME: Record<string, string> = {
-  th: "สวัสดีครับ! ผม Ark — ผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nบอกได้เลยว่าอยากไปดำน้ำที่ไหน เมื่อไหร่ งบเท่าไหร่ หรืออยากให้ช่วยวางแผนทั้งทริปก็ได้ครับ",
-  en: "Hi! I'm Ark — your AI dive trip planner for Thailand.\n\nTell me where you'd like to dive, when, your budget, or I can plan an entire trip for you!",
-  cn: "你好！我是 Ark — 你的泰国潜水旅行AI规划师。\n\n告诉我你想去哪里潜水、什么时候去、预算多少，我可以帮你规划整个行程！",
-  ja: "こんにちは！Ark です — タイのダイビングトリップ AI プランナーです。\n\nどこでダイビングしたいか、いつ行きたいか、予算はいくらか教えてください。旅行全体の計画もお手伝いします！",
-  ko: "안녕하세요! Ark입니다 — 태국 다이빙 여행 AI 플래너입니다.\n\n어디서 다이빙하고 싶은지, 언제, 예산이 얼마인지 알려주세요. 전체 여행 계획도 도와드립니다!",
-  de: "Hallo! Ich bin Ark — dein KI-Tauchreiseplaner für Thailand.\n\nSag mir, wo du tauchen möchtest, wann, dein Budget, oder ich plane die gesamte Reise für dich!",
-  fr: "Bonjour ! Je suis Ark — votre planificateur de voyage de plongée IA pour la Thaïlande.\n\nDites-moi où vous aimeriez plonger, quand, votre budget, ou je peux planifier tout le voyage pour vous !",
-  ru: "Привет! Я Ark — ваш AI-планировщик дайвинг-путешествий по Таиланду.\n\nРасскажите, где хотите понырять, когда, какой бюджет, или я могу спланировать всю поездку!",
+  th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nบอกได้เลยว่าอยากไปดำน้ำที่ไหน เมื่อไหร่ งบเท่าไหร่ หรืออยากให้ช่วยวางแผนทั้งทริปก็ได้ครับ",
+  en: "Hi! I'm your AI dive trip planner for Thailand.\n\nTell me where you'd like to dive, when, your budget, or I can plan an entire trip for you!",
+  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n告诉我你想去哪里潜水、什么时候去、预算多少，我可以帮你规划整个行程！",
+  ja: "こんにちは！タイのダイビングトリップ AI プランナーです。\n\nどこでダイビングしたいか、いつ行きたいか、予算はいくらか教えてください。旅行全体の計画もお手伝いします！",
+  ko: "안녕하세요! 태국 다이빙 여행 AI 플래너입니다.\n\n어디서 다이빙하고 싶은지, 언제, 예산이 얼마인지 알려주세요. 전체 여행 계획도 도와드립니다!",
+  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nSag mir, wo du tauchen möchtest, wann, dein Budget, oder ich plane die gesamte Reise für dich!",
+  fr: "Bonjour ! Je suis votre planificateur de voyage de plongée IA pour la Thaïlande.\n\nDites-moi où vous aimeriez plonger, quand, votre budget, ou je peux planifier tout le voyage pour vous !",
+  ru: "Привет! Я ваш AI-планировщик дайвинг-путешествий по Таиланду.\n\nРасскажите, где хотите понырять, когда, какой бюджет, или я могу спланировать всю поездку!",
+};
+
+const PLAN_STARTER: Record<string, string> = {
+  th: "ช่วยวางแผนทริปดำน้ำให้หน่อยครับ",
+  en: "Help me plan a dive trip",
+  cn: "帮我规划一次潜水旅行",
+  ja: "ダイビングトリップを計画してください",
+  ko: "다이빙 여행 계획을 세워주세요",
+  de: "Hilf mir einen Tauchtrip zu planen",
+  fr: "Aidez-moi à planifier un voyage de plongée",
+  ru: "Помогите спланировать дайвинг-поездку",
 };
 
 function detectPageContext(pathname: string): string | undefined {
@@ -351,9 +362,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                     {lang === "th" ? "ยังไม่มีแผนที่บันทึกไว้" : "No saved plans yet"}
                   </p>
                   <p style={{ fontSize: 11, color: "#444", marginTop: 4 }}>
-                    {lang === "th" ? "ลองให้ Ark AI วางแผนทริปให้คุณ!" : "Ask Ark AI to plan a trip for you!"}
+                    {lang === "th" ? "ลองให้ AI วางแผนทริปให้คุณ!" : "Ask AI to plan a trip for you!"}
                   </p>
-                  <button onClick={() => setTab("chat")}
+                  <button onClick={() => {
+                      setTab("chat");
+                      setTimeout(() => sendMessage(PLAN_STARTER[lang] || PLAN_STARTER.en), 100);
+                    }}
                     style={{ marginTop: 16, padding: "8px 20px", borderRadius: 8, border: "none", background: "#1e40af", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                     {lang === "th" ? "สร้างแผนใหม่" : "Create a plan"}
                   </button>
