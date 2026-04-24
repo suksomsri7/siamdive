@@ -25,24 +25,48 @@ type ParsedPart =
   | { type: "itinerary"; data: ItineraryData }
   | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } };
 
+function extractBalancedJson(text: string, start: number): string | null {
+  if (text[start] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) return text.slice(start, i + 1); }
+  }
+  return null;
+}
+
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const regex = /\$\$(TRIP|BLOG|COMPARE|ITINERARY|BOOKING)(\{[\s\S]*?\})\$\$/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|ITINERARY|BOOKING)\{/g;
   let lastIndex = 0;
   let match;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = tagRegex.exec(text)) !== null) {
+    const jsonStart = match.index + 2 + match[1].length;
+    const jsonStr = extractBalancedJson(text, jsonStart);
+    if (!jsonStr) continue;
+    const endIndex = jsonStart + jsonStr.length;
+    if (text.slice(endIndex, endIndex + 2) !== "$$") continue;
+
     if (match.index > lastIndex) {
       parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
     }
     try {
-      const data = JSON.parse(match[2]);
+      const data = JSON.parse(jsonStr);
       const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "itinerary" | "booking";
       parts.push({ type: kind, data });
     } catch {
-      parts.push({ type: "text", content: match[0] });
+      parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
     }
-    lastIndex = match.index + match[0].length;
+    lastIndex = endIndex + 2;
+    tagRegex.lastIndex = lastIndex;
   }
 
   if (lastIndex < text.length) {

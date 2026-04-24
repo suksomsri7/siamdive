@@ -15,7 +15,7 @@ async function getAiConfig() {
     provider: config?.provider || "anthropic",
     apiKey: config?.apiKeyEncrypted ? decrypt(config.apiKeyEncrypted) : (process.env.ANTHROPIC_API_KEY || ""),
     model: config?.model || "claude-haiku-4-5-20251001",
-    maxTokens: config?.maxTokens || 1024,
+    maxTokens: config?.maxTokens || 4096,
     rateLimit: config?.rateLimit || 20,
     temperature: config?.temperature || 0.7,
     extra: config?.systemPromptExtra || "",
