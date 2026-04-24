@@ -74,8 +74,15 @@ export default function BottomNav() {
                 position: "relative",
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" clipRule="evenodd">
-                <path d="M1.25 10a.75.75 0 01.75-.75H4V8a3 3 0 013-3h10a3 3 0 013 3v1.25h2a.75.75 0 010 1.5h-2V12a3 3 0 01-3 3h-1.28l-1.22 2.04a1 1 0 01-.86.46h-2.28a1 1 0 01-.86-.46L9.28 15H8a3 3 0 01-3-3v-1.25H2a.75.75 0 01-.75-.75zM8.5 7a3 3 0 100 6 3 3 0 000-6zm7 0a3 3 0 100 6 3 3 0 000-6z"/>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path d="M19 5H5a3 3 0 00-3 3v4a3 3 0 003 3h1l2 3h2l1-1.5h2L14 18.5h2l2-3h1a3 3 0 003-3V8a3 3 0 00-3-3z" fill="currentColor" opacity="0.25"/>
+                <path d="M19 5H5a3 3 0 00-3 3v4a3 3 0 003 3h1l2 3h2l1-1.5h2L14 18.5h2l2-3h1a3 3 0 003-3V8a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="1.6" fill="none"/>
+                <rect x="4" y="6.5" width="7" height="6" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+                <rect x="13" y="6.5" width="7" height="6" rx="2" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M11 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                <path d="M21.5 9L23 7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M23 7.5V4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <circle cx="23" cy="3.5" r="1" fill="currentColor"/>
               </svg>
             </button>
           </div>

@@ -198,8 +198,11 @@ export default function HeroAI({ lang }: { lang: string }) {
         </p>
 
         <div style={{
-          background: "#fff", borderRadius: 14,
+          background: "rgba(255,255,255,0.1)", borderRadius: 14,
           padding: 3, marginBottom: 20, textAlign: "left",
+          border: "1px solid rgba(255,255,255,0.15)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
         }}>
           <textarea
             value={text}
@@ -209,7 +212,7 @@ export default function HeroAI({ lang }: { lang: string }) {
             style={{
               width: "100%", background: "transparent",
               border: "none", outline: "none",
-              color: "#111", fontSize: 16, lineHeight: 1.5,
+              color: "#f0f0f0", fontSize: 16, lineHeight: 1.5,
               padding: "12px 14px", resize: "none",
               fontFamily: "inherit", boxSizing: "border-box",
             }}
