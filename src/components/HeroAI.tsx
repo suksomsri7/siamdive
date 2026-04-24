@@ -198,9 +198,9 @@ export default function HeroAI({ lang }: { lang: string }) {
         </p>
 
         <div style={{
-          background: "rgba(255,255,255,0.1)", borderRadius: 14,
+          background: "rgba(255,255,255,0.18)", borderRadius: 14,
           padding: 3, marginBottom: 20, textAlign: "left",
-          border: "1px solid rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.25)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
         }}>

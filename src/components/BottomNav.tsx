@@ -74,15 +74,9 @@ export default function BottomNav() {
                 position: "relative",
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M19 5H5a3 3 0 00-3 3v4a3 3 0 003 3h1l2 3h2l1-1.5h2L14 18.5h2l2-3h1a3 3 0 003-3V8a3 3 0 00-3-3z" fill="currentColor" opacity="0.25"/>
-                <path d="M19 5H5a3 3 0 00-3 3v4a3 3 0 003 3h1l2 3h2l1-1.5h2L14 18.5h2l2-3h1a3 3 0 003-3V8a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="1.6" fill="none"/>
-                <rect x="4" y="6.5" width="7" height="6" rx="2" stroke="currentColor" strokeWidth="1.4"/>
-                <rect x="13" y="6.5" width="7" height="6" rx="2" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M11 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                <path d="M21.5 9L23 7.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M23 7.5V4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                <circle cx="23" cy="3.5" r="1" fill="currentColor"/>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 8.5C4 6.57 5.57 5 7.5 5h9C18.43 5 20 6.57 20 8.5v3c0 1.93-1.57 3.5-3.5 3.5H15l-1.5 2.5h-3L9 15H7.5C5.57 15 4 13.43 4 11.5v-3z"/>
+                <path d="M20 9h2M4 9H2"/>
               </svg>
             </button>
           </div>
