@@ -25,7 +25,7 @@ export function isTrendingAllowed(itemType: string): itemType is TrendingItemTyp
   return (TRENDING_ALLOWED_ITEM_TYPES as readonly string[]).includes(itemType);
 }
 
-// Pseudo-itemType for "monthly top trips across all boat types" rows. Not a
+// Pseudo-itemType for "weekly top trips across all boat types" rows. Not a
 // BoatType — the resolver treats this as SCHEDULE-refType synthetic items.
 export const ALL_TRIPS_ITEM_TYPE = "ALL_TRIPS" as const;
 
@@ -76,9 +76,11 @@ export async function trendingBoatIdsByType(
  * (common early on), views is 0 for most boats and the order falls back to
  * soonest-departing schedules, so the row is always populated as long as
  * there are upcoming trips.
+ *
+ * Rolling window — last 7 days from now by default.
  */
 export async function trendingUpcomingScheduleIds(
-  days = 30,
+  days = 7,
   limit = 21,
 ): Promise<string[]> {
   const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

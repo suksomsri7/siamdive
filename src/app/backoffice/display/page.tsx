@@ -641,7 +641,7 @@ export default function DisplayPage() {
                   <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:8 }}>
                     <input type="checkbox" checked={autoTrending} onChange={e => { setAutoTrending(e.target.checked); if (e.target.checked) { setRandomMode(false); setAutoLatest(false); } }} style={{ accentColor:"#f97316", width:15, height:15 }} />
                     <span style={{ fontSize:13, color: autoTrending ? "#f97316" : "#555" }}>
-                      🏆 Top {maxItems || "21"} ทริปจาก Analytics (30 วันล่าสุด, ยังไม่ออกเดินทาง){autoTrending && " — 1 ทริปต่อ 1 เรือ, ทุกประเภท"}
+                      🏆 Top {maxItems || "21"} ทริปจาก Analytics (7 วันล่าสุด, ยังไม่ออกเดินทาง){autoTrending && " — 1 ทริปต่อ 1 เรือ, ทุกประเภท"}
                     </span>
                   </label>
                 )}

@@ -69,7 +69,7 @@ const getHomepageData = unstable_cache(
       for (const ids of results) for (const id of ids.ids) boatIds.push(id);
     }
 
-    // ALL_TRIPS autoTrending rows: monthly top upcoming schedules across all
+    // ALL_TRIPS autoTrending rows: weekly top upcoming schedules across all
     // boat types, dedup'd one-per-boat. Separate from the BOAT-level trending
     // above because the return type is schedule IDs, not boat IDs.
     const allTripsRows = rows.filter(r => r.autoTrending && r.itemType === ALL_TRIPS_ITEM_TYPE);
@@ -77,7 +77,7 @@ const getHomepageData = unstable_cache(
     if (allTripsRows.length > 0) {
       const results = await Promise.all(
         allTripsRows.map(r =>
-          trendingUpcomingScheduleIds(30, r.maxItems ?? 21)
+          trendingUpcomingScheduleIds(7, r.maxItems ?? 21)
             .then(ids => ({ rowId: r.id, ids }))
             .catch(() => ({ rowId: r.id, ids: [] as string[] })),
         ),
