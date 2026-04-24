@@ -17,26 +17,56 @@ type Msg = { role: "user" | "assistant"; content: string };
 const WELCOME_BASE: Record<string, string> = {
   th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ (Save & Share ได้!)\n- **แนะนำทริป** เรือดำน้ำ และ Liveaboard\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n\nลองกดปุ่ม **สร้างแผนทริป** ด้านล่าง หรือพิมพ์ถามได้เลยครับ",
   en: "Hi! I'm your AI dive trip planner for Thailand.\n\nI can:\n- **Create trip plans** day-by-day with budget (Save & Share!)\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n\nTap **Create trip plan** below, or just ask me anything!",
+  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n我可以：\n- **制作行程计划** — 按天安排，含预算（可保存和分享！）\n- **推荐潜水行程** — 船只、船宿、潜点\n- **对比船只**\n\n点击下方 **制作行程** 按钮，或直接问我！",
+  ja: "こんにちは！タイのダイビングAIプランナーです。\n\nできること：\n- **旅行プラン作成** — 日別スケジュール＆予算（保存＆共有可能！）\n- **トリップ提案** — ボート、リブアボード、ダイビングスポット\n- **ボート比較**\n\n下の **プラン作成** ボタンをタップ、または何でも聞いてください！",
+  ko: "안녕하세요! 태국 다이빙 AI 플래너입니다.\n\n할 수 있는 것:\n- **여행 계획 작성** — 일별 일정 & 예산 (저장 & 공유 가능!)\n- **트립 추천** — 보트, 리브어보드, 다이빙 사이트\n- **보트 비교**\n\n아래 **계획 만들기** 버튼을 탭하거나 질문하세요!",
+  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nIch kann:\n- **Reisepläne erstellen** — Tag für Tag mit Budget (Speichern & Teilen!)\n- **Trips empfehlen** — Boote, Liveaboards, Tauchplätze\n- **Boote vergleichen**\n\nTippe unten auf **Plan erstellen** oder frag mich einfach!",
+  fr: "Bonjour ! Je suis votre planificateur IA pour la Thaïlande.\n\nJe peux :\n- **Créer des itinéraires** jour par jour avec budget (Sauvegarde & Partage !)\n- **Recommander des trips** — bateaux, croisières, sites de plongée\n- **Comparer les bateaux**\n\nAppuyez sur **Créer un plan** ci-dessous ou posez-moi une question !",
+  ru: "Привет! Я ваш AI-планировщик для дайвинга в Таиланде.\n\nЯ могу:\n- **Создать план поездки** по дням с бюджетом (Сохранить и Поделиться!)\n- **Рекомендовать трипы** — лодки, ливаборды, дайв-сайты\n- **Сравнить лодки**\n\nНажмите **Создать план** ниже или просто спросите!",
 };
 
 const WELCOME_ON_TRIP: Record<string, string> = {
   th: "สวัสดีครับ! เห็นว่ากำลังดูทริปนี้อยู่ 👀\n\nผมช่วยได้เลย:\n- **ถามรายละเอียดทริปนี้** — ดำกี่ไดฟ์ เหมาะกับ cert ไหน\n- **หาวันว่าง** หรือเช็คตารางเรือ\n- **เปรียบเทียบกับเรืออื่น** ในพื้นที่เดียวกัน\n- **วางแผนทริปทั้งหมด** รวมที่พัก การเดินทาง กิจกรรมบนบก\n\nถามได้เลยครับ!",
   en: "Hi! I see you're checking out this trip 👀\n\nI can help you:\n- **Ask about this trip** — how many dives, what cert you need\n- **Check available dates** and schedules\n- **Compare with other boats** in the same area\n- **Plan the full trip** including accommodation, transport & land activities\n\nJust ask!",
+  cn: "你好！看到你正在查看这个行程 👀\n\n我可以帮你：\n- **了解行程详情** — 几次潜水、需要什么证书\n- **查看可用日期** 和船期\n- **与同区域其他船只对比**\n- **规划完整行程** 包括住宿、交通和陆上活动\n\n直接问我！",
+  ja: "こんにちは！このトリップをご覧になっていますね 👀\n\nお手伝いできます：\n- **このトリップの詳細** — ダイブ回数、必要な資格\n- **空き日程の確認**\n- **同エリアの他のボートと比較**\n- **旅行全体のプラン作成** — 宿泊、交通、陸上アクティビティ込み\n\nお気軽にどうぞ！",
+  ko: "안녕하세요! 이 트립을 보고 계시군요 👀\n\n도움을 드릴 수 있어요:\n- **트립 상세 정보** — 다이빙 횟수, 필요한 자격증\n- **가능한 날짜 확인**\n- **같은 지역 다른 보트와 비교**\n- **전체 여행 계획** — 숙박, 교통, 육상 활동 포함\n\n질문하세요!",
+  de: "Hallo! Ich sehe, du schaust dir diesen Trip an 👀\n\nIch kann dir helfen:\n- **Details zu diesem Trip** — Anzahl Tauchgänge, benötigtes Zertifikat\n- **Verfügbare Termine prüfen**\n- **Mit anderen Booten vergleichen**\n- **Die gesamte Reise planen** — Unterkunft, Transport & Aktivitäten\n\nFrag einfach!",
+  fr: "Bonjour ! Je vois que vous regardez ce trip 👀\n\nJe peux vous aider :\n- **Détails sur ce trip** — nombre de plongées, certificat requis\n- **Vérifier les dates disponibles**\n- **Comparer avec d'autres bateaux**\n- **Planifier le voyage complet** — hébergement, transport & activités\n\nDemandez-moi !",
+  ru: "Привет! Вижу, вы смотрите этот трип 👀\n\nМогу помочь:\n- **Подробности о трипе** — сколько погружений, какой сертификат нужен\n- **Проверить доступные даты**\n- **Сравнить с другими лодками**\n- **Спланировать всю поездку** — проживание, транспорт и активности\n\nСпрашивайте!",
 };
 
 const WELCOME_ON_BLOG: Record<string, string> = {
   th: "สวัสดีครับ! กำลังอ่านบทความอยู่ใช่ไหม 📖\n\nถ้าสนใจเนื้อหาในบทความนี้ ผมช่วยได้:\n- **หาทริปที่เกี่ยวข้อง** กับสิ่งที่อ่านอยู่\n- **วางแผนทริปดำน้ำ** ตามสถานที่ที่กล่าวถึง\n- **ตอบคำถามเพิ่มเติม** เกี่ยวกับดำน้ำในไทย\n\nถามได้เลยครับ!",
   en: "Hi! I see you're reading a blog article 📖\n\nInterested in what you're reading? I can:\n- **Find related trips** based on this article\n- **Plan a dive trip** to the locations mentioned\n- **Answer any questions** about diving in Thailand\n\nJust ask!",
+  cn: "你好！看到你在阅读文章 📖\n\n对内容感兴趣？我可以：\n- **查找相关行程**\n- **规划文中提到地点的潜水之旅**\n- **回答关于泰国潜水的问题**\n\n直接问我！",
+  ja: "こんにちは！ブログ記事をお読みですね 📖\n\n興味がありましたら：\n- **関連トリップを探す**\n- **記事の場所へのダイビング旅行を計画**\n- **タイのダイビングについて質問に回答**\n\nお気軽にどうぞ！",
+  ko: "안녕하세요! 블로그 기사를 읽고 계시군요 📖\n\n관심이 있으시다면:\n- **관련 트립 찾기**\n- **기사에 언급된 장소로 다이빙 여행 계획**\n- **태국 다이빙에 대한 질문 답변**\n\n질문하세요!",
+  de: "Hallo! Du liest gerade einen Blog-Artikel 📖\n\nInteressiert? Ich kann:\n- **Passende Trips finden**\n- **Tauchreise zu den genannten Orten planen**\n- **Fragen zum Tauchen in Thailand beantworten**\n\nFrag einfach!",
+  fr: "Bonjour ! Vous lisez un article 📖\n\nIntéressé ? Je peux :\n- **Trouver des trips associés**\n- **Planifier un voyage vers les lieux mentionnés**\n- **Répondre à vos questions sur la plongée en Thaïlande**\n\nDemandez-moi !",
+  ru: "Привет! Вижу, вы читаете статью 📖\n\nИнтересно? Я могу:\n- **Найти связанные трипы**\n- **Спланировать поездку в упомянутые места**\n- **Ответить на вопросы о дайвинге в Таиланде**\n\nСпрашивайте!",
 };
 
 const WELCOME_RETURNING: Record<string, string> = {
   th: "ยินดีต้อนรับกลับมาครับ! 🤿\n\nเห็นว่าเพิ่งดูมาหลายทริป ต้องการให้ช่วย:\n- **เปรียบเทียบทริปที่ดูมา** ให้เห็นข้อดี-ข้อเสีย\n- **สร้างแผนทริป** จากทริปที่สนใจ พร้อมงบ\n- **หาทริปเพิ่มเติม** ในพื้นที่หรืองบที่ชอบ\n\nบอกได้เลยครับ!",
   en: "Welcome back! 🤿\n\nI see you've been browsing several trips. Want me to:\n- **Compare the trips you viewed** — pros and cons\n- **Create a trip plan** from your favorites with budget\n- **Find more trips** in the areas or budget you like\n\nJust let me know!",
+  cn: "欢迎回来！🤿\n\n看到你浏览了多个行程，需要我：\n- **对比你看过的行程** — 优缺点分析\n- **根据你的收藏制作行程计划** 含预算\n- **查找更多行程**\n\n告诉我！",
+  ja: "おかえりなさい！🤿\n\nいくつかのトリップを閲覧されましたね：\n- **閲覧したトリップを比較** — メリット・デメリット\n- **お気に入りから旅行プラン作成** 予算付き\n- **もっとトリップを探す**\n\nお気軽にどうぞ！",
+  ko: "다시 오신 것을 환영합니다! 🤿\n\n여러 트립을 둘러보셨군요:\n- **본 트립들 비교** — 장단점 분석\n- **마음에 드는 것으로 여행 계획 작성** 예산 포함\n- **더 많은 트립 찾기**\n\n말씀해 주세요!",
+  de: "Willkommen zurück! 🤿\n\nDu hast mehrere Trips angesehen:\n- **Angesehene Trips vergleichen** — Vor- und Nachteile\n- **Reiseplan erstellen** aus deinen Favoriten mit Budget\n- **Weitere Trips finden**\n\nSag Bescheid!",
+  fr: "Bon retour ! 🤿\n\nVous avez consulté plusieurs trips :\n- **Comparer les trips consultés** — avantages et inconvénients\n- **Créer un plan** à partir de vos favoris avec budget\n- **Trouver plus de trips**\n\nDites-moi !",
+  ru: "С возвращением! 🤿\n\nВижу, вы просматривали несколько трипов:\n- **Сравнить просмотренные трипы** — плюсы и минусы\n- **Составить план** из избранного с бюджетом\n- **Найти больше трипов**\n\nСкажите мне!",
 };
 
 const WELCOME_BROWSING: Record<string, string> = {
   th: "สวัสดีครับ! เห็นว่ากำลังหาทริปดำน้ำอยู่ 🔍\n\nผมช่วยให้เจอทริปที่ใช่ได้เร็วขึ้น:\n- **บอกงบ วัน cert level** แล้วผมแนะนำทริปที่เหมาะ\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ\n- **เปรียบเทียบเรือ** ให้เห็นชัดๆ\n\nถามได้เลยครับ!",
   en: "Hi! I see you're looking for a dive trip 🔍\n\nI can help you find the right one faster:\n- **Tell me your budget, dates & cert level** and I'll recommend the best match\n- **Create a day-by-day trip plan** with budget breakdown\n- **Compare boats** side by side\n\nJust ask!",
+  cn: "你好！看到你在找潜水行程 🔍\n\n我能帮你更快找到：\n- **告诉我预算、日期和证书等级** 我推荐最合适的\n- **制作每日行程计划** 含预算明细\n- **对比船只**\n\n直接问我！",
+  ja: "こんにちは！ダイビングトリップをお探しですね 🔍\n\nもっと早く見つけるお手伝いができます：\n- **予算、日程、資格レベルを教えてください** 最適なものを提案します\n- **日別の旅行プランを作成** 予算内訳付き\n- **ボートを比較**\n\nお気軽にどうぞ！",
+  ko: "안녕하세요! 다이빙 트립을 찾고 계시군요 🔍\n\n더 빨리 찾아드릴 수 있어요:\n- **예산, 날짜, 자격증 레벨을 알려주세요** 최적의 것을 추천합니다\n- **일별 여행 계획 작성** 예산 내역 포함\n- **보트 비교**\n\n질문하세요!",
+  de: "Hallo! Du suchst einen Tauchtrip 🔍\n\nIch helfe dir schneller:\n- **Sag mir Budget, Termine & Zertifikat** — ich empfehle das Beste\n- **Tagesplan erstellen** mit Budget\n- **Boote vergleichen**\n\nFrag einfach!",
+  fr: "Bonjour ! Vous cherchez un voyage de plongée 🔍\n\nJe peux vous aider plus vite :\n- **Dites-moi budget, dates & niveau** — je recommande le meilleur\n- **Créer un plan jour par jour** avec budget\n- **Comparer les bateaux**\n\nDemandez-moi !",
+  ru: "Привет! Вижу, вы ищете дайвинг-трип 🔍\n\nПомогу найти быстрее:\n- **Скажите бюджет, даты и уровень сертификата** — подберу лучшее\n- **Составить план по дням** с бюджетом\n- **Сравнить лодки**\n\nСпрашивайте!",
 };
 
 function buildWelcome(lang: string, pathname: string): string {
