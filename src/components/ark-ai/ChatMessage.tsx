@@ -52,28 +52,55 @@ function parseStructured(text: string): ParsedPart[] {
   return parts;
 }
 
-function renderMarkdown(text: string) {
+function cleanText(text: string): string {
+  return text
+    .replace(/```[\w]*\n?/g, "")
+    .replace(/\[ดูรายละเอียด.*?\]\(.*?\)/g, "")
+    .replace(/\[(?:ดู|อ่าน|View|Read|See|More|Details|Link).*?\]\(.*?\)/gi, "")
+    .replace(/https?:\/\/(?:www\.)?siamdive\.com\S*/gi, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function renderMarkdown(rawText: string) {
+  const text = cleanText(rawText);
   const lines = text.split("\n");
-  return lines.map((line, i) => {
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
     let html = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
     html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
+    html = html.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
     if (line.startsWith("### ")) {
-      return <h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />;
+      elements.push(<h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />);
+      i++; continue;
     }
     if (line.startsWith("## ")) {
-      return <h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />;
+      elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />);
+      i++; continue;
     }
     if (line.startsWith("- ") || line.startsWith("* ")) {
-      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc" }} dangerouslySetInnerHTML={{ __html: html.slice(2) }} />;
+      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 12, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#555", flexShrink: 0 }}>•</span><span dangerouslySetInnerHTML={{ __html: html.slice(2) }} /></div>);
+      i++; continue;
     }
-    if (line.match(/^\d+\. /)) {
-      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc", listStyleType: "decimal" }} dangerouslySetInnerHTML={{ __html: html.replace(/^\d+\.\s*/, '') }} />;
-    }
-    if (line.trim() === "") return <br key={i} />;
 
-    return <p key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />;
-  });
+    const numMatch = line.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      const num = numMatch[1];
+      let itemHtml = numMatch[2].replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 12, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#60a5fa", fontWeight: 700, flexShrink: 0, minWidth: 16 }}>{num}.</span><span dangerouslySetInnerHTML={{ __html: itemHtml }} /></div>);
+      i++; continue;
+    }
+
+    if (line.trim() === "") { elements.push(<br key={i} />); i++; continue; }
+
+    elements.push(<p key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
+    i++;
+  }
+
+  return elements;
 }
 
 export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onItinerarySave }: Props) {

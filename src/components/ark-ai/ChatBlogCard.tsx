@@ -16,8 +16,6 @@ export default function ChatBlogCard({ title, slug, excerpt, cover }: Props) {
   return (
     <a
       href={`/${lang}/blogs/${slug}`}
-      target="_blank"
-      rel="noopener"
       style={{
         display: "flex", alignItems: "center", gap: 10,
         background: "#161616", border: "1px solid #262626", borderRadius: 10,

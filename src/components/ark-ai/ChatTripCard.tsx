@@ -24,8 +24,6 @@ export default function ChatTripCard({ boatId, title, type, price, area, slug, c
   return (
     <a
       href={`/${lang}/trips/${slug}`}
-      target="_blank"
-      rel="noopener"
       onClick={() => trackChatTripClick(boatId, slug)}
       style={{
         display: "flex", alignItems: "center", gap: 10,

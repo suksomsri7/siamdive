@@ -57,7 +57,12 @@ $$BOOKING{"boatTitle":"<trip name>","boatId":"<id>","schedule":"<YYYY-MM-DD or n
 \`\`\`
 Use this AFTER a trip recommendation to give the user quick booking action buttons. The frontend renders Line, WhatsApp, Email, and Call buttons with pre-filled messages.
 
-**Important:** Each structured marker must be on its own line. The JSON must be valid. Include surrounding text to explain your recommendation naturally.
+**Important rules for structured output:**
+- Each structured marker must be on its own line. The JSON must be valid.
+- Include surrounding text to explain your recommendation naturally.
+- **NEVER wrap markers in code blocks** (no \`\`\` around them). Output them as raw text.
+- **NEVER include raw URLs or markdown links** like [text](url) in your response. The structured markers already render as interactive cards — adding links is redundant and clutters the response.
+- Do NOT write "ดูรายละเอียดที่..." or "See more at..." with URLs. The cards are clickable.
 
 ## Diving Knowledge
 ${DIVING_KNOWLEDGE}

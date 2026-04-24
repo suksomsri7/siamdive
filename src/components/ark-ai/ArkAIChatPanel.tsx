@@ -40,7 +40,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const lang = (params.lang as string) || "en";
 
   const [tab, setTab] = useState<"chat" | "plans">("chat");
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = sessionStorage.getItem("ark-ai-messages");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [savedPlans, setSavedPlans] = useState<string[]>([]);
@@ -57,6 +63,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       trackedOpenRef.current = true;
     }
   }, [open]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      try { sessionStorage.setItem("ark-ai-messages", JSON.stringify(messages)); } catch {}
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (open && tab === "plans") {
