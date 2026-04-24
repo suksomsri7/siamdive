@@ -186,8 +186,8 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push("## Available Trips/Boats\n" + scored.map(({ b, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}[${b.type}] ${b.title} | Area: ${b.area} | Price from ฿${b.minPrice.toLocaleString()} | slug: ${b.slug} | id: ${b.id}${b.cover ? ` | cover: ${b.cover}` : ""}`
+    parts.push("## Available Trips/Boats\nUse these exact values when recommending trips or building itineraries:\n" + scored.map(({ b, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | price: ${b.minPrice} | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`
     ).join("\n"));
   }
 
@@ -199,7 +199,7 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     scored.sort((a, b) => b.score - a.score);
 
     parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}${s.boatTitle} | ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | ฿${s.minPrice.toLocaleString()} | ${s.status} | area: ${s.area} | boatId: ${s.boatId} | boatSlug: ${s.boatSlug}`
+      `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | price: ${s.minPrice} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}"`
     ).join("\n"));
   }
 
@@ -210,8 +210,8 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push("## Related Blog Articles\n" + scored.map(({ b, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}"${b.title}" | slug: ${b.slug} | id: ${b.id}${b.cover ? ` | cover: ${b.cover}` : ""} | keywords: ${b.keywords.join(", ")}`
+    parts.push("## Related Blog Articles\nUse these exact values when recommending blogs:\n" + scored.map(({ b, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}title: "${b.title}" | slug: "${b.slug}" | blogId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""} | excerpt: "${b.excerpt?.slice(0, 80) || ""}"${b.keywords.length ? ` | keywords: ${b.keywords.join(", ")}` : ""}`
     ).join("\n"));
   }
 
