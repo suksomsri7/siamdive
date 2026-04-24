@@ -98,15 +98,15 @@ function renderMarkdown(rawText: string) {
     html = html.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
     if (line.startsWith("### ")) {
-      elements.push(<h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />);
+      elements.push(<h4 key={i} style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />);
       i++; continue;
     }
     if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />);
+      elements.push(<h3 key={i} style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />);
       i++; continue;
     }
     if (line.startsWith("- ") || line.startsWith("* ")) {
-      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 12, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#555", flexShrink: 0 }}>•</span><span dangerouslySetInnerHTML={{ __html: html.slice(2) }} /></div>);
+      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 14, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#555", flexShrink: 0 }}>•</span><span dangerouslySetInnerHTML={{ __html: html.slice(2) }} /></div>);
       i++; continue;
     }
 
@@ -114,13 +114,13 @@ function renderMarkdown(rawText: string) {
     if (numMatch) {
       const num = numMatch[1];
       let itemHtml = numMatch[2].replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 12, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#60a5fa", fontWeight: 700, flexShrink: 0, minWidth: 16 }}>{num}.</span><span dangerouslySetInnerHTML={{ __html: itemHtml }} /></div>);
+      elements.push(<div key={i} style={{ display: "flex", gap: 6, marginLeft: 4, fontSize: 14, lineHeight: 1.6, color: "#ccc" }}><span style={{ color: "#60a5fa", fontWeight: 700, flexShrink: 0, minWidth: 16 }}>{num}.</span><span dangerouslySetInnerHTML={{ __html: itemHtml }} /></div>);
       i++; continue;
     }
 
     if (line.trim() === "") { elements.push(<br key={i} />); i++; continue; }
 
-    elements.push(<p key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
+    elements.push(<p key={i} style={{ fontSize: 14, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
     i++;
   }
 
@@ -135,7 +135,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 0" }}>
         <div style={{
           maxWidth: "85%", padding: "10px 14px", borderRadius: "16px 16px 4px 16px",
-          background: "#1e40af", color: "#fff", fontSize: 13, lineHeight: 1.5,
+          background: "#1e40af", color: "#fff", fontSize: 14, lineHeight: 1.5,
         }}>
           {content}
         </div>

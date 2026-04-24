@@ -53,7 +53,7 @@ export default function BookingButtons({ boatTitle, boatId, schedule, price }: P
 
   return (
     <div style={{ margin: "8px 0", padding: 10, background: "#0f1520", border: "1px solid #1e2d40", borderRadius: 10 }}>
-      <p style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+      <p style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
         Book This Trip
       </p>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -64,7 +64,7 @@ export default function BookingButtons({ boatTitle, boatId, schedule, price }: P
             style={{
               flex: 1, minWidth: 70, padding: "8px 4px", borderRadius: 8,
               border: `1px solid ${color}40`, background: `${color}15`,
-              color: "#e5e5e5", fontSize: 11, fontWeight: 600, cursor: "pointer",
+              color: "#e5e5e5", fontSize: 13, fontWeight: 600, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
               transition: "background 0.15s, border-color 0.15s",
             }}

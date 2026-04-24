@@ -186,7 +186,7 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push("## Available Trips/Boats\nUse these exact values when recommending trips or building itineraries:\n" + scored.map(({ b, score }) =>
+    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\nThese are ALL the trips on SiamDive. No other trips, boats, or packages exist. If the user asks about a trip not listed here, say it is not currently available and suggest from this list instead.\n\n` + scored.map(({ b, score }) =>
       `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | price: ${b.minPrice} | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`
     ).join("\n"));
   }
