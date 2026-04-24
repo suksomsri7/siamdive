@@ -45,14 +45,6 @@ export default function ItineraryPageClient({ plan, boatMap, currentLang }: Prop
     }
   };
 
-  const budgetRows = [
-    plan.budget.diving && ["Diving", plan.budget.diving],
-    plan.budget.landTour && ["Land Tour", plan.budget.landTour],
-    plan.budget.accommodation && ["Accommodation", plan.budget.accommodation],
-    plan.budget.transport && ["Transport", plan.budget.transport],
-    plan.budget.other && ["Other", plan.budget.other],
-  ].filter(Boolean) as [string, number][];
-
   const createdDate = new Date(plan.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
@@ -140,19 +132,15 @@ export default function ItineraryPageClient({ plan, boatMap, currentLang }: Prop
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{boat.title}</p>
                           {act.note && <p style={{ fontSize: 10, color: "#666" }}>{act.note}</p>}
                         </div>
-                        {(act.price || boat.minPrice) > 0 && (
-                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                            <p style={{ fontSize: 8, color: "#555", fontWeight: 700 }}>FROM</p>
-                            <p style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>{"฿"}{(act.price || boat.minPrice).toLocaleString()}</p>
-                          </div>
-                        )}
+                        <div style={{ flexShrink: 0 }}>
+                          <span style={{ fontSize: 10, color: "#60a5fa", fontWeight: 600 }}>ดูรายละเอียด →</span>
+                        </div>
                       </a>
                     ) : (
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 0" }}>
                         <span style={{ fontSize: 16 }}>{act.icon}</span>
                         <div>
                           <p style={{ fontSize: 12, color: "#ddd" }}>{act.title}</p>
-                          {act.price != null && act.price > 0 && <span style={{ fontSize: 10, color: "#60a5fa" }}>{"฿"}{act.price.toLocaleString()}</span>}
                           {act.note && <p style={{ fontSize: 10, color: "#666", marginTop: 1 }}>{act.note}</p>}
                         </div>
                       </div>
@@ -164,34 +152,21 @@ export default function ItineraryPageClient({ plan, boatMap, currentLang }: Prop
           </div>
         ))}
 
-        {/* Budget */}
-        {budgetRows.length > 0 && (
-          <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 12, padding: 16, marginTop: 20 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 10 }}>ESTIMATED BUDGET</p>
-            {budgetRows.map(([label, val]) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
-                <span style={{ color: "#888" }}>{label}</span>
-                <span style={{ color: "#ccc" }}>{"฿"}{val.toLocaleString()}</span>
-              </div>
-            ))}
-            {plan.budget.total && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0", fontSize: 15, borderTop: "1px solid #1e1e2e", marginTop: 8 }}>
-                <span style={{ color: "#f5f5f5", fontWeight: 700 }}>Total / person</span>
-                <span style={{ color: "#60a5fa", fontWeight: 900 }}>{"฿"}{plan.budget.total.toLocaleString()}</span>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Pricing note */}
+        <div style={{ background: "#111118", border: "1px solid #1e1e2e", borderRadius: 12, padding: 16, marginTop: 20, textAlign: "center" }}>
+          <p style={{ fontSize: 13, color: "#ccc", marginBottom: 4 }}>สอบถามราคาและจองทริปได้เลย</p>
+          <p style={{ fontSize: 11, color: "#666" }}>Contact SiamDive for pricing & booking</p>
+        </div>
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
           <button onClick={handleShare}
-            style={{ flex: 1, padding: "14px 0", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-            {copied ? "Link Copied!" : "Share"}
+            style={{ flex: 1, padding: "14px 0", borderRadius: 10, border: "1px solid #262626", background: "#161616", color: "#ccc", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            {copied ? (currentLang === "th" ? "คัดลอกลิงก์แล้ว!" : "Link Copied!") : (currentLang === "th" ? "แชร์" : "Share")}
           </button>
-          <a href={`https://lin.ee/wayWuGH`} target="_blank" rel="noopener noreferrer"
-            style={{ flex: 1, padding: "14px 0", borderRadius: 10, border: "1px solid #262626", background: "#161616", color: "#4ade80", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            Book via Line
+          <a href="https://lin.ee/wayWuGH" target="_blank" rel="noopener noreferrer"
+            style={{ flex: 1, padding: "14px 0", borderRadius: 10, border: "none", background: "#06c755", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            💬 {currentLang === "th" ? "จองผ่าน Line" : "Book via Line"}
           </a>
         </div>
 
