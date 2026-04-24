@@ -591,12 +591,13 @@ function ServiceAreasPanel() {
 
 // ── Ark AI Config Panel ──────────────────────────────────────────────────────
 
-type AiProvider = "anthropic" | "openai" | "google";
+type AiProvider = "anthropic" | "openai" | "google" | "openrouter";
 
 const AI_PROVIDERS: { id: AiProvider; label: string; keyPlaceholder: string }[] = [
   { id: "anthropic", label: "Anthropic (Claude)", keyPlaceholder: "sk-ant-..." },
   { id: "openai", label: "OpenAI (GPT)", keyPlaceholder: "sk-..." },
   { id: "google", label: "Google (Gemini)", keyPlaceholder: "AIza..." },
+  { id: "openrouter", label: "OpenRouter", keyPlaceholder: "sk-or-..." },
 ];
 
 const AI_MODELS_BY_PROVIDER: Record<AiProvider, { id: string; label: string }[]> = {
@@ -614,6 +615,16 @@ const AI_MODELS_BY_PROVIDER: Record<AiProvider, { id: string; label: string }[]>
   google: [
     { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Fast)" },
     { id: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro (Balanced)" },
+  ],
+  openrouter: [
+    { id: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4 via OR" },
+    { id: "anthropic/claude-haiku-4", label: "Claude Haiku 4 via OR" },
+    { id: "openai/gpt-4o", label: "GPT-4o via OR" },
+    { id: "openai/gpt-4o-mini", label: "GPT-4o Mini via OR" },
+    { id: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash via OR" },
+    { id: "google/gemini-2.5-pro-preview", label: "Gemini 2.5 Pro via OR" },
+    { id: "deepseek/deepseek-chat-v3-0324", label: "DeepSeek V3 via OR" },
+    { id: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick via OR" },
   ],
 };
 

@@ -25,10 +25,13 @@ export default function ArkAIButton({ onClick }: { onClick: () => void }) {
         onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
         onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-          <path d="M2 17l10 5 10-5" />
-          <path d="M2 12l10 5 10-5" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          {/* Diving compass: circle + wave + bubbles */}
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8" opacity="0.5"/>
+          <path d="M4 13c2-2.5 4-2.5 6 0s4 2.5 6 0s4-2.5 6 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+          <circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.7"/>
+          <circle cx="16" cy="7" r="1" fill="currentColor" opacity="0.5"/>
+          <circle cx="12" cy="5.5" r="0.8" fill="currentColor" opacity="0.4"/>
         </svg>
         Ark AI
       </button>

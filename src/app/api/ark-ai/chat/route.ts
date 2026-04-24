@@ -52,8 +52,8 @@ function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<
   });
 }
 
-function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[]) {
-  const client = new OpenAI({ apiKey: config.apiKey });
+function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], baseURL?: string) {
+  const client = new OpenAI({ apiKey: config.apiKey, ...(baseURL ? { baseURL } : {}) });
   const encoder = new TextEncoder();
 
   return new ReadableStream({
@@ -187,6 +187,9 @@ export async function POST(req: NextRequest) {
   switch (config.provider) {
     case "openai":
       readable = streamOpenAI(config, systemPrompt, messages);
+      break;
+    case "openrouter":
+      readable = streamOpenAI(config, systemPrompt, messages, "https://openrouter.ai/api/v1");
       break;
     case "google":
       readable = streamGoogle(config, systemPrompt, messages);

@@ -88,8 +88,11 @@ export default function PopularPlansRow({ lang }: { lang: string }) {
                 background: "linear-gradient(135deg, #1e40af, #3b82f6)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="1.8" opacity="0.5"/>
+                  <path d="M4 13c2-2.5 4-2.5 6 0s4 2.5 6 0s4-2.5 6 0" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none"/>
+                  <circle cx="8" cy="8" r="1.5" fill="#fff" opacity="0.7"/>
+                  <circle cx="16" cy="7" r="1" fill="#fff" opacity="0.5"/>
                 </svg>
               </div>
               <span style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>

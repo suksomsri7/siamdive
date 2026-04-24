@@ -61,8 +61,8 @@ async function testAnthropic(apiKey: string, model: string) {
   return { ok: true, response: text, model: resp.model };
 }
 
-async function testOpenAI(apiKey: string, model: string) {
-  const client = new OpenAI({ apiKey });
+async function testOpenAI(apiKey: string, model: string, baseURL?: string) {
+  const client = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
   const resp = await client.chat.completions.create({
     model,
     max_tokens: 32,
@@ -109,6 +109,9 @@ export async function POST(req: NextRequest) {
     switch (provider) {
       case "openai":
         result = await testOpenAI(apiKey, model);
+        break;
+      case "openrouter":
+        result = await testOpenAI(apiKey, model, "https://openrouter.ai/api/v1");
         break;
       case "google":
         result = await testGoogle(apiKey, model);
