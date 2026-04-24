@@ -132,7 +132,7 @@ export default function SearchFab() {
         onClick={() => setOpen(true)}
         aria-label="Search trips"
         style={{
-          position: "fixed", bottom: 24, right: 22, zIndex: 1099,
+          position: "fixed", bottom: 86, right: 22, zIndex: 1099,
           width: 52, height: 52, borderRadius: "50%",
           background: "#3b82f6", border: "none", color: "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",

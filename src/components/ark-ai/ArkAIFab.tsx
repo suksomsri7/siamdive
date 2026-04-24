@@ -13,7 +13,7 @@ export default function ArkAIFab() {
         onClick={() => window.dispatchEvent(new CustomEvent("open-ark-ai"))}
         aria-label="AI Trip Planner"
         style={{
-          position: "fixed", bottom: 24, right: 84, zIndex: 1099,
+          position: "fixed", bottom: 24, right: 22, zIndex: 1099,
           width: 52, height: 52, borderRadius: "50%",
           background: "linear-gradient(135deg, #1e40af, #3b82f6)",
           border: "none", color: "#fff",

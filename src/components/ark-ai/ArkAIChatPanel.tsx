@@ -14,16 +14,44 @@ import {
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const WELCOME: Record<string, string> = {
+const WELCOME_BASE: Record<string, string> = {
   th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ (Save & Share ได้!)\n- **แนะนำทริป** เรือดำน้ำ และ Liveaboard\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n\nลองกดปุ่ม **สร้างแผนทริป** ด้านล่าง หรือพิมพ์ถามได้เลยครับ",
   en: "Hi! I'm your AI dive trip planner for Thailand.\n\nI can:\n- **Create trip plans** day-by-day with budget (Save & Share!)\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n\nTap **Create trip plan** below, or just ask me anything!",
-  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n我可以：\n- **制作行程计划** — 按天安排，含预算（可保存和分享！）\n- **推荐潜水行程** — 船只、船宿、潜点\n- **对比船只**\n\n点击下方 **制作行程** 按钮，或直接问我！",
-  ja: "こんにちは！タイのダイビングAIプランナーです。\n\nできること：\n- **旅行プラン作成** — 日別スケジュール＆予算（保存＆共有可能！）\n- **トリップ提案** — ボート、リブアボード、ダイビングスポット\n- **ボート比較**\n\n下の **プラン作成** ボタンをタップ、または何でも聞いてください！",
-  ko: "안녕하세요! 태국 다이빙 AI 플래너입니다.\n\n할 수 있는 것:\n- **여행 계획 작성** — 일별 일정 & 예산 (저장 & 공유 가능!)\n- **트립 추천** — 보트, 리브어보드, 다이빙 사이트\n- **보트 비교**\n\n아래 **계획 만들기** 버튼을 탭하거나 질문하세요!",
-  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nIch kann:\n- **Reisepläne erstellen** — Tag für Tag mit Budget (Speichern & Teilen!)\n- **Trips empfehlen** — Boote, Liveaboards, Tauchplätze\n- **Boote vergleichen**\n\nTippe unten auf **Plan erstellen** oder frag mich einfach!",
-  fr: "Bonjour ! Je suis votre planificateur IA pour la Thaïlande.\n\nJe peux :\n- **Créer des itinéraires** jour par jour avec budget (Sauvegarde & Partage !)\n- **Recommander des trips** — bateaux, croisières, sites de plongée\n- **Comparer les bateaux**\n\nAppuyez sur **Créer un plan** ci-dessous ou posez-moi une question !",
-  ru: "Привет! Я ваш AI-планировщик для дайвинга в Таиланде.\n\nЯ могу:\n- **Создать план поездки** по дням с бюджетом (Сохранить и Поделиться!)\n- **Рекомендовать трипы** — лодки, ливаборды, дайв-сайты\n- **Сравнить лодки**\n\nНажмите **Создать план** ниже или просто спросите!",
 };
+
+const WELCOME_ON_TRIP: Record<string, string> = {
+  th: "สวัสดีครับ! เห็นว่ากำลังดูทริปนี้อยู่ 👀\n\nผมช่วยได้เลย:\n- **ถามรายละเอียดทริปนี้** — ดำกี่ไดฟ์ เหมาะกับ cert ไหน\n- **หาวันว่าง** หรือเช็คตารางเรือ\n- **เปรียบเทียบกับเรืออื่น** ในพื้นที่เดียวกัน\n- **วางแผนทริปทั้งหมด** รวมที่พัก การเดินทาง กิจกรรมบนบก\n\nถามได้เลยครับ!",
+  en: "Hi! I see you're checking out this trip 👀\n\nI can help you:\n- **Ask about this trip** — how many dives, what cert you need\n- **Check available dates** and schedules\n- **Compare with other boats** in the same area\n- **Plan the full trip** including accommodation, transport & land activities\n\nJust ask!",
+};
+
+const WELCOME_ON_BLOG: Record<string, string> = {
+  th: "สวัสดีครับ! กำลังอ่านบทความอยู่ใช่ไหม 📖\n\nถ้าสนใจเนื้อหาในบทความนี้ ผมช่วยได้:\n- **หาทริปที่เกี่ยวข้อง** กับสิ่งที่อ่านอยู่\n- **วางแผนทริปดำน้ำ** ตามสถานที่ที่กล่าวถึง\n- **ตอบคำถามเพิ่มเติม** เกี่ยวกับดำน้ำในไทย\n\nถามได้เลยครับ!",
+  en: "Hi! I see you're reading a blog article 📖\n\nInterested in what you're reading? I can:\n- **Find related trips** based on this article\n- **Plan a dive trip** to the locations mentioned\n- **Answer any questions** about diving in Thailand\n\nJust ask!",
+};
+
+const WELCOME_RETURNING: Record<string, string> = {
+  th: "ยินดีต้อนรับกลับมาครับ! 🤿\n\nเห็นว่าเพิ่งดูมาหลายทริป ต้องการให้ช่วย:\n- **เปรียบเทียบทริปที่ดูมา** ให้เห็นข้อดี-ข้อเสีย\n- **สร้างแผนทริป** จากทริปที่สนใจ พร้อมงบ\n- **หาทริปเพิ่มเติม** ในพื้นที่หรืองบที่ชอบ\n\nบอกได้เลยครับ!",
+  en: "Welcome back! 🤿\n\nI see you've been browsing several trips. Want me to:\n- **Compare the trips you viewed** — pros and cons\n- **Create a trip plan** from your favorites with budget\n- **Find more trips** in the areas or budget you like\n\nJust let me know!",
+};
+
+const WELCOME_BROWSING: Record<string, string> = {
+  th: "สวัสดีครับ! เห็นว่ากำลังหาทริปดำน้ำอยู่ 🔍\n\nผมช่วยให้เจอทริปที่ใช่ได้เร็วขึ้น:\n- **บอกงบ วัน cert level** แล้วผมแนะนำทริปที่เหมาะ\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ\n- **เปรียบเทียบเรือ** ให้เห็นชัดๆ\n\nถามได้เลยครับ!",
+  en: "Hi! I see you're looking for a dive trip 🔍\n\nI can help you find the right one faster:\n- **Tell me your budget, dates & cert level** and I'll recommend the best match\n- **Create a day-by-day trip plan** with budget breakdown\n- **Compare boats** side by side\n\nJust ask!",
+};
+
+function buildWelcome(lang: string, pathname: string): string {
+  const tripMatch = pathname.match(/\/trips\/([^/]+)/);
+  if (tripMatch) return WELCOME_ON_TRIP[lang] || WELCOME_ON_TRIP.en;
+
+  const blogMatch = pathname.match(/\/blogs\/([^/]+)/);
+  if (blogMatch) return WELCOME_ON_BLOG[lang] || WELCOME_ON_BLOG.en;
+
+  const recentBoats = readRecentBoats();
+  if (recentBoats.length >= 3) return WELCOME_RETURNING[lang] || WELCOME_RETURNING.en;
+  if (recentBoats.length > 0) return WELCOME_BROWSING[lang] || WELCOME_BROWSING.en;
+
+  return WELCOME_BASE[lang] || WELCOME_BASE.en;
+}
 
 const PLAN_STARTER: Record<string, string> = {
   th: "ช่วยวางแผนทริปดำน้ำให้หน่อยครับ",
@@ -309,7 +337,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 {/* Welcome */}
                 {messages.length === 0 && (
                   <div style={{ padding: "8px 0" }}>
-                    <ChatMessage role="assistant" content={WELCOME[lang] || WELCOME.en} msgIndex={-1} />
+                    <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
                     <SuggestionChips lang={lang} onSelect={sendMessage} />
                   </div>
                 )}
