@@ -179,6 +179,8 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
   const parts: string[] = [];
   const kw = query ? extractKeywords(query) : [];
 
+  const availableAreas = [...new Set(boats.map(b => b.area).filter(Boolean))];
+
   if (boats.length) {
     const scored = boats.map(b => ({
       b,
@@ -186,8 +188,8 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\nThese are ALL the trips on SiamDive. No other trips, boats, or packages exist. If the user asks about a trip not listed here, say it is not currently available and suggest from this list instead.\n\n` + scored.map(({ b, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | price: ${b.minPrice} | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`
+    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\n**Available areas: ${availableAreas.join(", ") || "none"}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.\n\n` + scored.map(({ b, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`
     ).join("\n"));
   }
 
@@ -199,7 +201,7 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     scored.sort((a, b) => b.score - a.score);
 
     parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | price: ${s.minPrice} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}"`
+      `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}"`
     ).join("\n"));
   }
 

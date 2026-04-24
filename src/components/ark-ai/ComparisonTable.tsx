@@ -16,7 +16,6 @@ export default function ComparisonTable({ boats }: { boats: Boat[] }) {
   const rows = [
     ["Type", ...boats.map(b => b.type.replace("_", " "))],
     ["Area", ...boats.map(b => b.area || "-")],
-    ["From", ...boats.map(b => b.price > 0 ? `฿${b.price.toLocaleString()}` : "-")],
     ["Capacity", ...boats.map(b => b.capacity ? `${b.capacity} pax` : "-")],
   ];
 

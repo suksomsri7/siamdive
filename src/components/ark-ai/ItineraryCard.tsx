@@ -126,48 +126,39 @@ export default function ItineraryCard({
     }
   };
 
-  const budgetRows = [
-    data.budget.diving && ["Diving", data.budget.diving],
-    data.budget.landTour && ["Land Tour", data.budget.landTour],
-    data.budget.accommodation && ["Accommodation", data.budget.accommodation],
-    data.budget.transport && ["Transport", data.budget.transport],
-    data.budget.other && ["Other", data.budget.other],
-  ].filter(Boolean) as [string, number][];
-
   return (
-    <div style={{ margin: "10px 0", background: "#0f0f1a", border: "1px solid #1e1e3a", borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ margin: "10px 0", background: "#111", border: "1px solid #222", borderRadius: 12, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid #1e1e3a" }}>
-        <p style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>TRIP PLAN</p>
-        <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginTop: 2 }}>{data.title}</p>
-        <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 10, color: "#888" }}>
-          <span>{data.durationDays} days</span>
-          {data.totalDives > 0 && <span>{data.totalDives} dives</span>}
-          {data.totalTours > 0 && <span>{data.totalTours} tours</span>}
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #1a1a1a" }}>
+        <p style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>TRIP PLAN</p>
+        <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginTop: 2 }}>{data.title}</p>
+        <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 12, color: "#888" }}>
+          <span>{data.durationDays} {lang === "th" ? "วัน" : "days"}</span>
+          {data.totalDives > 0 && <span>{data.totalDives} {lang === "th" ? "ไดฟ์" : "dives"}</span>}
+          {data.totalTours > 0 && <span>{data.totalTours} {lang === "th" ? "ทัวร์" : "tours"}</span>}
           {data.areas.length > 0 && <span>{data.areas.join(", ")}</span>}
         </div>
       </div>
 
       {/* Days */}
-      <div style={{ padding: "10px 14px" }}>
+      <div style={{ padding: "10px 16px" }}>
         {data.days.map((day) => (
-          <div key={day.day} style={{ marginBottom: 12 }}>
+          <div key={day.day} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ background: "#1e40af", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10 }}>Day {day.day}</span>
-              {day.date && <span style={{ fontSize: 10, color: "#666" }}>{day.date}</span>}
-              <span style={{ fontSize: 11, color: "#aaa", fontWeight: 600 }}>{day.label}</span>
+              <span style={{ background: "#1e40af", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 10 }}>Day {day.day}</span>
+              {day.date && <span style={{ fontSize: 11, color: "#666" }}>{day.date}</span>}
+              <span style={{ fontSize: 12, color: "#aaa", fontWeight: 600 }}>{day.label}</span>
             </div>
             {day.activities.map((act, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 0 4px 20px" }}>
-                <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.2 }}>{act.icon}</span>
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "5px 0 5px 20px" }}>
+                <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1.2 }}>{act.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: 12, color: "#ddd" }}>
+                  <span style={{ fontSize: 13, color: "#ddd" }}>
                     {act.boatSlug ? (
-                      <a href={`/${lang}/trips/${act.boatSlug}`} target="_blank" rel="noopener" style={{ color: "#60a5fa", textDecoration: "none" }}>{act.title}</a>
+                      <a href={`/${lang}/trips/${act.boatSlug}`} target="_blank" rel="noopener" style={{ color: "#60a5fa", textDecoration: "none", fontWeight: 600 }}>{act.title}</a>
                     ) : act.title}
                   </span>
-                  {act.price != null && act.price > 0 && <span style={{ fontSize: 10, color: "#60a5fa", marginLeft: 6 }}>{"฿"}{act.price.toLocaleString()}</span>}
-                  {act.note && <p style={{ fontSize: 10, color: "#666", marginTop: 1 }}>{act.note}</p>}
+                  {act.note && <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{act.note}</p>}
                 </div>
               </div>
             ))}
@@ -175,34 +166,22 @@ export default function ItineraryCard({
         ))}
       </div>
 
-      {/* Budget */}
-      {budgetRows.length > 0 && (
-        <div style={{ padding: "10px 14px", borderTop: "1px solid #1e1e3a" }}>
-          <p style={{ fontSize: 10, color: "#888", fontWeight: 700, marginBottom: 6 }}>ESTIMATED BUDGET</p>
-          {budgetRows.map(([label, val]) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", fontSize: 11 }}>
-              <span style={{ color: "#888" }}>{label}</span>
-              <span style={{ color: "#ccc" }}>{"฿"}{val.toLocaleString()}</span>
-            </div>
-          ))}
-          {data.budget.total && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0 0", fontSize: 12, borderTop: "1px solid #1e1e3a", marginTop: 4 }}>
-              <span style={{ color: "#f5f5f5", fontWeight: 700 }}>Total / person</span>
-              <span style={{ color: "#60a5fa", fontWeight: 900 }}>{"฿"}{data.budget.total.toLocaleString()}</span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Pricing note */}
+      <div style={{ padding: "10px 16px", borderTop: "1px solid #1a1a1a" }}>
+        <p style={{ fontSize: 12, color: "#888", textAlign: "center" }}>
+          {lang === "th" ? "สอบถามราคาและจองได้ที่ SiamDive" : "Contact SiamDive for pricing & booking"}
+        </p>
+      </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8, padding: "10px 14px", borderTop: "1px solid #1e1e3a" }}>
+      <div style={{ display: "flex", gap: 8, padding: "10px 16px", borderTop: "1px solid #1a1a1a" }}>
         <button onClick={handleSave} disabled={saved}
-          style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "1px solid #262626", background: saved ? "#1a2e1a" : "#161616", color: saved ? "#4ade80" : "#ccc", fontSize: 11, fontWeight: 700, cursor: saved ? "default" : "pointer" }}>
-          {saved ? "Saved" : "Save"}
+          style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid #262626", background: saved ? "#1a2e1a" : "#161616", color: saved ? "#4ade80" : "#ccc", fontSize: 13, fontWeight: 700, cursor: saved ? "default" : "pointer" }}>
+          {saved ? (lang === "th" ? "บันทึกแล้ว" : "Saved") : (lang === "th" ? "บันทึก" : "Save")}
         </button>
         <button onClick={handleShare} disabled={sharing}
-          style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", background: "#1e40af", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: sharing ? 0.6 : 1 }}>
-          {sharing ? "..." : "Share"}
+          style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: "#1e40af", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: sharing ? 0.6 : 1 }}>
+          {sharing ? "..." : (lang === "th" ? "แชร์" : "Share")}
         </button>
       </div>
     </div>
