@@ -69,7 +69,7 @@ export default function ItineraryPageClient({ plan, boatMap, currentLang }: Prop
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#f5f5f5", margin: "8px 0" }}>{plan.title}</h1>
           <div style={{ display: "flex", justifyContent: "center", gap: 16, fontSize: 11, color: "#666" }}>
-            <span>by Ark AI</span>
+            <span>by SIAM AI</span>
             <span>{createdDate}</span>
             <span>{plan.viewCount} views</span>
           </div>
@@ -202,7 +202,7 @@ export default function ItineraryPageClient({ plan, boatMap, currentLang }: Prop
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
             </svg>
-            Create your own plan with Ark AI
+            Create your own plan with SIAM AI
           </a>
         </div>
       </div>

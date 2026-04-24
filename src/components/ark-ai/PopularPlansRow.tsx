@@ -96,7 +96,7 @@ export default function PopularPlansRow({ lang }: { lang: string }) {
                 </svg>
               </div>
               <span style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Ark AI Plan
+                SIAM AI Plan
               </span>
               <span style={{ marginLeft: "auto", fontSize: 10, color: "#555" }}>
                 {plan.viewCount} views

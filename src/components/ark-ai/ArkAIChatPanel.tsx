@@ -15,14 +15,14 @@ import {
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME: Record<string, string> = {
-  th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nบอกได้เลยว่าอยากไปดำน้ำที่ไหน เมื่อไหร่ งบเท่าไหร่ หรืออยากให้ช่วยวางแผนทั้งทริปก็ได้ครับ",
-  en: "Hi! I'm your AI dive trip planner for Thailand.\n\nTell me where you'd like to dive, when, your budget, or I can plan an entire trip for you!",
-  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n告诉我你想去哪里潜水、什么时候去、预算多少，我可以帮你规划整个行程！",
-  ja: "こんにちは！タイのダイビングトリップ AI プランナーです。\n\nどこでダイビングしたいか、いつ行きたいか、予算はいくらか教えてください。旅行全体の計画もお手伝いします！",
-  ko: "안녕하세요! 태국 다이빙 여행 AI 플래너입니다.\n\n어디서 다이빙하고 싶은지, 언제, 예산이 얼마인지 알려주세요. 전체 여행 계획도 도와드립니다!",
-  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nSag mir, wo du tauchen möchtest, wann, dein Budget, oder ich plane die gesamte Reise für dich!",
-  fr: "Bonjour ! Je suis votre planificateur de voyage de plongée IA pour la Thaïlande.\n\nDites-moi où vous aimeriez plonger, quand, votre budget, ou je peux planifier tout le voyage pour vous !",
-  ru: "Привет! Я ваш AI-планировщик дайвинг-путешествий по Таиланду.\n\nРасскажите, где хотите понырять, когда, какой бюджет, или я могу спланировать всю поездку!",
+  th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ (Save & Share ได้!)\n- **แนะนำทริป** เรือดำน้ำ และ Liveaboard\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n\nลองกดปุ่ม **สร้างแผนทริป** ด้านล่าง หรือพิมพ์ถามได้เลยครับ",
+  en: "Hi! I'm your AI dive trip planner for Thailand.\n\nI can:\n- **Create trip plans** day-by-day with budget (Save & Share!)\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n\nTap **Create trip plan** below, or just ask me anything!",
+  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n我可以：\n- **制作行程计划** — 按天安排，含预算（可保存和分享！）\n- **推荐潜水行程** — 船只、船宿、潜点\n- **对比船只**\n\n点击下方 **制作行程** 按钮，或直接问我！",
+  ja: "こんにちは！タイのダイビングAIプランナーです。\n\nできること：\n- **旅行プラン作成** — 日別スケジュール＆予算（保存＆共有可能！）\n- **トリップ提案** — ボート、リブアボード、ダイビングスポット\n- **ボート比較**\n\n下の **プラン作成** ボタンをタップ、または何でも聞いてください！",
+  ko: "안녕하세요! 태국 다이빙 AI 플래너입니다.\n\n할 수 있는 것:\n- **여행 계획 작성** — 일별 일정 & 예산 (저장 & 공유 가능!)\n- **트립 추천** — 보트, 리브어보드, 다이빙 사이트\n- **보트 비교**\n\n아래 **계획 만들기** 버튼을 탭하거나 질문하세요!",
+  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nIch kann:\n- **Reisepläne erstellen** — Tag für Tag mit Budget (Speichern & Teilen!)\n- **Trips empfehlen** — Boote, Liveaboards, Tauchplätze\n- **Boote vergleichen**\n\nTippe unten auf **Plan erstellen** oder frag mich einfach!",
+  fr: "Bonjour ! Je suis votre planificateur IA pour la Thaïlande.\n\nJe peux :\n- **Créer des itinéraires** jour par jour avec budget (Sauvegarde & Partage !)\n- **Recommander des trips** — bateaux, croisières, sites de plongée\n- **Comparer les bateaux**\n\nAppuyez sur **Créer un plan** ci-dessous ou posez-moi une question !",
+  ru: "Привет! Я ваш AI-планировщик для дайвинга в Таиланде.\n\nЯ могу:\n- **Создать план поездки** по дням с бюджетом (Сохранить и Поделиться!)\n- **Рекомендовать трипы** — лодки, ливаборды, дайв-сайты\n- **Сравнить лодки**\n\nНажмите **Создать план** ниже или просто спросите!",
 };
 
 const PLAN_STARTER: Record<string, string> = {

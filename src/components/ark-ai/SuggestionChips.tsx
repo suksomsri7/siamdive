@@ -2,17 +2,17 @@
 
 const SUGGESTIONS: Record<string, { label: string; query: string }[]> = {
   th: [
+    { label: "📋 สร้างแผนทริป", query: "ช่วยสร้างแผนทริปดำน้ำ 3 วัน งบ 10,000 บาท ช่วยวางแผนแบบ day-by-day ให้หน่อย" },
     { label: "ทริปสิมิลัน", query: "อยากไปดำน้ำสิมิลัน แนะนำทริปให้หน่อย" },
     { label: "Liveaboard เดือนนี้", query: "มี Liveaboard ออกเดือนนี้ไหม" },
-    { label: "วางแผน 3 วัน", query: "อยากวางแผนดำน้ำ 3 วัน แนะนำหน่อย" },
     { label: "เปรียบเทียบเรือ", query: "ช่วยเปรียบเทียบเรือ Liveaboard ให้หน่อย" },
     { label: "มือใหม่หัดดำ", query: "ยังไม่เคยดำน้ำ อยากลองดำครั้งแรก แนะนำอะไรดี" },
     { label: "งบ 5,000", query: "งบ 5,000 บาท ไปดำน้ำที่ไหนได้บ้าง" },
   ],
   en: [
+    { label: "📋 Create trip plan", query: "Help me create a 3-day dive trip plan with budget around 10,000 THB. Plan it day-by-day for me." },
     { label: "Similan trips", query: "I want to dive at Similan Islands, what do you recommend?" },
     { label: "Liveaboard this month", query: "Any liveaboard departures this month?" },
-    { label: "Plan 3-day trip", query: "Help me plan a 3-day diving trip" },
     { label: "Compare boats", query: "Can you compare liveaboard boats for me?" },
     { label: "First time diving", query: "I've never dived before, what do you recommend?" },
     { label: "Budget ฿5,000", query: "Where can I dive with a budget of 5,000 baht?" },
