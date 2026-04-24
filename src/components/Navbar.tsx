@@ -98,6 +98,12 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    const handler = () => { setArkOpen(true); setShowNudge(false); };
+    window.addEventListener("open-ark-ai", handler);
+    return () => window.removeEventListener("open-ark-ai", handler);
+  }, []);
+
+  useEffect(() => {
     const nudged = sessionStorage.getItem("ark-nudge-shown");
     if (nudged) return;
 

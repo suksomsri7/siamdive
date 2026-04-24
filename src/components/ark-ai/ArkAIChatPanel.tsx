@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, usePathname } from "next/navigation";
 import ChatMessage from "./ChatMessage";
+import type { ItineraryData } from "./ItineraryCard";
 import SuggestionChips from "./SuggestionChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import {
@@ -111,6 +112,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const handleFeedback = useCallback((msgIndex: number, positive: boolean) => {
     setFeedbackState(prev => ({ ...prev, [msgIndex]: positive }));
     trackChatFeedback(positive, msgIndex);
+  }, []);
+
+  const handleItinerarySave = useCallback((_data: ItineraryData) => {
+    const ids: string[] = JSON.parse(localStorage.getItem("ark-ai-plans") || "[]");
+    setSavedPlans(ids);
   }, []);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -258,7 +264,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 </svg>
               </div>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>Ark AI</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>SIAM AI</p>
                 <p style={{ fontSize: 9, color: "#555" }}>Dive Trip Planner</p>
               </div>
             </div>
@@ -278,6 +284,18 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               ))}
             </div>
 
+            <button onClick={() => {
+                setMessages([]);
+                setFeedbackState({});
+                setStreaming(false);
+                try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+              }}
+              title={lang === "th" ? "ล้างแชท" : "Clear chat"}
+              style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              </svg>
+            </button>
             <button onClick={onClose}
               style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               x
@@ -305,6 +323,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                     isStreaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
                     onFeedback={msg.role === "assistant" && !streaming ? handleFeedback : undefined}
                     feedbackGiven={feedbackState[i]}
+                    onItinerarySave={handleItinerarySave}
                     lang={lang}
                   />
                 ))}

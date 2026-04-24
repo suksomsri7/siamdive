@@ -33,7 +33,7 @@ export default function ArkAIButton({ onClick }: { onClick: () => void }) {
           <circle cx="16" cy="7" r="1" fill="currentColor" opacity="0.5"/>
           <circle cx="12" cy="5.5" r="0.8" fill="currentColor" opacity="0.4"/>
         </svg>
-        Ark AI
+        SIAM AI
       </button>
     </>
   );
