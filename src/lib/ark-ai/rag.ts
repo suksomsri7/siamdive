@@ -5,6 +5,11 @@ type Lang = string;
 const pick = <T extends { lang: string }>(arr: T[], lang: Lang) =>
   arr.find(t => t.lang === lang) || arr.find(t => t.lang === "en") || arr[0];
 
+export type RagPackage = {
+  title: string;
+  excerpt: string;
+};
+
 export type RagBoat = {
   id: string;
   name: string;
@@ -12,10 +17,12 @@ export type RagBoat = {
   title: string;
   slug: string;
   excerpt: string;
+  details: string;
   cover: string | null;
   area: string;
   minPrice: number;
   capacity: number | null;
+  packages: RagPackage[];
 };
 
 export type RagSchedule = {
@@ -39,6 +46,10 @@ export type RagBlog = {
   keywords: string[];
 };
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat[]> {
   const boats = await prisma.boat.findMany({
     where: {
@@ -46,9 +57,15 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       ...(types?.length ? { type: { in: types as any } } : {}),
     },
     include: {
-      translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
+      translations: { select: { lang: true, title: true, slug: true, excerpt: true, content: true } },
       priceTiers: { select: { regularPrice: true, salePrice: true } },
       serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
+      packages: {
+        where: { status: "PUBLISHED" as any },
+        include: {
+          translations: { select: { lang: true, title: true, excerpt: true } },
+        },
+      },
     },
     take: 50,
   });
@@ -59,6 +76,10 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       ? pick(b.serviceAreas[0].serviceArea.translations, lang)
       : null;
     const prices = b.priceTiers.map(p => p.salePrice ?? p.regularPrice).filter(p => p > 0);
+    const pkgs = b.packages.map(p => {
+      const pt = pick(p.translations, lang);
+      return { title: pt?.title || "", excerpt: pt?.excerpt || "" };
+    }).filter(p => p.title);
     return {
       id: b.id,
       name: b.name,
@@ -66,10 +87,12 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       title: t?.title || b.name,
       slug: t?.slug || b.id,
       excerpt: t?.excerpt || "",
+      details: stripHtml(t?.content || "").slice(0, 500),
       cover: b.covers[0] || null,
       area: area?.name || "",
       minPrice: prices.length ? Math.min(...prices) : 0,
       capacity: b.capacity,
+      packages: pkgs,
     };
   });
 }
@@ -188,9 +211,13 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\n**Available areas: ${availableAreas.join(", ") || "none"}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.\n\n` + scored.map(({ b, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`
-    ).join("\n"));
+    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\n**Available areas: ${availableAreas.join(", ") || "none"}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.\n\n` + scored.map(({ b, score }) => {
+      let line = `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`;
+      if (b.excerpt) line += `\n  Summary: ${b.excerpt}`;
+      if (b.details) line += `\n  Details: ${b.details}`;
+      if (b.packages.length) line += `\n  Packages: ${b.packages.map(p => `${p.title}${p.excerpt ? ` (${p.excerpt})` : ""}`).join(" | ")}`;
+      return line;
+    }).join("\n\n"));
   }
 
   if (schedules.length) {
