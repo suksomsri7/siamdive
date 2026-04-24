@@ -109,6 +109,12 @@ export default function SearchFab() {
   }, [type, date, month, areaId, lang]);
 
   useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("open-search", handler);
+    return () => window.removeEventListener("open-search", handler);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.body.style.overflow = "hidden";
@@ -127,25 +133,6 @@ export default function SearchFab() {
 
   return (
     <>
-      {/* Floating action button — below the chat bubble (right-side stack) */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Search trips"
-        style={{
-          position: "fixed", bottom: 86, right: 22, zIndex: 1099,
-          width: 52, height: 52, borderRadius: "50%",
-          background: "#3b82f6", border: "none", color: "#fff",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 20px rgba(59,130,246,0.5)", cursor: "pointer",
-        }}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" width={22} height={22}>
-          <circle cx="11" cy="11" r="7" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-      </button>
-
-      {/* Modal */}
       {open && (
         <>
           <div onClick={() => setOpen(false)}

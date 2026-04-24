@@ -12,8 +12,9 @@ type Props = {
 const CHANNELS: { channel: BookingChannel; label: string; icon: string; color: string }[] = [
   { channel: "line", label: "Line", icon: "💬", color: "#06c755" },
   { channel: "whatsapp", label: "WhatsApp", icon: "📱", color: "#25d366" },
-  { channel: "email", label: "Email", icon: "✉️", color: "#3b82f6" },
-  { channel: "call", label: "Call", icon: "📞", color: "#f59e0b" },
+  { channel: "messenger", label: "Messenger", icon: "💙", color: "#0084ff" },
+  { channel: "wechat", label: "WeChat", icon: "🟢", color: "#07c160" },
+  { channel: "kakao", label: "Kakao", icon: "💛", color: "#fee500" },
 ];
 
 function buildMessage(boatTitle: string, schedule?: string | null, price?: number | null): string {
@@ -42,11 +43,14 @@ export default function BookingButtons({ boatTitle, boatId, schedule, price }: P
       case "whatsapp":
         window.open(`https://wa.me/?text=${msg}`, "_blank");
         break;
-      case "email":
-        window.open(`mailto:info@siamdive.com?subject=${encodeURIComponent(`Inquiry: ${boatTitle}`)}&body=${msg}`, "_blank");
+      case "messenger":
+        window.open("https://m.me/siamdive", "_blank");
         break;
-      case "call":
-        window.open("tel:+66-000-000-000", "_blank");
+      case "wechat":
+        window.open("https://siamdive.com/wechat", "_blank");
+        break;
+      case "kakao":
+        window.open("https://pf.kakao.com/_siamdive", "_blank");
         break;
     }
   };

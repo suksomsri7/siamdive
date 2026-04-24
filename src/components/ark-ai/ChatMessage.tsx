@@ -3,7 +3,6 @@
 import ChatTripCard from "./ChatTripCard";
 import ChatBlogCard from "./ChatBlogCard";
 import ComparisonTable from "./ComparisonTable";
-import ItineraryCard, { type ItineraryData } from "./ItineraryCard";
 import BookingButtons from "./BookingButtons";
 
 type Props = {
@@ -13,7 +12,6 @@ type Props = {
   isStreaming?: boolean;
   onFeedback?: (msgIndex: number, positive: boolean) => void;
   feedbackGiven?: boolean;
-  onItinerarySave?: (data: ItineraryData) => void;
   lang?: string;
 };
 
@@ -22,7 +20,6 @@ type ParsedPart =
   | { type: "trip"; data: Record<string, unknown> }
   | { type: "blog"; data: Record<string, unknown> }
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
-  | { type: "itinerary"; data: ItineraryData }
   | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } };
 
 function extractBalancedJson(text: string, start: number): string | null {
@@ -44,7 +41,7 @@ function extractBalancedJson(text: string, start: number): string | null {
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|ITINERARY|BOOKING)\{/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING)\{/g;
   let lastIndex = 0;
   let match;
 
@@ -60,7 +57,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(jsonStr);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "itinerary" | "booking";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
@@ -127,7 +124,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onItinerarySave }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven }: Props) {
   const isUser = role === "user";
 
   if (isUser) {
@@ -145,52 +142,65 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
 
   const parts = parseStructured(content);
 
+  const allTrips = parts.filter((p): p is ParsedPart & { type: "trip" } => p.type === "trip").map(p => p.data);
   const rendered: React.ReactNode[] = [];
-  let tripBatch: Record<string, unknown>[] = [];
-  let tripBatchStart = 0;
+  let tripRowPlaced = false;
 
-  function flushTrips(key: number) {
-    if (tripBatch.length > 0) {
-      rendered.push(
-        <div key={`row-${key}`} className="ark-trip-row" style={{
-          display: "flex", gap: 8, overflowX: "auto", overflowY: "visible",
-          padding: "8px 0 8px",
-          scrollbarWidth: "none",
-        }}>
-          {tripBatch.map((t, j) => (
-            <ChatTripCard key={j} {...t as any} />
-          ))}
-        </div>
-      );
-      tripBatch = [];
-    }
-  }
+  const firstTripIdx = parts.findIndex(p => p.type === "trip");
+  let lastTripIdx = -1;
+  for (let k = parts.length - 1; k >= 0; k--) { if (parts[k].type === "trip") { lastTripIdx = k; break; } }
+
+  const afterTripTexts: string[] = [];
 
   parts.forEach((part, i) => {
     if (part.type === "trip") {
-      if (tripBatch.length === 0) tripBatchStart = i;
-      tripBatch.push(part.data);
-    } else {
-      flushTrips(tripBatchStart);
-      switch (part.type) {
-        case "blog":
-          rendered.push(<ChatBlogCard key={i} {...part.data as any} />);
-          break;
-        case "compare":
-          rendered.push(<ComparisonTable key={i} boats={(part.data as any).boats || []} />);
-          break;
-        case "itinerary":
-          rendered.push(<ItineraryCard key={i} data={part.data as ItineraryData} onSave={onItinerarySave} />);
-          break;
-        case "booking":
-          rendered.push(<BookingButtons key={i} {...part.data as any} />);
-          break;
-        default:
-          rendered.push(<div key={i}>{renderMarkdown(part.content)}</div>);
+      if (!tripRowPlaced) {
+        rendered.push(
+          <div key="trip-row" className="ark-trip-row" style={{
+            display: "flex", gap: 8, overflowX: "auto", overflowY: "visible",
+            padding: "8px 0 8px",
+            scrollbarWidth: "none",
+          }}>
+            {allTrips.map((t, j) => (
+              <ChatTripCard key={j} {...t as any} />
+            ))}
+          </div>
+        );
+        tripRowPlaced = true;
       }
+      return;
+    }
+
+    if (part.type === "text" && firstTripIdx >= 0 && i > firstTripIdx && i < lastTripIdx) {
+      return;
+    }
+
+    if (part.type === "text" && firstTripIdx >= 0 && i > lastTripIdx) {
+      afterTripTexts.push(part.content);
+      return;
+    }
+
+    switch (part.type) {
+      case "blog":
+        rendered.push(<ChatBlogCard key={i} {...part.data as any} />);
+        break;
+      case "compare":
+        rendered.push(<ComparisonTable key={i} boats={(part.data as any).boats || []} />);
+        break;
+      case "booking":
+        rendered.push(<BookingButtons key={i} {...part.data as any} />);
+        break;
+      default:
+        rendered.push(<div key={i}>{renderMarkdown(part.content)}</div>);
     }
   });
-  flushTrips(tripBatchStart);
+
+  if (afterTripTexts.length > 0) {
+    const merged = afterTripTexts.join("\n").replace(/^\n+/, "");
+    if (merged.trim()) {
+      rendered.push(<div key="after-trips">{renderMarkdown(merged)}</div>);
+    }
+  }
 
   return (
     <div style={{ padding: "4px 0" }}>

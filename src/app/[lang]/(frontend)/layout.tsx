@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
-import ContactBubble from "@/components/ContactBubble";
 import SearchFab from "@/components/SearchFab";
-import ArkAIFab from "@/components/ark-ai/ArkAIFab";
+import BottomNav from "@/components/BottomNav";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -138,10 +137,9 @@ export default async function FrontendLayout({
     <>
       <Navbar />
       {children}
-      <ContactBubble />
       <SearchFab />
-      <ArkAIFab />
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 40px 32px" }}>
+      <BottomNav />
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 40px 80px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 32, marginBottom: 36 }}>
             <div style={{ minWidth: 200 }}>

@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, usePathname } from "next/navigation";
 import ChatMessage from "./ChatMessage";
-import type { ItineraryData } from "./ItineraryCard";
 import SuggestionChips from "./SuggestionChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
+import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -15,25 +15,25 @@ import {
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME_BASE: Record<string, string> = {
-  th: "สวัสดีครับ! ผมเป็นผู้ช่วยวางแผนทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ (Save & Share ได้!)\n- **แนะนำทริป** เรือดำน้ำ และ Liveaboard\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n\nลองกดปุ่ม **สร้างแผนทริป** ด้านล่าง หรือพิมพ์ถามได้เลยครับ",
-  en: "Hi! I'm your AI dive trip planner for Thailand.\n\nI can:\n- **Create trip plans** day-by-day with budget (Save & Share!)\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n\nTap **Create trip plan** below, or just ask me anything!",
-  cn: "你好！我是你的泰国潜水旅行AI规划师。\n\n我可以：\n- **制作行程计划** — 按天安排，含预算（可保存和分享！）\n- **推荐潜水行程** — 船只、船宿、潜点\n- **对比船只**\n\n点击下方 **制作行程** 按钮，或直接问我！",
-  ja: "こんにちは！タイのダイビングAIプランナーです。\n\nできること：\n- **旅行プラン作成** — 日別スケジュール＆予算（保存＆共有可能！）\n- **トリップ提案** — ボート、リブアボード、ダイビングスポット\n- **ボート比較**\n\n下の **プラン作成** ボタンをタップ、または何でも聞いてください！",
-  ko: "안녕하세요! 태국 다이빙 AI 플래너입니다.\n\n할 수 있는 것:\n- **여행 계획 작성** — 일별 일정 & 예산 (저장 & 공유 가능!)\n- **트립 추천** — 보트, 리브어보드, 다이빙 사이트\n- **보트 비교**\n\n아래 **계획 만들기** 버튼을 탭하거나 질문하세요!",
-  de: "Hallo! Ich bin dein KI-Tauchreiseplaner für Thailand.\n\nIch kann:\n- **Reisepläne erstellen** — Tag für Tag mit Budget (Speichern & Teilen!)\n- **Trips empfehlen** — Boote, Liveaboards, Tauchplätze\n- **Boote vergleichen**\n\nTippe unten auf **Plan erstellen** oder frag mich einfach!",
-  fr: "Bonjour ! Je suis votre planificateur IA pour la Thaïlande.\n\nJe peux :\n- **Créer des itinéraires** jour par jour avec budget (Sauvegarde & Partage !)\n- **Recommander des trips** — bateaux, croisières, sites de plongée\n- **Comparer les bateaux**\n\nAppuyez sur **Créer un plan** ci-dessous ou posez-moi une question !",
-  ru: "Привет! Я ваш AI-планировщик для дайвинга в Таиланде.\n\nЯ могу:\n- **Создать план поездки** по дням с бюджетом (Сохранить и Поделиться!)\n- **Рекомендовать трипы** — лодки, ливаборды, дайв-сайты\n- **Сравнить лодки**\n\nНажмите **Создать план** ниже или просто спросите!",
+  th: "สวัสดีครับ! ผมเป็นผู้ช่วยหาทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **แนะนำทริป** เรือดำน้ำ, Liveaboard และ Day Trip\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n- **ตอบคำถามเรื่องดำน้ำ** ฤดูกาล, cert, จุดดำน้ำ\n\nสนใจทริปไหน กด **+** เพิ่มเข้า My Plan ได้เลย!",
+  en: "Hi! I'm your AI dive trip advisor for Thailand.\n\nI can:\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n- **Answer diving questions** — seasons, certs, dive spots\n\nLike a trip? Tap **+** to add it to your plan!",
+  cn: "你好！我是你的泰国潜水旅行AI顾问。\n\n我可以：\n- **推荐潜水行程** — 船只、船宿、潜点\n- **对比船只**\n- **回答潜水问题** — 季节、证书、潜点\n\n喜欢的行程点 **+** 加入计划！",
+  ja: "こんにちは！タイのダイビングAIアドバイザーです。\n\nできること：\n- **トリップ提案** — ボート、リブアボード、ダイビングスポット\n- **ボート比較**\n- **ダイビングの質問に回答** — シーズン、資格、スポット\n\n気に入ったトリップは **+** でプランに追加！",
+  ko: "안녕하세요! 태국 다이빙 AI 어드바이저입니다.\n\n할 수 있는 것:\n- **트립 추천** — 보트, 리브어보드, 다이빙 사이트\n- **보트 비교**\n- **다이빙 질문 답변** — 시즌, 자격증, 스팟\n\n마음에 드는 트립은 **+** 로 플랜에 추가!",
+  de: "Hallo! Ich bin dein KI-Tauchberater für Thailand.\n\nIch kann:\n- **Trips empfehlen** — Boote, Liveaboards, Tauchplätze\n- **Boote vergleichen**\n- **Tauchfragen beantworten** — Saisons, Zertifikate, Spots\n\nGefällt dir ein Trip? Tippe **+** um ihn zum Plan hinzuzufügen!",
+  fr: "Bonjour ! Je suis votre conseiller IA plongée pour la Thaïlande.\n\nJe peux :\n- **Recommander des trips** — bateaux, croisières, sites de plongée\n- **Comparer les bateaux**\n- **Répondre aux questions** — saisons, certifications, spots\n\nUn trip vous plaît ? Appuyez sur **+** pour l'ajouter au plan !",
+  ru: "Привет! Я ваш AI-консультант по дайвингу в Таиланде.\n\nЯ могу:\n- **Рекомендовать трипы** — лодки, ливаборды, дайв-сайты\n- **Сравнить лодки**\n- **Ответить на вопросы** — сезоны, сертификаты, споты\n\nПонравился трип? Нажмите **+** чтобы добавить в план!",
 };
 
 const WELCOME_ON_TRIP: Record<string, string> = {
-  th: "สวัสดีครับ! เห็นว่ากำลังดูทริปนี้อยู่ 👀\n\nผมช่วยได้เลย:\n- **ถามรายละเอียดทริปนี้** — ดำกี่ไดฟ์ เหมาะกับ cert ไหน\n- **หาวันว่าง** หรือเช็คตารางเรือ\n- **เปรียบเทียบกับเรืออื่น** ในพื้นที่เดียวกัน\n- **วางแผนทริปทั้งหมด** รวมที่พัก การเดินทาง กิจกรรมบนบก\n\nถามได้เลยครับ!",
-  en: "Hi! I see you're checking out this trip 👀\n\nI can help you:\n- **Ask about this trip** — how many dives, what cert you need\n- **Check available dates** and schedules\n- **Compare with other boats** in the same area\n- **Plan the full trip** including accommodation, transport & land activities\n\nJust ask!",
-  cn: "你好！看到你正在查看这个行程 👀\n\n我可以帮你：\n- **了解行程详情** — 几次潜水、需要什么证书\n- **查看可用日期** 和船期\n- **与同区域其他船只对比**\n- **规划完整行程** 包括住宿、交通和陆上活动\n\n直接问我！",
-  ja: "こんにちは！このトリップをご覧になっていますね 👀\n\nお手伝いできます：\n- **このトリップの詳細** — ダイブ回数、必要な資格\n- **空き日程の確認**\n- **同エリアの他のボートと比較**\n- **旅行全体のプラン作成** — 宿泊、交通、陸上アクティビティ込み\n\nお気軽にどうぞ！",
-  ko: "안녕하세요! 이 트립을 보고 계시군요 👀\n\n도움을 드릴 수 있어요:\n- **트립 상세 정보** — 다이빙 횟수, 필요한 자격증\n- **가능한 날짜 확인**\n- **같은 지역 다른 보트와 비교**\n- **전체 여행 계획** — 숙박, 교통, 육상 활동 포함\n\n질문하세요!",
-  de: "Hallo! Ich sehe, du schaust dir diesen Trip an 👀\n\nIch kann dir helfen:\n- **Details zu diesem Trip** — Anzahl Tauchgänge, benötigtes Zertifikat\n- **Verfügbare Termine prüfen**\n- **Mit anderen Booten vergleichen**\n- **Die gesamte Reise planen** — Unterkunft, Transport & Aktivitäten\n\nFrag einfach!",
-  fr: "Bonjour ! Je vois que vous regardez ce trip 👀\n\nJe peux vous aider :\n- **Détails sur ce trip** — nombre de plongées, certificat requis\n- **Vérifier les dates disponibles**\n- **Comparer avec d'autres bateaux**\n- **Planifier le voyage complet** — hébergement, transport & activités\n\nDemandez-moi !",
-  ru: "Привет! Вижу, вы смотрите этот трип 👀\n\nМогу помочь:\n- **Подробности о трипе** — сколько погружений, какой сертификат нужен\n- **Проверить доступные даты**\n- **Сравнить с другими лодками**\n- **Спланировать всю поездку** — проживание, транспорт и активности\n\nСпрашивайте!",
+  th: "สวัสดีครับ! เห็นว่ากำลังดูทริปนี้อยู่ 👀\n\nผมช่วยได้เลย:\n- **ถามรายละเอียดทริปนี้** — ดำกี่ไดฟ์ เหมาะกับ cert ไหน\n- **หาวันว่าง** หรือเช็คตารางเรือ\n- **เปรียบเทียบกับเรืออื่น** ในพื้นที่เดียวกัน\n\nสนใจทริปนี้ กด **+** เพิ่มเข้า My Plan ได้เลย!",
+  en: "Hi! I see you're checking out this trip 👀\n\nI can help you:\n- **Ask about this trip** — how many dives, what cert you need\n- **Check available dates** and schedules\n- **Compare with other boats** in the same area\n\nLike it? Tap **+** to add it to your plan!",
+  cn: "你好！看到你正在查看这个行程 👀\n\n我可以帮你：\n- **了解行程详情** — 几次潜水、需要什么证书\n- **查看可用日期** 和船期\n- **与同区域其他船只对比**\n\n喜欢就点 **+** 加入计划！",
+  ja: "こんにちは！このトリップをご覧になっていますね 👀\n\nお手伝いできます：\n- **このトリップの詳細** — ダイブ回数、必要な資格\n- **空き日程の確認**\n- **同エリアの他のボートと比較**\n\n気に入ったら **+** でプランに追加！",
+  ko: "안녕하세요! 이 트립을 보고 계시군요 👀\n\n도움을 드릴 수 있어요:\n- **트립 상세 정보** — 다이빙 횟수, 필요한 자격증\n- **가능한 날짜 확인**\n- **같은 지역 다른 보트와 비교**\n\n마음에 들면 **+** 로 플랜에 추가!",
+  de: "Hallo! Ich sehe, du schaust dir diesen Trip an 👀\n\nIch kann dir helfen:\n- **Details zu diesem Trip** — Anzahl Tauchgänge, benötigtes Zertifikat\n- **Verfügbare Termine prüfen**\n- **Mit anderen Booten vergleichen**\n\nGefällt dir? Tippe **+** um zum Plan hinzuzufügen!",
+  fr: "Bonjour ! Je vois que vous regardez ce trip 👀\n\nJe peux vous aider :\n- **Détails sur ce trip** — nombre de plongées, certificat requis\n- **Vérifier les dates disponibles**\n- **Comparer avec d'autres bateaux**\n\nIntéressé ? Appuyez sur **+** pour l'ajouter au plan !",
+  ru: "Привет! Вижу, вы смотрите этот трип 👀\n\nМогу помочь:\n- **Подробности о трипе** — сколько погружений, какой сертификат нужен\n- **Проверить доступные даты**\n- **Сравнить с другими лодками**\n\nНравится? Нажмите **+** чтобы добавить в план!",
 };
 
 const WELCOME_ON_BLOG: Record<string, string> = {
@@ -48,51 +48,62 @@ const WELCOME_ON_BLOG: Record<string, string> = {
 };
 
 const WELCOME_RETURNING: Record<string, string> = {
-  th: "ยินดีต้อนรับกลับมาครับ! 🤿\n\nเห็นว่าเพิ่งดูมาหลายทริป ต้องการให้ช่วย:\n- **เปรียบเทียบทริปที่ดูมา** ให้เห็นข้อดี-ข้อเสีย\n- **สร้างแผนทริป** จากทริปที่สนใจ พร้อมงบ\n- **หาทริปเพิ่มเติม** ในพื้นที่หรืองบที่ชอบ\n\nบอกได้เลยครับ!",
-  en: "Welcome back! 🤿\n\nI see you've been browsing several trips. Want me to:\n- **Compare the trips you viewed** — pros and cons\n- **Create a trip plan** from your favorites with budget\n- **Find more trips** in the areas or budget you like\n\nJust let me know!",
-  cn: "欢迎回来！🤿\n\n看到你浏览了多个行程，需要我：\n- **对比你看过的行程** — 优缺点分析\n- **根据你的收藏制作行程计划** 含预算\n- **查找更多行程**\n\n告诉我！",
-  ja: "おかえりなさい！🤿\n\nいくつかのトリップを閲覧されましたね：\n- **閲覧したトリップを比較** — メリット・デメリット\n- **お気に入りから旅行プラン作成** 予算付き\n- **もっとトリップを探す**\n\nお気軽にどうぞ！",
-  ko: "다시 오신 것을 환영합니다! 🤿\n\n여러 트립을 둘러보셨군요:\n- **본 트립들 비교** — 장단점 분석\n- **마음에 드는 것으로 여행 계획 작성** 예산 포함\n- **더 많은 트립 찾기**\n\n말씀해 주세요!",
-  de: "Willkommen zurück! 🤿\n\nDu hast mehrere Trips angesehen:\n- **Angesehene Trips vergleichen** — Vor- und Nachteile\n- **Reiseplan erstellen** aus deinen Favoriten mit Budget\n- **Weitere Trips finden**\n\nSag Bescheid!",
-  fr: "Bon retour ! 🤿\n\nVous avez consulté plusieurs trips :\n- **Comparer les trips consultés** — avantages et inconvénients\n- **Créer un plan** à partir de vos favoris avec budget\n- **Trouver plus de trips**\n\nDites-moi !",
-  ru: "С возвращением! 🤿\n\nВижу, вы просматривали несколько трипов:\n- **Сравнить просмотренные трипы** — плюсы и минусы\n- **Составить план** из избранного с бюджетом\n- **Найти больше трипов**\n\nСкажите мне!",
+  th: "ยินดีต้อนรับกลับมาครับ! 🤿\n\nเห็นว่าเพิ่งดูมาหลายทริป ต้องการให้ช่วย:\n- **เปรียบเทียบทริปที่ดูมา** ให้เห็นข้อดี-ข้อเสีย\n- **หาทริปเพิ่มเติม** ตามความสนใจ\n\nสนใจทริปไหน กด **+** เพิ่มเข้า My Plan ได้เลย!",
+  en: "Welcome back! 🤿\n\nI see you've been browsing several trips. Want me to:\n- **Compare the trips you viewed** — pros and cons\n- **Find more trips** in the areas you like\n\nLike a trip? Tap **+** to add it to your plan!",
+  cn: "欢迎回来！🤿\n\n看到你浏览了多个行程，需要我：\n- **对比你看过的行程** — 优缺点分析\n- **查找更多行程**\n\n喜欢的行程点 **+** 加入计划！",
+  ja: "おかえりなさい！🤿\n\nいくつかのトリップを閲覧されましたね：\n- **閲覧したトリップを比較** — メリット・デメリット\n- **もっとトリップを探す**\n\n気に入ったら **+** でプランに追加！",
+  ko: "다시 오신 것을 환영합니다! 🤿\n\n여러 트립을 둘러보셨군요:\n- **본 트립들 비교** — 장단점 분석\n- **더 많은 트립 찾기**\n\n마음에 들면 **+** 로 플랜에 추가!",
+  de: "Willkommen zurück! 🤿\n\nDu hast mehrere Trips angesehen:\n- **Angesehene Trips vergleichen** — Vor- und Nachteile\n- **Weitere Trips finden**\n\nGefällt dir? Tippe **+** um zum Plan hinzuzufügen!",
+  fr: "Bon retour ! 🤿\n\nVous avez consulté plusieurs trips :\n- **Comparer les trips consultés** — avantages et inconvénients\n- **Trouver plus de trips**\n\nIntéressé ? Appuyez sur **+** pour l'ajouter au plan !",
+  ru: "С возвращением! 🤿\n\nВижу, вы просматривали несколько трипов:\n- **Сравнить просмотренные трипы** — плюсы и минусы\n- **Найти больше трипов**\n\nНравится? Нажмите **+** чтобы добавить в план!",
 };
 
 const WELCOME_BROWSING: Record<string, string> = {
-  th: "สวัสดีครับ! เห็นว่ากำลังหาทริปดำน้ำอยู่ 🔍\n\nผมช่วยให้เจอทริปที่ใช่ได้เร็วขึ้น:\n- **บอกงบ วัน cert level** แล้วผมแนะนำทริปที่เหมาะ\n- **สร้างแผนทริป** day-by-day พร้อมงบประมาณ\n- **เปรียบเทียบเรือ** ให้เห็นชัดๆ\n\nถามได้เลยครับ!",
-  en: "Hi! I see you're looking for a dive trip 🔍\n\nI can help you find the right one faster:\n- **Tell me your budget, dates & cert level** and I'll recommend the best match\n- **Create a day-by-day trip plan** with budget breakdown\n- **Compare boats** side by side\n\nJust ask!",
-  cn: "你好！看到你在找潜水行程 🔍\n\n我能帮你更快找到：\n- **告诉我预算、日期和证书等级** 我推荐最合适的\n- **制作每日行程计划** 含预算明细\n- **对比船只**\n\n直接问我！",
-  ja: "こんにちは！ダイビングトリップをお探しですね 🔍\n\nもっと早く見つけるお手伝いができます：\n- **予算、日程、資格レベルを教えてください** 最適なものを提案します\n- **日別の旅行プランを作成** 予算内訳付き\n- **ボートを比較**\n\nお気軽にどうぞ！",
-  ko: "안녕하세요! 다이빙 트립을 찾고 계시군요 🔍\n\n더 빨리 찾아드릴 수 있어요:\n- **예산, 날짜, 자격증 레벨을 알려주세요** 최적의 것을 추천합니다\n- **일별 여행 계획 작성** 예산 내역 포함\n- **보트 비교**\n\n질문하세요!",
-  de: "Hallo! Du suchst einen Tauchtrip 🔍\n\nIch helfe dir schneller:\n- **Sag mir Budget, Termine & Zertifikat** — ich empfehle das Beste\n- **Tagesplan erstellen** mit Budget\n- **Boote vergleichen**\n\nFrag einfach!",
-  fr: "Bonjour ! Vous cherchez un voyage de plongée 🔍\n\nJe peux vous aider plus vite :\n- **Dites-moi budget, dates & niveau** — je recommande le meilleur\n- **Créer un plan jour par jour** avec budget\n- **Comparer les bateaux**\n\nDemandez-moi !",
-  ru: "Привет! Вижу, вы ищете дайвинг-трип 🔍\n\nПомогу найти быстрее:\n- **Скажите бюджет, даты и уровень сертификата** — подберу лучшее\n- **Составить план по дням** с бюджетом\n- **Сравнить лодки**\n\nСпрашивайте!",
+  th: "สวัสดีครับ! เห็นว่ากำลังหาทริปดำน้ำอยู่ 🔍\n\nผมช่วยให้เจอทริปที่ใช่ได้เร็วขึ้น:\n- **บอกงบ วัน cert level** แล้วผมแนะนำทริปที่เหมาะ\n- **เปรียบเทียบเรือ** ให้เห็นชัดๆ\n\nสนใจทริปไหน กด **+** เพิ่มเข้า My Plan ได้เลย!",
+  en: "Hi! I see you're looking for a dive trip 🔍\n\nI can help you find the right one faster:\n- **Tell me your dates, cert level & preferences** and I'll recommend the best match\n- **Compare boats** side by side\n\nLike a trip? Tap **+** to add it to your plan!",
+  cn: "你好！看到你在找潜水行程 🔍\n\n我能帮你更快找到：\n- **告诉我日期和证书等级** 我推荐最合适的\n- **对比船只**\n\n喜欢的行程点 **+** 加入计划！",
+  ja: "こんにちは！ダイビングトリップをお探しですね 🔍\n\nもっと早く見つけるお手伝いができます：\n- **日程、資格レベルを教えてください** 最適なものを提案します\n- **ボートを比較**\n\n気に入ったら **+** でプランに追加！",
+  ko: "안녕하세요! 다이빙 트립을 찾고 계시군요 🔍\n\n더 빨리 찾아드릴 수 있어요:\n- **날짜, 자격증 레벨을 알려주세요** 최적의 것을 추천합니다\n- **보트 비교**\n\n마음에 들면 **+** 로 플랜에 추가!",
+  de: "Hallo! Du suchst einen Tauchtrip 🔍\n\nIch helfe dir schneller:\n- **Sag mir Termine & Zertifikat** — ich empfehle das Beste\n- **Boote vergleichen**\n\nGefällt dir? Tippe **+** um zum Plan hinzuzufügen!",
+  fr: "Bonjour ! Vous cherchez un voyage de plongée 🔍\n\nJe peux vous aider plus vite :\n- **Dites-moi dates & niveau** — je recommande le meilleur\n- **Comparer les bateaux**\n\nIntéressé ? Appuyez sur **+** pour l'ajouter au plan !",
+  ru: "Привет! Вижу, вы ищете дайвинг-трип 🔍\n\nПомогу найти быстрее:\n- **Скажите даты и уровень сертификата** — подберу лучшее\n- **Сравнить лодки**\n\nНравится? Нажмите **+** чтобы добавить в план!",
 };
 
-function buildWelcome(lang: string, pathname: string): string {
-  const tripMatch = pathname.match(/\/trips\/([^/]+)/);
-  if (tripMatch) return WELCOME_ON_TRIP[lang] || WELCOME_ON_TRIP.en;
+function buildSeasonLine(lang: string): string {
+  const mn = monthName(lang);
+  const s = seasonInfo();
+  const label = seasonLabel(lang);
 
-  const blogMatch = pathname.match(/\/blogs\/([^/]+)/);
-  if (blogMatch) return WELCOME_ON_BLOG[lang] || WELCOME_ON_BLOG.en;
+  if (lang === "th") {
+    let line = `\n\n🌊 **เดือน${mn}** — ${label}`;
+    if (s.whaleShark) line += " ช่วงนี้มีโอกาสเจอฉลามวาฬ!";
+    else if (s.coast === "andaman") line += " สิมิลัน-สุรินทร์ เปิดอยู่!";
+    else if (s.coast === "gulf") line += " เกาะเต่า-Sail Rock สภาพดี!";
+    return line;
+  }
 
-  const recentBoats = readRecentBoats();
-  if (recentBoats.length >= 3) return WELCOME_RETURNING[lang] || WELCOME_RETURNING.en;
-  if (recentBoats.length > 0) return WELCOME_BROWSING[lang] || WELCOME_BROWSING.en;
-
-  return WELCOME_BASE[lang] || WELCOME_BASE.en;
+  let line = `\n\n🌊 **${mn}** — ${label}`;
+  if (s.whaleShark) line += " — whale shark season!";
+  else if (s.coast === "andaman") line += " — Similan & Surin are open!";
+  else if (s.coast === "gulf") line += " — Koh Tao & Sail Rock at their best!";
+  return line;
 }
 
-const PLAN_STARTER: Record<string, string> = {
-  th: "ช่วยวางแผนทริปดำน้ำให้หน่อยครับ",
-  en: "Help me plan a dive trip",
-  cn: "帮我规划一次潜水旅行",
-  ja: "ダイビングトリップを計画してください",
-  ko: "다이빙 여행 계획을 세워주세요",
-  de: "Hilf mir einen Tauchtrip zu planen",
-  fr: "Aidez-moi à planifier un voyage de plongée",
-  ru: "Помогите спланировать дайвинг-поездку",
-};
+function buildWelcome(lang: string, pathname: string): string {
+  const seasonLine = buildSeasonLine(lang);
+
+  const tripMatch = pathname.match(/\/trips\/([^/]+)/);
+  if (tripMatch) return (WELCOME_ON_TRIP[lang] || WELCOME_ON_TRIP.en) + seasonLine;
+
+  const blogMatch = pathname.match(/\/blogs\/([^/]+)/);
+  if (blogMatch) return (WELCOME_ON_BLOG[lang] || WELCOME_ON_BLOG.en) + seasonLine;
+
+  const recentBoats = readRecentBoats();
+  if (recentBoats.length >= 3) return (WELCOME_RETURNING[lang] || WELCOME_RETURNING.en) + seasonLine;
+  if (recentBoats.length > 0) return (WELCOME_BROWSING[lang] || WELCOME_BROWSING.en) + seasonLine;
+
+  return (WELCOME_BASE[lang] || WELCOME_BASE.en) + seasonLine;
+}
 
 function detectPageContext(pathname: string): string | undefined {
   const tripMatch = pathname.match(/\/trips\/([^/]+)/);
@@ -109,7 +120,6 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const pathname = usePathname();
   const lang = (params.lang as string) || "en";
 
-  const [tab, setTab] = useState<"chat" | "plans">("chat");
   const [messages, setMessages] = useState<Msg[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -119,13 +129,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   });
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [savedPlans, setSavedPlans] = useState<string[]>([]);
-  const [plansData, setPlansData] = useState<Record<string, unknown>[]>([]);
   const [feedbackState, setFeedbackState] = useState<Record<number, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const trackedOpenRef = useRef(false);
+  const sendRef = useRef<(t: string) => void>(undefined);
 
   useEffect(() => {
     if (open && !trackedOpenRef.current) {
@@ -141,24 +150,34 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   }, [messages]);
 
   useEffect(() => {
-    if (open && tab === "plans") {
-      const ids: string[] = JSON.parse(localStorage.getItem("ark-ai-plans") || "[]");
-      setSavedPlans(ids);
-      if (ids.length) {
-        fetch(`/api/ark-ai/itinerary?ids=${ids.join(",")}`)
-          .then(r => r.ok ? r.json() : [])
-          .then(setPlansData)
-          .catch(() => {});
-      }
-    }
-  }, [open, tab]);
+    if (!open) return;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const html = document.documentElement;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+    body.style.touchAction = "none";
 
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+    const pending = sessionStorage.getItem("ark-ai-pending");
+    if (pending) {
+      sessionStorage.removeItem("ark-ai-pending");
+      setTimeout(() => sendRef.current?.(pending), 500);
     }
+
+    return () => {
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.overflow = "";
+      html.style.overflow = "";
+      body.style.touchAction = "";
+      window.scrollTo(0, scrollY);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -170,11 +189,6 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const handleFeedback = useCallback((msgIndex: number, positive: boolean) => {
     setFeedbackState(prev => ({ ...prev, [msgIndex]: positive }));
     trackChatFeedback(positive, msgIndex);
-  }, []);
-
-  const handleItinerarySave = useCallback((_data: ItineraryData) => {
-    const ids: string[] = JSON.parse(localStorage.getItem("ark-ai-plans") || "[]");
-    setSavedPlans(ids);
   }, []);
 
   const sendMessage = useCallback(async (text: string) => {
@@ -269,6 +283,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     }
   }, [messages, streaming, lang, pathname]);
 
+  sendRef.current = sendMessage;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -281,200 +297,110 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   return (
     <>
       <style>{`
-        @keyframes arkSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes arkFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
         .ark-trip-row::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1299, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
-
-      {/* Panel */}
+      {/* Fullscreen panel */}
       <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1300,
-        display: "flex", justifyContent: "center", pointerEvents: "none",
+        position: "fixed", inset: 0, zIndex: 1300,
+        background: "#0a0a0a", color: "#e5e5e5",
+        display: "flex", flexDirection: "column",
+        animation: "arkFadeIn 0.2s ease both",
+        overflow: "hidden",
+        touchAction: "none",
       }}>
-        <div style={{
-          pointerEvents: "auto",
-          width: "min(480px, 100%)",
-          height: "min(85vh, 700px)",
-          background: "#0d0d0d", color: "#e5e5e5",
-          borderRadius: "20px 20px 0 0",
-          border: "1px solid #1f1f1f", borderBottom: "none",
-          display: "flex", flexDirection: "column",
-          boxShadow: "0 -8px 60px rgba(0,0,0,0.7)",
-          animation: "arkSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both",
-        }}>
-          {/* Handle */}
-          <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "#3a3a3a" }} />
+        {/* Header */}
+        <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
+          <button onClick={onClose}
+            style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #1e40af, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff">
+              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" opacity="0.9"/>
+            </svg>
           </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>SIAM AI</p>
+          </div>
+          <button onClick={() => {
+              setMessages([]);
+              setFeedbackState({});
+              setStreaming(false);
+              try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+            }}
+            title={lang === "th" ? "ล้างแชท" : "Clear chat"}
+            style={{ background: "none", border: "1px solid #262626", color: "#888", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+        </div>
 
-          {/* Header */}
-          <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #1e40af, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="1.8" opacity="0.5"/>
-                  <path d="M4 13c2-2.5 4-2.5 6 0s4 2.5 6 0s4-2.5 6 0" stroke="#fff" strokeWidth="2" strokeLinecap="round" fill="none"/>
-                  <circle cx="8" cy="8" r="1.5" fill="#fff" opacity="0.7"/>
-                  <circle cx="16" cy="7" r="1" fill="#fff" opacity="0.5"/>
-                  <circle cx="12" cy="5.5" r="0.8" fill="#fff" opacity="0.4"/>
-                </svg>
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>SIAM AI</p>
-                <p style={{ fontSize: 9, color: "#555" }}>Dive Trip Planner</p>
-              </div>
+        {/* Messages */}
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
+          {messages.length === 0 && (
+            <div style={{ padding: "8px 0" }}>
+              <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
+              <SuggestionChips lang={lang} onSelect={sendMessage} pathname={pathname} />
             </div>
-            <div style={{ flex: 1 }} />
+          )}
+          {messages.map((msg, i) => (
+            <ChatMessage
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              msgIndex={i}
+              isStreaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
+              onFeedback={msg.role === "assistant" && !streaming ? handleFeedback : undefined}
+              feedbackGiven={feedbackState[i]}
+              lang={lang}
+            />
+          ))}
+        </div>
 
-            {/* Tabs */}
-            <div style={{ display: "flex", gap: 2, background: "#161616", borderRadius: 8, padding: 2, marginRight: 8 }}>
-              {(["chat", "plans"] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  style={{
-                    padding: "4px 10px", borderRadius: 6, border: "none", fontSize: 10, fontWeight: 700,
-                    background: tab === t ? "#1e40af" : "transparent",
-                    color: tab === t ? "#fff" : "#666", cursor: "pointer",
-                  }}>
-                  {t === "chat" ? "Chat" : "My Plans"}
-                </button>
-              ))}
-            </div>
-
-            <button onClick={() => {
-                setMessages([]);
-                setFeedbackState({});
-                setStreaming(false);
-                try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+        {/* Input */}
+        <div style={{ padding: "10px 16px", paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #1a1a1a", flexShrink: 0, touchAction: "manipulation" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={lang === "th" ? "ถามเกี่ยวกับทริปดำน้ำ..." : "Ask about diving trips..."}
+              rows={1}
+              style={{
+                flex: 1, resize: "none", background: "#161616", border: "1px solid #262626",
+                borderRadius: 12, color: "#f5f5f5", fontSize: 16, padding: "10px 14px",
+                outline: "none", lineHeight: 1.4, maxHeight: 100,
+                fontFamily: "inherit",
               }}
-              title={lang === "th" ? "ล้างแชท" : "Clear chat"}
-              style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+              onInput={e => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = Math.min(el.scrollHeight, 100) + "px";
+              }}
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || streaming}
+              style={{
+                width: 40, height: 40, borderRadius: 10, border: "none",
+                background: input.trim() && !streaming ? "#1e40af" : "#1a1a1a",
+                color: "#fff", cursor: input.trim() && !streaming ? "pointer" : "default",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, transition: "background 0.15s",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
               </svg>
             </button>
-            <button onClick={onClose}
-              style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              x
-            </button>
           </div>
-
-          {/* Chat tab */}
-          {tab === "chat" && (
-            <>
-              <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-                {/* Welcome */}
-                {messages.length === 0 && (
-                  <div style={{ padding: "8px 0" }}>
-                    <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
-                    <SuggestionChips lang={lang} onSelect={sendMessage} />
-                  </div>
-                )}
-
-                {messages.map((msg, i) => (
-                  <ChatMessage
-                    key={i}
-                    role={msg.role}
-                    content={msg.content}
-                    msgIndex={i}
-                    isStreaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
-                    onFeedback={msg.role === "assistant" && !streaming ? handleFeedback : undefined}
-                    feedbackGiven={feedbackState[i]}
-                    onItinerarySave={handleItinerarySave}
-                    lang={lang}
-                  />
-                ))}
-              </div>
-
-              {/* Input */}
-              <div style={{ padding: "10px 16px 20px", borderTop: "1px solid #1a1a1a" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={lang === "th" ? "ถามเกี่ยวกับทริปดำน้ำ..." : "Ask about diving trips..."}
-                    rows={1}
-                    style={{
-                      flex: 1, resize: "none", background: "#161616", border: "1px solid #262626",
-                      borderRadius: 12, color: "#f5f5f5", fontSize: 13, padding: "10px 14px",
-                      outline: "none", lineHeight: 1.4, maxHeight: 100,
-                      fontFamily: "inherit",
-                    }}
-                    onInput={e => {
-                      const el = e.currentTarget;
-                      el.style.height = "auto";
-                      el.style.height = Math.min(el.scrollHeight, 100) + "px";
-                    }}
-                  />
-                  <button
-                    onClick={() => sendMessage(input)}
-                    disabled={!input.trim() || streaming}
-                    style={{
-                      width: 40, height: 40, borderRadius: 10, border: "none",
-                      background: input.trim() && !streaming ? "#1e40af" : "#1a1a1a",
-                      color: "#fff", cursor: input.trim() && !streaming ? "pointer" : "default",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0, transition: "background 0.15s",
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Plans tab */}
-          {tab === "plans" && (
-            <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-              {savedPlans.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 0" }}>
-                  <p style={{ fontSize: 32, marginBottom: 8 }}>📋</p>
-                  <p style={{ fontSize: 13, color: "#555" }}>
-                    {lang === "th" ? "ยังไม่มีแผนที่บันทึกไว้" : "No saved plans yet"}
-                  </p>
-                  <p style={{ fontSize: 11, color: "#444", marginTop: 4 }}>
-                    {lang === "th" ? "ลองให้ AI วางแผนทริปให้คุณ!" : "Ask AI to plan a trip for you!"}
-                  </p>
-                  <button onClick={() => {
-                      setTab("chat");
-                      setTimeout(() => sendMessage(PLAN_STARTER[lang] || PLAN_STARTER.en), 100);
-                    }}
-                    style={{ marginTop: 16, padding: "8px 20px", borderRadius: 8, border: "none", background: "#1e40af", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                    {lang === "th" ? "สร้างแผนใหม่" : "Create a plan"}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {plansData.map((plan: Record<string, unknown>) => (
-                    <a key={plan.shortId as string} href={`/${lang}/plan/${plan.shortId}`}
-                      style={{
-                        display: "block", padding: 12, background: "#161616",
-                        border: "1px solid #262626", borderRadius: 10,
-                        textDecoration: "none", transition: "border-color 0.15s",
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = "#3b82f6")}
-                      onMouseLeave={e => (e.currentTarget.style.borderColor = "#262626")}
-                    >
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5" }}>{plan.title as string}</p>
-                      <div style={{ display: "flex", gap: 10, marginTop: 4, fontSize: 10, color: "#666" }}>
-                        <span>{plan.durationDays as number} days</span>
-                        <span>{plan.totalDives as number} dives</span>
-                        {(plan.areas as string[])?.length > 0 && <span>{(plan.areas as string[]).join(", ")}</span>}
-                        <span style={{ marginLeft: "auto" }}>{plan.viewCount as number} views</span>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </>

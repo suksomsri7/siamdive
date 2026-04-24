@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trackChatTripClick } from "@/lib/analytics/client";
+import { addTrip, hasTripInPlan } from "@/lib/plan-store";
 
 type Props = {
   boatId: string;
@@ -19,8 +21,31 @@ const TYPE_LABEL: Record<string, string> = {
   SCUBA_COURSES: "Scuba Courses", FREEDIVE_COURSES: "Freedive Courses",
 };
 
+const coverCache = new Map<string, string>();
+
 export default function ChatTripCard({ boatId, title, type, area, slug, cover }: Props) {
   const lang = (useParams().lang as string) || "en";
+  const [inPlan, setInPlan] = useState(() => hasTripInPlan(boatId));
+  const [imgSrc, setImgSrc] = useState<string | null>(cover || coverCache.get(boatId) || null);
+
+  useEffect(() => {
+    if (imgSrc || !boatId) return;
+    if (coverCache.has(boatId)) { setImgSrc(coverCache.get(boatId)!); return; }
+    fetch(`/api/boats/by-ids?ids=${boatId}&lang=${lang}`)
+      .then(r => r.json())
+      .then((data: { covers?: string[]; imageUrl?: string }[]) => {
+        const url = data?.[0]?.covers?.[0] || data?.[0]?.imageUrl || null;
+        if (url) { coverCache.set(boatId, url); setImgSrc(url); }
+      })
+      .catch(() => {});
+  }, [boatId, lang, imgSrc]);
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const added = addTrip({ boatId, title, slug, type, area, cover: imgSrc });
+    if (added) setInPlan(true);
+  };
 
   return (
     <a
@@ -36,9 +61,9 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover }:
       onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; }}
     >
       {/* Cover */}
-      {cover ? (
+      {imgSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={cover} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={imgSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, #0f172a, #1e3a5f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
           {type === "LAND_TOUR" ? "🌴" : "🤿"}
@@ -59,6 +84,23 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover }:
           {TYPE_LABEL[type] || type}
         </span>
       </div>
+
+      {/* Add to plan button */}
+      <button
+        onClick={handleAdd}
+        disabled={inPlan}
+        style={{
+          position: "absolute", top: 5, right: 5, width: 22, height: 22,
+          borderRadius: "50%", border: "none", cursor: inPlan ? "default" : "pointer",
+          background: inPlan ? "rgba(74,222,128,0.9)" : "rgba(255,255,255,0.2)",
+          backdropFilter: "blur(4px)",
+          color: "#fff", fontSize: 13, fontWeight: 700,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.15s",
+        }}
+      >
+        {inPlan ? "✓" : "+"}
+      </button>
 
       {/* Bottom info */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 8px 10px" }}>

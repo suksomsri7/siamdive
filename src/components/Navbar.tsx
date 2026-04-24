@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import ArkAIButton from "./ark-ai/ArkAIButton";
 import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
+import MyPlanScreen from "./ark-ai/MyPlanScreen";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
@@ -18,18 +18,6 @@ const LANGS: { code: LangCode; label: string; flag: string; native: string }[] =
   { code: "fr", label: "FR", flag: "🇫🇷", native: "Français"   },
   { code: "ru", label: "RU", flag: "🇷🇺", native: "Русский"    },
 ];
-
-const NUDGE_TEXT: Record<string, string> = {
-  th: "ต้องการให้ช่วยหาทริปไหม?",
-  en: "Need help finding a dive trip?",
-  cn: "需要帮忙找潜水行程吗？",
-  ja: "ダイビングトリップを探すお手伝いが必要ですか？",
-  ko: "다이빙 여행을 찾는 데 도움이 필요하세요?",
-  de: "Brauchen Sie Hilfe bei der Suche nach einem Tauchtrip?",
-  fr: "Besoin d'aide pour trouver un voyage de plongée ?",
-  ru: "Нужна помощь в поиске дайвинг-поездки?",
-};
-
 
 // ── Language Dropdown ─────────────────────────────────────────────────────────
 function LangDropdown({ lang, setLang, onClose }: { lang: LangCode; setLang: (c: LangCode) => void; onClose: () => void }) {
@@ -77,9 +65,9 @@ export default function Navbar() {
   const [scrolled,       setScrolled]       = useState(false);
   const [langOpen,       setLangOpen]       = useState(false);
   const [arkOpen,        setArkOpen]        = useState(false);
-  const [showNudge,      setShowNudge]      = useState(false);
+  const [planOpen,       setPlanOpen]       = useState(false);
+  const [contactOpen,    setContactOpen]    = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
-  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
@@ -91,6 +79,7 @@ export default function Navbar() {
     const fn = (e: MouseEvent) => {
       if (!langRef.current?.contains(e.target as Node)) {
         setLangOpen(false);
+        setContactOpen(false);
       }
     };
     document.addEventListener("mousedown", fn);
@@ -98,33 +87,16 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const handler = () => { setArkOpen(true); setShowNudge(false); };
+    const handler = () => { setArkOpen(true); setPlanOpen(false); };
     window.addEventListener("open-ark-ai", handler);
     return () => window.removeEventListener("open-ark-ai", handler);
   }, []);
 
   useEffect(() => {
-    const nudged = sessionStorage.getItem("ark-nudge-shown");
-    if (nudged) return;
-
-    nudgeTimerRef.current = setTimeout(() => {
-      if (!arkOpen) {
-        setShowNudge(true);
-        sessionStorage.setItem("ark-nudge-shown", "1");
-      }
-    }, 30000);
-
-    return () => {
-      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
-    };
-  }, [arkOpen]);
-
-  useEffect(() => {
-    if (arkOpen) {
-      setShowNudge(false);
-      if (nudgeTimerRef.current) { clearTimeout(nudgeTimerRef.current); nudgeTimerRef.current = null; }
-    }
-  }, [arkOpen]);
+    const handler = () => { setPlanOpen(true); setArkOpen(false); };
+    window.addEventListener("open-myplan", handler);
+    return () => window.removeEventListener("open-myplan", handler);
+  }, []);
 
   const currentLang = LANGS.find(l => l.code === lang)!;
 
@@ -132,8 +104,8 @@ export default function Navbar() {
   return (
     <>
       <style>{`
-        @keyframes nudgeFadeIn {
-          from { opacity: 0; transform: translateY(6px); }
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
@@ -155,50 +127,8 @@ export default function Navbar() {
             <span style={{ color: "#3b82f6" }}>DIVE</span>
           </Link>
 
-          {/* Right: Ark AI + lang dropdown */}
-          <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-            <div style={{ position: "relative" }}>
-              <ArkAIButton onClick={() => { setArkOpen(true); setShowNudge(false); }} />
-
-              {/* Nudge tooltip */}
-              {showNudge && (
-                <div
-                  onClick={() => { setArkOpen(true); setShowNudge(false); }}
-                  style={{
-                    position: "absolute", top: "calc(100% + 10px)", right: 0,
-                    background: "rgba(30,64,175,0.95)", border: "1px solid rgba(96,165,250,0.3)",
-                    borderRadius: 10, padding: "8px 14px", whiteSpace: "nowrap",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                    animation: "nudgeFadeIn 0.3s ease-out both",
-                    cursor: "pointer", zIndex: 100,
-                  }}
-                >
-                  <p style={{ fontSize: 12, color: "#e5e5e5", fontWeight: 600 }}>
-                    {NUDGE_TEXT[lang] || NUDGE_TEXT.en}
-                  </p>
-                  <div style={{
-                    position: "absolute", top: -5, right: 16,
-                    width: 10, height: 10, background: "rgba(30,64,175,0.95)",
-                    transform: "rotate(45deg)",
-                    borderLeft: "1px solid rgba(96,165,250,0.3)",
-                    borderTop: "1px solid rgba(96,165,250,0.3)",
-                  }} />
-                  <button
-                    onClick={e => { e.stopPropagation(); setShowNudge(false); }}
-                    style={{
-                      position: "absolute", top: -6, left: -6,
-                      width: 16, height: 16, borderRadius: "50%",
-                      background: "#333", border: "none", color: "#999",
-                      fontSize: 9, cursor: "pointer", display: "flex",
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    x
-                  </button>
-                </div>
-              )}
-            </div>
-
+          {/* Right: lang dropdown + chat icon */}
+          <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
             <div style={{ position: "relative" }}>
               <button onClick={() => setLangOpen(v => !v)}
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "background 0.15s" }}
@@ -211,11 +141,85 @@ export default function Navbar() {
               </button>
               {langOpen && <LangDropdown lang={lang} setLang={switchLang} onClose={() => setLangOpen(false)} />}
             </div>
+
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setContactOpen(v => !v)}
+                aria-label="Contact"
+                style={{
+                  width: 34, height: 34, borderRadius: 8,
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#ccc", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+              </button>
+
+              {contactOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  background: "rgba(13,13,13,0.98)", border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 12, padding: 6, minWidth: 170,
+                  boxShadow: "0 16px 40px rgba(0,0,0,0.6)", zIndex: 200,
+                  animation: "dropIn 0.2s ease-out both",
+                }}>
+                  {[
+                    { label: "Line", href: "https://lin.ee/wayWuGH", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
+                        <path d="M12 2C6.48 2 2 5.82 2 10.44c0 4.16 3.69 7.64 8.67 8.3.34.08.8.22.91.5.1.27.07.68.03.94l-.15.9c-.05.25.13.5.39.5.09 0 .18-.03.27-.08.97-.53 5.22-3.07 7.12-5.27C22.02 13.77 22 12.15 22 10.44 22 5.82 17.52 2 12 2z"/>
+                      </svg>
+                    )},
+                    { label: "WhatsApp", href: "https://wa.me/66", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
+                        <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.82 14.01c-.25.7-1.48 1.35-2.03 1.39-.5.04-.96.23-3.24-.68-2.76-1.1-4.52-3.93-4.66-4.12-.13-.19-1.1-1.47-1.1-2.8 0-1.33.7-1.99.95-2.26.25-.27.54-.34.72-.34.18 0 .36 0 .52.01.17.01.39-.06.61.47.23.54.77 1.89.84 2.02.07.14.12.3.02.47-.09.18-.14.3-.27.46-.14.16-.29.35-.41.47-.14.14-.28.29-.12.56.16.27.71 1.18 1.53 1.91 1.05.94 1.94 1.23 2.22 1.37.27.14.43.12.59-.07.16-.19.69-.8.87-1.08.18-.27.36-.23.61-.14.25.1 1.58.74 1.85.88.27.14.46.2.52.31.07.11.07.66-.18 1.35z"/>
+                      </svg>
+                    )},
+                    { label: "Messenger", href: "https://m.me/siamdive", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
+                        <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.15.26.35.27.57l.05 1.78c.02.57.6.94 1.12.71l1.98-.87c.17-.08.36-.1.55-.06.91.25 1.88.38 2.89.38 5.64 0 10-4.13 10-9.68S17.64 2 12 2zm5.89 7.43l-2.7 4.28c-.43.68-1.34.86-2.01.38l-2.14-1.61a.8.8 0 00-.96 0l-2.89 2.19c-.39.29-.89-.17-.64-.59l2.7-4.28c.43-.68 1.34-.86 2.01-.38l2.14 1.6a.8.8 0 00.96 0l2.89-2.19c.39-.29.89.17.64.6z"/>
+                      </svg>
+                    )},
+                    { label: "WeChat", href: "https://siamdive.com/wechat", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
+                        <path d="M8.5 4C4.91 4 2 6.69 2 10c0 1.87 1.01 3.54 2.58 4.61L4 16.74l2.38-1.18c.66.2 1.37.31 2.12.31.24 0 .47-.01.7-.04A5.77 5.77 0 019 14c0-3.31 2.91-6 6.5-6 .53 0 1.04.05 1.53.15C16.14 5.75 12.6 4 8.5 4zM6.5 8a1 1 0 110 2 1 1 0 010-2zm4 0a1 1 0 110 2 1 1 0 010-2z"/>
+                        <path d="M22 14c0-2.76-2.69-5-6-5s-6 2.24-6 5 2.69 5 6 5c.73 0 1.43-.1 2.07-.3l1.93 1.05-.42-1.57C21.13 16.99 22 15.58 22 14zm-8-1a.75.75 0 110 1.5.75.75 0 010-1.5zm4 0a.75.75 0 110 1.5.75.75 0 010-1.5z"/>
+                      </svg>
+                    )},
+                    { label: "Kakao", href: "https://pf.kakao.com/_siamdive", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
+                        <path d="M12 3C7.03 3 3 6.14 3 10c0 2.49 1.66 4.68 4.14 5.93-.13.47-.82 3.02-.85 3.21 0 0-.02.14.07.19.09.06.2.02.2.02.27-.04 3.12-2.04 3.56-2.34.93.13 1.89.2 2.88.2 4.97 0 9-3.14 9-7s-4.03-7-9-7z"/>
+                      </svg>
+                    )},
+                  ].map(c => (
+                    <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer"
+                      onClick={() => setContactOpen(false)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "9px 12px", borderRadius: 8, textDecoration: "none",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <span style={{ display: "flex", alignItems: "center" }}>{c.icon}</span>
+                      <span style={{ fontSize: 13, color: "#ccc", fontWeight: 500 }}>{c.label}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </nav>
       </header>
 
       <ArkAIChatPanel open={arkOpen} onClose={() => setArkOpen(false)} />
+      <MyPlanScreen open={planOpen} onClose={() => setPlanOpen(false)} lang={lang} />
     </>
   );
 }

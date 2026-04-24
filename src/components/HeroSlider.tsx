@@ -114,7 +114,7 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
             priority
             sizes="100vw"
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, #0d0d0d 0%, rgba(13,13,13,0.95) 18%, rgba(13,13,13,0.7) 32%, rgba(13,13,13,0.35) 45%, transparent 60%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(13,13,13,0.85) 0%, rgba(13,13,13,0.65) 15%, rgba(13,13,13,0.4) 28%, rgba(13,13,13,0.18) 40%, transparent 55%)" }} />
 
           {/* Play button — centered, only if slide has videos */}
           {slide.hasVideos && (

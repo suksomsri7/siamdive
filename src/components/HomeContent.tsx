@@ -6,12 +6,12 @@ import Link from "next/link";
 import Image from "next/image";
 import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
-import HeroSlider from "./HeroSlider";
+import HeroAI from "./HeroAI";
 import RecentlyViewedRow, { type RecentBoat } from "./RecentlyViewedRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
 import { formatDateLabel } from "@/lib/formatDate";
-import PopularPlansRow from "@/components/ark-ai/PopularPlansRow";
+
 
 export type Section = {
   id:       string;
@@ -65,27 +65,11 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           const hasSomething = section.trips.length > 0 || section.blogs.length > 0;
           if (!hasSomething) return null;
 
-          // ── FULL layout (HeroSlider) ──────────────────────────────────────
-          if (section.layout === "FULL" && section.trips.length > 0) {
+          // ── FULL layout (Hero AI) ───────────────────────────────────────
+          if (section.layout === "FULL") {
             return (
               <Fragment key={section.id}>
-                <HeroSlider
-                  lang={lang}
-                  slides={section.trips.map(t => ({
-                    slug: t.slug,
-                    title: t.title,
-                    description: t.description || "",
-                    duration: t.duration,
-                    destinationName: t.destinationName,
-                    imageUrl: t.imageUrl || "",
-                    covers: t.covers && t.covers.length ? t.covers : (t.imageUrl ? [t.imageUrl] : []),
-                    type: t.type,
-                    price: t.price,
-                    boatId: t.boatId,
-                    boatType: t.boatType,
-                    hasVideos: t.hasVideos,
-                  }))}
-                />
+                <HeroAI lang={lang} />
                 <RecentlyViewedRow
                   lang={lang}
                   refreshKey={recentKey}
@@ -349,7 +333,6 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           );
         })}
 
-        <PopularPlansRow lang={lang} />
       </div>
 
       {mounted && selected && createPortal(

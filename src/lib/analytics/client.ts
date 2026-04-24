@@ -308,7 +308,7 @@ export const trackRowClick = (rowId: string, itemType: string, itemId: string, r
 export const trackLanguageSwitch = (from: string | null, to: string) =>
   track("LANGUAGE_SWITCH", { properties: { from, to } });
 
-export type BookingChannel = "line" | "whatsapp" | "email" | "call" | "messenger" | "wechat";
+export type BookingChannel = "line" | "whatsapp" | "email" | "call" | "messenger" | "wechat" | "kakao";
 const CHANNEL_TO_TYPE: Record<BookingChannel, AnalyticsEventType> = {
   line: "BOOKING_INTENT_LINE",
   whatsapp: "BOOKING_INTENT_WHATSAPP",
@@ -316,6 +316,7 @@ const CHANNEL_TO_TYPE: Record<BookingChannel, AnalyticsEventType> = {
   call: "BOOKING_INTENT_CALL",
   messenger: "BOOKING_INTENT_MESSENGER",
   wechat: "BOOKING_INTENT_WECHAT",
+  kakao: "BOOKING_INTENT_KAKAO",
 };
 
 export const trackBookingIntent = (

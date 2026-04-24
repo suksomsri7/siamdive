@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Prompt, Inter, Geist, Noto_Sans_Osage, Bebas_Neue } from "next/font/google";
 import "./globals.css";
@@ -41,6 +41,12 @@ const bebasNeue = Bebas_Neue({
   display: "swap",
   variable: "--font-bebas",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "SIAMDIVE — ทริปดำน้ำในประเทศไทย",
