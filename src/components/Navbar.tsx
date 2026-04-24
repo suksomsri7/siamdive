@@ -19,6 +19,17 @@ const LANGS: { code: LangCode; label: string; flag: string; native: string }[] =
   { code: "ru", label: "RU", flag: "🇷🇺", native: "Русский"    },
 ];
 
+const NUDGE_TEXT: Record<string, string> = {
+  th: "ต้องการให้ช่วยหาทริปไหม?",
+  en: "Need help finding a dive trip?",
+  cn: "需要帮忙找潜水行程吗？",
+  ja: "ダイビングトリップを探すお手伝いが必要ですか？",
+  ko: "다이빙 여행을 찾는 데 도움이 필요하세요?",
+  de: "Brauchen Sie Hilfe bei der Suche nach einem Tauchtrip?",
+  fr: "Besoin d'aide pour trouver un voyage de plongée ?",
+  ru: "Нужна помощь в поиске дайвинг-поездки?",
+};
+
 
 // ── Language Dropdown ─────────────────────────────────────────────────────────
 function LangDropdown({ lang, setLang, onClose }: { lang: LangCode; setLang: (c: LangCode) => void; onClose: () => void }) {
@@ -57,13 +68,8 @@ export default function Navbar() {
   const lang: LangCode = (LANGS.find(l => l.code === urlLang) ? urlLang : "en") as LangCode;
 
   const switchLang = (newLang: LangCode) => {
-    // Persist choice in a cookie so proxy.ts prefers it over Accept-Language
-    // for any future URL without a lang prefix (e.g. sitemap entry points).
     document.cookie = `NEXT_LOCALE=${newLang};path=/;max-age=31536000;samesite=lax`;
-    // Replace /xx at the start of pathname with /newLang
     const newPath = pathname.replace(/^\/[a-z]{2}(\/|$)/, `/${newLang}$1`);
-    // replace (not push): switching language shouldn't add a back-button trap
-    // where pressing Back returns the user to the previous language.
     router.replace(newPath);
     setLangOpen(false);
   };
@@ -71,7 +77,9 @@ export default function Navbar() {
   const [scrolled,       setScrolled]       = useState(false);
   const [langOpen,       setLangOpen]       = useState(false);
   const [arkOpen,        setArkOpen]        = useState(false);
+  const [showNudge,      setShowNudge]      = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
@@ -79,7 +87,6 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  // close lang dropdown on outside click
   useEffect(() => {
     const fn = (e: MouseEvent) => {
       if (!langRef.current?.contains(e.target as Node)) {
@@ -90,11 +97,41 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
+  useEffect(() => {
+    const nudged = sessionStorage.getItem("ark-nudge-shown");
+    if (nudged) return;
+
+    nudgeTimerRef.current = setTimeout(() => {
+      if (!arkOpen) {
+        setShowNudge(true);
+        sessionStorage.setItem("ark-nudge-shown", "1");
+      }
+    }, 30000);
+
+    return () => {
+      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+    };
+  }, [arkOpen]);
+
+  useEffect(() => {
+    if (arkOpen) {
+      setShowNudge(false);
+      if (nudgeTimerRef.current) { clearTimeout(nudgeTimerRef.current); nudgeTimerRef.current = null; }
+    }
+  }, [arkOpen]);
+
   const currentLang = LANGS.find(l => l.code === lang)!;
 
 
   return (
     <>
+      <style>{`
+        @keyframes nudgeFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       <header
         className="fixed top-0 left-0 right-0 z-50"
         style={{
@@ -113,8 +150,49 @@ export default function Navbar() {
           </Link>
 
           {/* Right: Ark AI + lang dropdown */}
-          <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ArkAIButton onClick={() => setArkOpen(true)} />
+          <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+            <div style={{ position: "relative" }}>
+              <ArkAIButton onClick={() => { setArkOpen(true); setShowNudge(false); }} />
+
+              {/* Nudge tooltip */}
+              {showNudge && (
+                <div
+                  onClick={() => { setArkOpen(true); setShowNudge(false); }}
+                  style={{
+                    position: "absolute", top: "calc(100% + 10px)", right: 0,
+                    background: "rgba(30,64,175,0.95)", border: "1px solid rgba(96,165,250,0.3)",
+                    borderRadius: 10, padding: "8px 14px", whiteSpace: "nowrap",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    animation: "nudgeFadeIn 0.3s ease-out both",
+                    cursor: "pointer", zIndex: 100,
+                  }}
+                >
+                  <p style={{ fontSize: 12, color: "#e5e5e5", fontWeight: 600 }}>
+                    {NUDGE_TEXT[lang] || NUDGE_TEXT.en}
+                  </p>
+                  <div style={{
+                    position: "absolute", top: -5, right: 16,
+                    width: 10, height: 10, background: "rgba(30,64,175,0.95)",
+                    transform: "rotate(45deg)",
+                    borderLeft: "1px solid rgba(96,165,250,0.3)",
+                    borderTop: "1px solid rgba(96,165,250,0.3)",
+                  }} />
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowNudge(false); }}
+                    style={{
+                      position: "absolute", top: -6, left: -6,
+                      width: 16, height: 16, borderRadius: "50%",
+                      background: "#333", border: "none", color: "#999",
+                      fontSize: 9, cursor: "pointer", display: "flex",
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    x
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div style={{ position: "relative" }}>
               <button onClick={() => setLangOpen(v => !v)}
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "background 0.15s" }}

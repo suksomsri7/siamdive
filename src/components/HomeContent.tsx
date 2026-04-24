@@ -11,6 +11,7 @@ import RecentlyViewedRow, { type RecentBoat } from "./RecentlyViewedRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
 import { formatDateLabel } from "@/lib/formatDate";
+import PopularPlansRow from "@/components/ark-ai/PopularPlansRow";
 
 export type Section = {
   id:       string;
@@ -348,6 +349,7 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
           );
         })}
 
+        <PopularPlansRow lang={lang} />
       </div>
 
       {mounted && selected && createPortal(

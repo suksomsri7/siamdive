@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { trackChatItinerarySave, trackChatItineraryShare } from "@/lib/analytics/client";
 
 type Activity = {
   icon: string;
@@ -72,6 +73,7 @@ export default function ItineraryCard({
       });
       const result = await res.json();
       if (result.shortId) {
+        trackChatItinerarySave(result.shortId);
         const stored = JSON.parse(localStorage.getItem("ark-ai-plans") || "[]");
         stored.unshift(result.shortId);
         localStorage.setItem("ark-ai-plans", JSON.stringify(stored.slice(0, 50)));
@@ -110,6 +112,7 @@ export default function ItineraryCard({
       }
 
       if (shortId) {
+        trackChatItineraryShare(shortId);
         const url = `${location.origin}/${lang}/plan/${shortId}`;
         if (navigator.share) {
           await navigator.share({ title: data.title, text: `${data.title} — SiamDive`, url });

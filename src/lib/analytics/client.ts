@@ -331,3 +331,26 @@ export const trackBookingIntent = (
       scheduleDate: target?.scheduleDate ?? null,
     },
   });
+
+// ── Ark AI chat analytics ──
+
+export const trackChatOpen = () =>
+  track("CHAT_OPEN", { entityType: "CHAT" });
+
+export const trackChatMessage = (role: "user" | "assistant", msgLength: number) =>
+  track("CHAT_MESSAGE", { entityType: "CHAT", properties: { role, msgLength } });
+
+export const trackChatFeedback = (positive: boolean, msgIndex: number) =>
+  track("CHAT_FEEDBACK", { entityType: "CHAT", properties: { positive, msgIndex } });
+
+export const trackChatTripClick = (boatId: string, slug: string) =>
+  track("CHAT_TRIP_CLICK", { entityType: "BOAT", entityId: boatId, properties: { slug } });
+
+export const trackChatItinerarySave = (shortId: string) =>
+  track("CHAT_ITINERARY_SAVE", { entityType: "ITINERARY", entityId: shortId });
+
+export const trackChatItineraryShare = (shortId: string) =>
+  track("CHAT_ITINERARY_SHARE", { entityType: "ITINERARY", entityId: shortId });
+
+export const trackPlanView = (shortId: string) =>
+  track("PLAN_VIEW", { entityType: "ITINERARY", entityId: shortId });

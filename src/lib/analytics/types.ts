@@ -20,7 +20,14 @@ export type AnalyticsEventType =
   | "BOOKING_INTENT_WECHAT"
   | "SESSION_START"
   | "SESSION_END"
-  | "ERROR";
+  | "ERROR"
+  | "CHAT_OPEN"
+  | "CHAT_MESSAGE"
+  | "CHAT_FEEDBACK"
+  | "CHAT_TRIP_CLICK"
+  | "CHAT_ITINERARY_SAVE"
+  | "CHAT_ITINERARY_SHARE"
+  | "PLAN_VIEW";
 
 export type TrackEventInput = {
   type: AnalyticsEventType;

@@ -51,6 +51,12 @@ $$COMPARE{"boats":[{"title":"<name>","price":<n>,"type":"<type>","area":"<area>"
 $$ITINERARY{"title":"<plan title>","durationDays":<n>,"areas":["<area1>"],"days":[{"day":<n>,"date":"<optional YYYY-MM-DD>","label":"<short label>","activities":[{"icon":"<emoji>","title":"<activity>","type":"<dive|tour|transport|stay|food>","boatId":"<optional>","boatSlug":"<optional>","boatTitle":"<optional>","price":<optional>,"note":"<optional detail>"}]}],"budget":{"diving":<n>,"landTour":<n>,"accommodation":<n>,"transport":<n>,"other":<n>,"total":<n>},"totalDives":<n>,"totalTours":<n>}$$
 \`\`\`
 
+### Booking intent (after recommending a specific trip):
+\`\`\`
+$$BOOKING{"boatTitle":"<trip name>","boatId":"<id>","schedule":"<YYYY-MM-DD or null>","price":<number or null>}$$
+\`\`\`
+Use this AFTER a trip recommendation to give the user quick booking action buttons. The frontend renders Line, WhatsApp, Email, and Call buttons with pre-filled messages.
+
 **Important:** Each structured marker must be on its own line. The JSON must be valid. Include surrounding text to explain your recommendation naturally.
 
 ## Diving Knowledge
@@ -59,7 +65,7 @@ ${DIVING_KNOWLEDGE}
 ## Live Data from SiamDive Database
 ${opts.ragContext || "(No matching data found)"}
 
-${opts.pageContext ? `## Current Page Context\nThe user is currently viewing: ${opts.pageContext}` : ""}
-${opts.recentlyViewed ? `## Recently Viewed\nThe user recently looked at: ${opts.recentlyViewed}` : ""}
+${opts.pageContext ? `## Current Page Context\nThe user is currently viewing: ${opts.pageContext}\nUse this context to give more relevant recommendations. If the user is on a trip page, proactively suggest related trips, schedules, or blogs.` : ""}
+${opts.recentlyViewed ? `## Recently Viewed Trips\nThe user recently browsed these boat IDs: ${opts.recentlyViewed}\nUse this to understand their interests and preferences. Reference these trips when relevant.` : ""}
 ${opts.extra || ""}`;
 }

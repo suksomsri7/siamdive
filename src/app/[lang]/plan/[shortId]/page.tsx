@@ -13,11 +13,13 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const title = `${plan.title} — SiamDive Trip Plan`;
   const description = `${plan.durationDays}-day dive trip plan: ${plan.areas.join(", ")}. ${plan.totalDives} dives, ${plan.totalTours} tours.`;
 
+  const ogImage = `/api/og/plan?id=${shortId}`;
+
   return {
     title,
     description,
-    openGraph: { title, description, type: "article" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title, description, type: "article", images: [{ url: ogImage, width: 1200, height: 630 }] },
+    twitter: { card: "summary_large_image", title, description, images: [ogImage] },
     robots: plan.viewCount >= 5 ? "index, follow" : "noindex, nofollow",
   };
 }

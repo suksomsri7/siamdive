@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { trackChatTripClick } from "@/lib/analytics/client";
 
 type Props = {
   boatId: string;
@@ -17,7 +18,7 @@ const TYPE_LABEL: Record<string, string> = {
   FREEDIVE: "Freedive", LAND_TOUR: "Land Tour", SNORKELING: "Snorkeling",
 };
 
-export default function ChatTripCard({ title, type, price, area, slug, cover }: Props) {
+export default function ChatTripCard({ boatId, title, type, price, area, slug, cover }: Props) {
   const lang = (useParams().lang as string) || "en";
 
   return (
@@ -25,6 +26,7 @@ export default function ChatTripCard({ title, type, price, area, slug, cover }: 
       href={`/${lang}/trips/${slug}`}
       target="_blank"
       rel="noopener"
+      onClick={() => trackChatTripClick(boatId, slug)}
       style={{
         display: "flex", alignItems: "center", gap: 10,
         background: "#161616", border: "1px solid #262626", borderRadius: 10,

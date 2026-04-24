@@ -4,13 +4,17 @@ import ChatTripCard from "./ChatTripCard";
 import ChatBlogCard from "./ChatBlogCard";
 import ComparisonTable from "./ComparisonTable";
 import ItineraryCard, { type ItineraryData } from "./ItineraryCard";
+import BookingButtons from "./BookingButtons";
 
 type Props = {
   role: "user" | "assistant";
   content: string;
+  msgIndex: number;
   isStreaming?: boolean;
-  onFeedback?: (positive: boolean) => void;
+  onFeedback?: (msgIndex: number, positive: boolean) => void;
+  feedbackGiven?: boolean;
   onItinerarySave?: (data: ItineraryData) => void;
+  lang?: string;
 };
 
 type ParsedPart =
@@ -18,11 +22,12 @@ type ParsedPart =
   | { type: "trip"; data: Record<string, unknown> }
   | { type: "blog"; data: Record<string, unknown> }
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
-  | { type: "itinerary"; data: ItineraryData };
+  | { type: "itinerary"; data: ItineraryData }
+  | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } };
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const regex = /\$\$(TRIP|BLOG|COMPARE|ITINERARY)(\{[\s\S]*?\})\$\$/g;
+  const regex = /\$\$(TRIP|BLOG|COMPARE|ITINERARY|BOOKING)(\{[\s\S]*?\})\$\$/g;
   let lastIndex = 0;
   let match;
 
@@ -32,7 +37,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(match[2]);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "itinerary";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "itinerary" | "booking";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: match[0] });
@@ -50,30 +55,28 @@ function parseStructured(text: string): ParsedPart[] {
 function renderMarkdown(text: string) {
   const lines = text.split("\n");
   return lines.map((line, i) => {
-    let content: React.ReactNode = line;
-
-    content = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-    content = content.replace(/\*(.*?)\*/g, '<i>$1</i>');
+    let html = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
 
     if (line.startsWith("### ")) {
-      return <h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: content.slice(4) }} />;
+      return <h4 key={i} style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />;
     }
     if (line.startsWith("## ")) {
-      return <h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: content.slice(3) }} />;
+      return <h3 key={i} style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />;
     }
     if (line.startsWith("- ") || line.startsWith("* ")) {
-      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc" }} dangerouslySetInnerHTML={{ __html: content.slice(2) }} />;
+      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc" }} dangerouslySetInnerHTML={{ __html: html.slice(2) }} />;
     }
     if (line.match(/^\d+\. /)) {
-      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc", listStyleType: "decimal" }} dangerouslySetInnerHTML={{ __html: content.replace(/^\d+\.\s*/, '') }} />;
+      return <li key={i} style={{ marginLeft: 16, fontSize: 12, lineHeight: 1.6, color: "#ccc", listStyleType: "decimal" }} dangerouslySetInnerHTML={{ __html: html.replace(/^\d+\.\s*/, '') }} />;
     }
     if (line.trim() === "") return <br key={i} />;
 
-    return <p key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: content as string }} />;
+    return <p key={i} style={{ fontSize: 12, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />;
   });
 }
 
-export default function ChatMessage({ role, content, isStreaming, onFeedback, onItinerarySave }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onItinerarySave }: Props) {
   const isUser = role === "user";
 
   if (isUser) {
@@ -104,6 +107,8 @@ export default function ChatMessage({ role, content, isStreaming, onFeedback, on
               return <ComparisonTable key={i} boats={(part.data as any).boats || []} />;
             case "itinerary":
               return <ItineraryCard key={i} data={part.data as ItineraryData} onSave={onItinerarySave} />;
+            case "booking":
+              return <BookingButtons key={i} {...part.data as any} />;
             default:
               return <div key={i}>{renderMarkdown(part.content)}</div>;
           }
@@ -114,10 +119,32 @@ export default function ChatMessage({ role, content, isStreaming, onFeedback, on
       </div>
       {!isStreaming && content && onFeedback && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <button onClick={() => onFeedback(true)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#555", padding: "2px 4px" }} title="Good response">
+          <button
+            onClick={() => onFeedback(msgIndex, true)}
+            style={{
+              background: "none", border: "none", cursor: feedbackGiven !== undefined ? "default" : "pointer",
+              fontSize: 12, padding: "2px 4px",
+              color: feedbackGiven === true ? "#4ade80" : feedbackGiven === false ? "#333" : "#555",
+              opacity: feedbackGiven === false ? 0.4 : 1,
+              transition: "color 0.15s, opacity 0.15s",
+            }}
+            disabled={feedbackGiven !== undefined}
+            title="Good response"
+          >
             {"👍"}
           </button>
-          <button onClick={() => onFeedback(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#555", padding: "2px 4px" }} title="Bad response">
+          <button
+            onClick={() => onFeedback(msgIndex, false)}
+            style={{
+              background: "none", border: "none", cursor: feedbackGiven !== undefined ? "default" : "pointer",
+              fontSize: 12, padding: "2px 4px",
+              color: feedbackGiven === false ? "#ef4444" : feedbackGiven === true ? "#333" : "#555",
+              opacity: feedbackGiven === true ? 0.4 : 1,
+              transition: "color 0.15s, opacity 0.15s",
+            }}
+            disabled={feedbackGiven !== undefined}
+            title="Bad response"
+          >
             {"👎"}
           </button>
         </div>

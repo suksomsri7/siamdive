@@ -2,11 +2,31 @@
 
 import { useState, useEffect } from "react";
 
-const MODELS = [
-  { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fast, Cheap)" },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Balanced)" },
-  { id: "claude-opus-4-7", label: "Claude Opus 4.7 (Most Capable)" },
+type Provider = "anthropic" | "openai" | "google";
+
+const PROVIDERS: { id: Provider; label: string; keyPlaceholder: string }[] = [
+  { id: "anthropic", label: "Anthropic (Claude)", keyPlaceholder: "sk-ant-..." },
+  { id: "openai", label: "OpenAI (GPT)", keyPlaceholder: "sk-..." },
+  { id: "google", label: "Google (Gemini)", keyPlaceholder: "AIza..." },
 ];
+
+const MODELS_BY_PROVIDER: Record<Provider, { id: string; label: string }[]> = {
+  anthropic: [
+    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5 (Fast, Cheap)" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Balanced)" },
+    { id: "claude-opus-4-7", label: "Claude Opus 4.7 (Most Capable)" },
+  ],
+  openai: [
+    { id: "gpt-4o-mini", label: "GPT-4o Mini (Fast, Cheap)" },
+    { id: "gpt-4o", label: "GPT-4o (Balanced)" },
+    { id: "gpt-4.1", label: "GPT-4.1 (Most Capable)" },
+    { id: "o3-mini", label: "o3-mini (Reasoning)" },
+  ],
+  google: [
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Fast)" },
+    { id: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro (Balanced)" },
+  ],
+};
 
 type Config = {
   provider: string;
@@ -21,6 +41,7 @@ type Config = {
 
 export default function AiConfigPage() {
   const [config, setConfig] = useState<Config | null>(null);
+  const [provider, setProvider] = useState<Provider>("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("claude-haiku-4-5-20251001");
   const [maxTokens, setMaxTokens] = useState(1024);
@@ -37,6 +58,7 @@ export default function AiConfigPage() {
       .then(r => r.json())
       .then((c: Config) => {
         setConfig(c);
+        setProvider((c.provider as Provider) || "anthropic");
         setModel(c.model);
         setMaxTokens(c.maxTokens);
         setRateLimit(c.rateLimit);
@@ -46,10 +68,16 @@ export default function AiConfigPage() {
       .catch(() => {});
   }, []);
 
+  const handleProviderChange = (p: Provider) => {
+    setProvider(p);
+    const models = MODELS_BY_PROVIDER[p];
+    if (models.length > 0) setModel(models[0].id);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
-    const body: Record<string, unknown> = { model, maxTokens, rateLimit, temperature, systemPromptExtra: extra };
+    const body: Record<string, unknown> = { provider, model, maxTokens, rateLimit, temperature, systemPromptExtra: extra };
     if (apiKey) body.apiKey = apiKey;
     await fetch("/api/ark-ai/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setApiKey("");
@@ -79,6 +107,9 @@ export default function AiConfigPage() {
 
   const labelStyle: React.CSSProperties = { fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6, display: "block" };
 
+  const currentProvider = PROVIDERS.find(p => p.id === provider)!;
+  const models = MODELS_BY_PROVIDER[provider] || [];
+
   if (!config) return <div style={{ padding: 40, color: "#666" }}>Loading...</div>;
 
   return (
@@ -87,9 +118,32 @@ export default function AiConfigPage() {
       <p style={{ fontSize: 12, color: "#666", marginBottom: 24 }}>Manage AI chat settings for the Ark AI trip planner.</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Provider */}
+        <div>
+          <label style={labelStyle}>AI Provider</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {PROVIDERS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleProviderChange(p.id)}
+                style={{
+                  flex: 1, padding: "10px 8px", borderRadius: 8,
+                  border: provider === p.id ? "1px solid #3b82f6" : "1px solid #333",
+                  background: provider === p.id ? "rgba(59,130,246,0.15)" : "#1a1a1a",
+                  color: provider === p.id ? "#60a5fa" : "#888",
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* API Key */}
         <div>
-          <label style={labelStyle}>Anthropic API Key</label>
+          <label style={labelStyle}>{currentProvider.label} API Key</label>
           {config.hasApiKey && (
             <p style={{ fontSize: 11, color: "#4ade80", marginBottom: 6 }}>Current: {config.apiKeyPreview}</p>
           )}
@@ -97,7 +151,7 @@ export default function AiConfigPage() {
             type="password"
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            placeholder={config.hasApiKey ? "Enter new key to replace..." : "sk-ant-..."}
+            placeholder={config.hasApiKey ? "Enter new key to replace..." : currentProvider.keyPlaceholder}
             style={inputStyle}
           />
         </div>
@@ -106,11 +160,11 @@ export default function AiConfigPage() {
         <div>
           <label style={labelStyle}>Model</label>
           <select value={model} onChange={e => setModel(e.target.value)} style={inputStyle}>
-            {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            {models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </div>
 
-        {/* Max Tokens */}
+        {/* Max Tokens + Rate Limit */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={labelStyle}>Max Tokens</label>

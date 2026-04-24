@@ -4,6 +4,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, usePathname } from "next/navigation";
 import ChatMessage from "./ChatMessage";
 import SuggestionChips from "./SuggestionChips";
+import { readRecentBoats } from "@/lib/recentlyViewed";
+import {
+  trackChatOpen,
+  trackChatMessage,
+  trackChatFeedback,
+} from "@/lib/analytics/client";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -18,6 +24,16 @@ const WELCOME: Record<string, string> = {
   ru: "Привет! Я Ark — ваш AI-планировщик дайвинг-путешествий по Таиланду.\n\nРасскажите, где хотите понырять, когда, какой бюджет, или я могу спланировать всю поездку!",
 };
 
+function detectPageContext(pathname: string): string | undefined {
+  const tripMatch = pathname.match(/\/trips\/([^/]+)/);
+  if (tripMatch) return `trip:${tripMatch[1]}`;
+  const blogMatch = pathname.match(/\/blogs\/([^/]+)/);
+  if (blogMatch) return `blog:${blogMatch[1]}`;
+  const planMatch = pathname.match(/\/plan\/([^/]+)/);
+  if (planMatch) return `plan:${planMatch[1]}`;
+  return pathname;
+}
+
 export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const params = useParams();
   const pathname = usePathname();
@@ -29,9 +45,18 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [streaming, setStreaming] = useState(false);
   const [savedPlans, setSavedPlans] = useState<string[]>([]);
   const [plansData, setPlansData] = useState<Record<string, unknown>[]>([]);
+  const [feedbackState, setFeedbackState] = useState<Record<number, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const trackedOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (open && !trackedOpenRef.current) {
+      trackChatOpen();
+      trackedOpenRef.current = true;
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && tab === "plans") {
@@ -60,6 +85,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     }
   }, [messages, streaming]);
 
+  const handleFeedback = useCallback((msgIndex: number, positive: boolean) => {
+    setFeedbackState(prev => ({ ...prev, [msgIndex]: positive }));
+    trackChatFeedback(positive, msgIndex);
+  }, []);
+
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
     const userMsg: Msg = { role: "user", content: text.trim() };
@@ -68,8 +98,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     setInput("");
     setStreaming(true);
 
+    trackChatMessage("user", text.trim().length);
+
     const assistantMsg: Msg = { role: "assistant", content: "" };
     setMessages([...newMessages, assistantMsg]);
+
+    const recentBoatIds = readRecentBoats();
+    const pageContext = detectPageContext(pathname);
 
     try {
       abortRef.current = new AbortController();
@@ -79,7 +114,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         body: JSON.stringify({
           messages: newMessages,
           lang,
-          pageContext: pathname,
+          pageContext,
+          recentlyViewed: recentBoatIds.length ? recentBoatIds.slice(0, 10).join(",") : undefined,
         }),
         signal: abortRef.current.signal,
       });
@@ -132,6 +168,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           } catch {}
         }
       }
+
+      trackChatMessage("assistant", accumulated.length);
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages(prev => {
@@ -226,7 +264,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 {/* Welcome */}
                 {messages.length === 0 && (
                   <div style={{ padding: "8px 0" }}>
-                    <ChatMessage role="assistant" content={WELCOME[lang] || WELCOME.en} />
+                    <ChatMessage role="assistant" content={WELCOME[lang] || WELCOME.en} msgIndex={-1} />
                     <SuggestionChips lang={lang} onSelect={sendMessage} />
                   </div>
                 )}
@@ -236,8 +274,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                     key={i}
                     role={msg.role}
                     content={msg.content}
+                    msgIndex={i}
                     isStreaming={streaming && i === messages.length - 1 && msg.role === "assistant"}
-                    onFeedback={msg.role === "assistant" && !streaming ? () => {} : undefined}
+                    onFeedback={msg.role === "assistant" && !streaming ? handleFeedback : undefined}
+                    feedbackGiven={feedbackState[i]}
+                    lang={lang}
                   />
                 ))}
               </div>

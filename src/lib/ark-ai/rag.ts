@@ -165,25 +165,58 @@ export async function getServiceAreas(lang: Lang) {
   }));
 }
 
-export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blogs: RagBlog[]): string {
+function scoreMatch(text: string, keywords: string[]): number {
+  const lower = text.toLowerCase();
+  return keywords.reduce((s, kw) => s + (lower.includes(kw) ? 1 : 0), 0);
+}
+
+export function extractKeywords(query: string): string[] {
+  const stop = new Set(["the","a","an","is","are","to","for","in","on","of","and","or","i","me","my","want","like","can","do","what","how","which","where","when","ไหม","ไหน","อะไร","ที่","ของ","และ","หรือ","ได้","มี","ไป","อยาก","ผม","ฉัน","ครับ","ค่ะ","คะ","นะ","จะ","ให้","กัน","เรา","คือ","ตอน"]);
+  return query.toLowerCase().split(/[\s,;.!?]+/).filter(w => w.length > 1 && !stop.has(w));
+}
+
+export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blogs: RagBlog[], query?: string): string {
   const parts: string[] = [];
+  const kw = query ? extractKeywords(query) : [];
 
   if (boats.length) {
-    parts.push("## Available Trips/Boats\n" + boats.map(b =>
-      `- [${b.type}] ${b.title} | Area: ${b.area} | Price from ฿${b.minPrice.toLocaleString()} | slug: ${b.slug} | id: ${b.id}`
+    const scored = boats.map(b => ({
+      b,
+      score: kw.length ? scoreMatch(`${b.title} ${b.type} ${b.area} ${b.name} ${b.excerpt}`, kw) : 0,
+    }));
+    scored.sort((a, b) => b.score - a.score);
+
+    parts.push("## Available Trips/Boats\n" + scored.map(({ b, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}[${b.type}] ${b.title} | Area: ${b.area} | Price from ฿${b.minPrice.toLocaleString()} | slug: ${b.slug} | id: ${b.id}${b.cover ? ` | cover: ${b.cover}` : ""}`
     ).join("\n"));
   }
 
   if (schedules.length) {
-    parts.push("## Upcoming Schedules\n" + schedules.map(s =>
-      `- ${s.boatTitle} | ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | ฿${s.minPrice.toLocaleString()} | ${s.status} | area: ${s.area}`
+    const scored = schedules.map(s => ({
+      s,
+      score: kw.length ? scoreMatch(`${s.boatTitle} ${s.area}`, kw) : 0,
+    }));
+    scored.sort((a, b) => b.score - a.score);
+
+    parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}${s.boatTitle} | ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | ฿${s.minPrice.toLocaleString()} | ${s.status} | area: ${s.area} | boatId: ${s.boatId} | boatSlug: ${s.boatSlug}`
     ).join("\n"));
   }
 
   if (blogs.length) {
-    parts.push("## Related Blog Articles\n" + blogs.map(b =>
-      `- "${b.title}" | slug: ${b.slug} | id: ${b.id} | keywords: ${b.keywords.join(", ")}`
+    const scored = blogs.map(b => ({
+      b,
+      score: kw.length ? scoreMatch(`${b.title} ${b.excerpt} ${b.keywords.join(" ")}`, kw) : 0,
+    }));
+    scored.sort((a, b) => b.score - a.score);
+
+    parts.push("## Related Blog Articles\n" + scored.map(({ b, score }) =>
+      `- ${score > 0 ? "⭐ " : ""}"${b.title}" | slug: ${b.slug} | id: ${b.id}${b.cover ? ` | cover: ${b.cover}` : ""} | keywords: ${b.keywords.join(", ")}`
     ).join("\n"));
+  }
+
+  if (kw.length) {
+    parts.unshift("_Items marked with ⭐ are most relevant to the user's query. Prioritize these in your recommendations._\n");
   }
 
   return parts.join("\n\n");
