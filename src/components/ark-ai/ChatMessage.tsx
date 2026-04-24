@@ -145,34 +145,42 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         )}
       </div>
       {!isStreaming && content && onFeedback && (
-        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
           <button
             onClick={() => onFeedback(msgIndex, true)}
-            style={{
-              background: "none", border: "none", cursor: feedbackGiven !== undefined ? "default" : "pointer",
-              fontSize: 12, padding: "2px 4px",
-              color: feedbackGiven === true ? "#4ade80" : feedbackGiven === false ? "#333" : "#555",
-              opacity: feedbackGiven === false ? 0.4 : 1,
-              transition: "color 0.15s, opacity 0.15s",
-            }}
             disabled={feedbackGiven !== undefined}
             title="Good response"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28, borderRadius: 6,
+              background: feedbackGiven === true ? "rgba(255,255,255,0.12)" : "transparent",
+              border: `1px solid ${feedbackGiven === true ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+              cursor: feedbackGiven !== undefined ? "default" : "pointer",
+              opacity: feedbackGiven === false ? 0.25 : 1,
+              transition: "all 0.15s",
+            }}
           >
-            {"👍"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === true ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 10v12"/><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3.13 3.13 0 013 3.88z"/>
+            </svg>
           </button>
           <button
             onClick={() => onFeedback(msgIndex, false)}
-            style={{
-              background: "none", border: "none", cursor: feedbackGiven !== undefined ? "default" : "pointer",
-              fontSize: 12, padding: "2px 4px",
-              color: feedbackGiven === false ? "#ef4444" : feedbackGiven === true ? "#333" : "#555",
-              opacity: feedbackGiven === true ? 0.4 : 1,
-              transition: "color 0.15s, opacity 0.15s",
-            }}
             disabled={feedbackGiven !== undefined}
             title="Bad response"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 28, height: 28, borderRadius: 6,
+              background: feedbackGiven === false ? "rgba(255,255,255,0.12)" : "transparent",
+              border: `1px solid ${feedbackGiven === false ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+              cursor: feedbackGiven !== undefined ? "default" : "pointer",
+              opacity: feedbackGiven === true ? 0.25 : 1,
+              transition: "all 0.15s",
+            }}
           >
-            {"👎"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === false ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 14V2"/><path d="M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z"/>
+            </svg>
           </button>
         </div>
       )}
