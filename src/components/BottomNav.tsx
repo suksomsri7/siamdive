@@ -74,10 +74,12 @@ export default function BottomNav() {
                 position: "relative",
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9.5C3 7 5 5.5 7.5 5.5h9C19 5.5 21 7 21 9.5v3c0 2.5-2 4-4.5 4h-1l-1.5 2h-4l-1.5-2h-1C5 16.5 3 15 3 12.5v-3z"/>
-                <circle cx="8.5" cy="11" r="2.8"/>
-                <circle cx="15.5" cy="11" r="2.8"/>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="1" y1="10" x2="4" y2="10"/>
+                <line x1="20" y1="10" x2="23" y2="10"/>
+                <path d="M4 8c0-1.66 1.34-3 3-3h10c1.66 0 3 1.34 3 3v4c0 1.66-1.34 3-3 3h-1.5L14 17.5h-4L8.5 15H7c-1.66 0-3-1.34-3-3V8z"/>
+                <circle cx="8.5" cy="10" r="2.8"/>
+                <circle cx="15.5" cy="10" r="2.8"/>
               </svg>
             </button>
           </div>

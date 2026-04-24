@@ -114,7 +114,7 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
             priority
             sizes="100vw"
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(13,13,13,0.85) 0%, rgba(13,13,13,0.65) 15%, rgba(13,13,13,0.4) 28%, rgba(13,13,13,0.18) 40%, transparent 55%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(13,13,13,0.7) 0%, rgba(13,13,13,0.45) 12%, rgba(13,13,13,0.2) 24%, transparent 40%)" }} />
 
           {/* Play button — centered, only if slide has videos */}
           {slide.hasVideos && (
@@ -155,7 +155,15 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
           className="relative h-full flex items-end px-4 sm:px-10"
           style={{ paddingBottom: "10vh", transition: "opacity 0.4s ease", opacity: fading ? 0 : 1 }}
         >
-          <div style={{ maxWidth: 520 }}>
+          <div style={{
+            maxWidth: 520,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(20px) saturate(1.3)",
+            WebkitBackdropFilter: "blur(20px) saturate(1.3)",
+            borderRadius: 18,
+            padding: "22px 26px",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14 }}>
               {slide.boatType ? (BOAT_TYPE_LABEL[slide.boatType] || slide.boatType) : "Featured Trip"}
             </p>
@@ -164,10 +172,10 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
             </h1>
             <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 13, marginBottom: 14 }}>
               <span style={{ color: "#60a5fa", fontWeight: 700 }}>Top Pick</span>
-              <span style={{ color: "#888" }}>{slide.duration}</span>
-              <span style={{ color: "#888" }}>{slide.destinationName}</span>
+              <span style={{ color: "#ccc" }}>{slide.duration}</span>
+              <span style={{ color: "#ccc" }}>{slide.destinationName}</span>
             </div>
-            <p style={{ color: "#bbb", fontSize: 14, lineHeight: 1.65, marginBottom: 24, maxWidth: 420, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            <p style={{ color: "#ddd", fontSize: 14, lineHeight: 1.65, marginBottom: 24, maxWidth: 420, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
               {slide.description}
             </p>
             <div style={{ display: "flex", gap: 10 }}>
