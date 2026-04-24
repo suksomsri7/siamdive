@@ -114,7 +114,7 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
             priority
             sizes="100vw"
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(13,13,13,0.7) 0%, rgba(13,13,13,0.45) 12%, rgba(13,13,13,0.2) 24%, transparent 40%)" }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(13,13,13,0.5) 0%, rgba(13,13,13,0.2) 10%, transparent 25%)" }} />
 
           {/* Play button — centered, only if slide has videos */}
           {slide.hasVideos && (
@@ -157,12 +157,13 @@ export default function HeroSlider({ slides, lang = "en" }: { slides: Slide[]; l
         >
           <div style={{
             maxWidth: 520,
-            background: "rgba(0,0,0,0.35)",
-            backdropFilter: "blur(20px) saturate(1.3)",
-            WebkitBackdropFilter: "blur(20px) saturate(1.3)",
+            background: "rgba(255,255,255,0.06)",
+            backdropFilter: "blur(24px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.4)",
             borderRadius: 18,
             padding: "22px 26px",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
           }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14 }}>
               {slide.boatType ? (BOAT_TYPE_LABEL[slide.boatType] || slide.boatType) : "Featured Trip"}

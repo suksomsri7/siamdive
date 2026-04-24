@@ -74,12 +74,8 @@ export default function BottomNav() {
                 position: "relative",
               }}
             >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="1" y1="10" x2="4" y2="10"/>
-                <line x1="20" y1="10" x2="23" y2="10"/>
-                <path d="M4 8c0-1.66 1.34-3 3-3h10c1.66 0 3 1.34 3 3v4c0 1.66-1.34 3-3 3h-1.5L14 17.5h-4L8.5 15H7c-1.66 0-3-1.34-3-3V8z"/>
-                <circle cx="8.5" cy="10" r="2.8"/>
-                <circle cx="15.5" cy="10" r="2.8"/>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" clipRule="evenodd">
+                <path d="M1.25 10a.75.75 0 01.75-.75H4V8a3 3 0 013-3h10a3 3 0 013 3v1.25h2a.75.75 0 010 1.5h-2V12a3 3 0 01-3 3h-1.28l-1.22 2.04a1 1 0 01-.86.46h-2.28a1 1 0 01-.86-.46L9.28 15H8a3 3 0 01-3-3v-1.25H2a.75.75 0 01-.75-.75zM8.5 7a3 3 0 100 6 3 3 0 000-6zm7 0a3 3 0 100 6 3 3 0 000-6z"/>
               </svg>
             </button>
           </div>
