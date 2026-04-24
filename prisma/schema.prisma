@@ -725,6 +725,44 @@ model AnalyticsDaily {
   @@index([entityType, entityId, date])
 }
 
+// ── AiConfig ─────────────────────────────────────────────────────────────────
+// Singleton (id = "default") — AI chat configuration managed via backoffice
+
+model AiConfig {
+  id                String   @id @default("default")
+  provider          String   @default("anthropic")
+  apiKeyEncrypted   String   @default("")
+  model             String   @default("claude-haiku-4-5-20251001")
+  maxTokens         Int      @default(1024)
+  rateLimit         Int      @default(20)
+  temperature       Float    @default(0.7)
+  systemPromptExtra String   @default("")
+  updatedAt         DateTime @updatedAt
+}
+
+// ── Itinerary ────────────────────────────────────────────────────────────────
+
+model Itinerary {
+  id           String   @id @default(cuid())
+  shortId      String   @unique
+  title        String
+  lang         String   @default("th")
+  days         Json
+  budget       Json
+  boatIds      String[]
+  blogIds      String[]
+  totalDives   Int      @default(0)
+  totalTours   Int      @default(0)
+  areas        String[]
+  durationDays Int      @default(1)
+  viewCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([viewCount, createdAt])
+  @@index([expiresAt])
+}
+
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum BlogStatus {

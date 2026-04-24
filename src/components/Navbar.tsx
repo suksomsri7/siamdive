@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import ArkAIButton from "./ark-ai/ArkAIButton";
+import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
@@ -68,6 +70,7 @@ export default function Navbar() {
 
   const [scrolled,       setScrolled]       = useState(false);
   const [langOpen,       setLangOpen]       = useState(false);
+  const [arkOpen,        setArkOpen]        = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,8 +112,9 @@ export default function Navbar() {
             <span style={{ color: "#3b82f6" }}>DIVE</span>
           </Link>
 
-          {/* Right: lang dropdown */}
-          <div ref={langRef} style={{ display: "flex", alignItems: "center" }}>
+          {/* Right: Ark AI + lang dropdown */}
+          <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ArkAIButton onClick={() => setArkOpen(true)} />
             <div style={{ position: "relative" }}>
               <button onClick={() => setLangOpen(v => !v)}
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", cursor: "pointer", transition: "background 0.15s" }}
@@ -127,6 +131,7 @@ export default function Navbar() {
         </nav>
       </header>
 
+      <ArkAIChatPanel open={arkOpen} onClose={() => setArkOpen(false)} />
     </>
   );
 }
