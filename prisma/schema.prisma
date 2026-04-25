@@ -763,6 +763,36 @@ model Itinerary {
   @@index([expiresAt])
 }
 
+// ── PlanUser ─────────────────────────────────────────────────────────────────
+// Anonymous user identified by deviceId, optionally linked by email
+
+model PlanUser {
+  id        String     @id @default(cuid())
+  deviceId  String     @unique
+  email     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  plans     UserPlan[]
+
+  @@index([email])
+}
+
+// ── UserPlan ─────────────────────────────────────────────────────────────────
+// Multiple plans per user, synced between localStorage and DB
+
+model UserPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  user      PlanUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String   @default("My Plan")
+  startDate String?
+  trips     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
 enum BlogStatus {

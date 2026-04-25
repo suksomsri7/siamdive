@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
 
   const watermarks = await prisma.watermark.findMany({ orderBy: { order: "asc" } });
 
-  // If no default set but watermarks exist, use first one
-  if (!branding.defaultWatermarkId && watermarks.length > 0) {
+  // Only auto-default on first-ever watermark creation (no rows existed before migration block above)
+  if (!branding.defaultWatermarkId && watermarks.length === 1 && watermarks[0].name === "Default") {
     branding = await prisma.siteBranding.update({
       where: { id: "default" },
       data: { defaultWatermarkId: watermarks[0].id },

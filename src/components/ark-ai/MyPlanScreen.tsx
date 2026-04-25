@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { getPlan, setStartDate, removeTrip, clearPlan, type MyPlan, type PlanTrip } from "@/lib/plan-store";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  getPlans, getActivePlan, switchPlan, createPlan, renamePlan, deletePlan,
+  setStartDate, removeTrip, clearPlan, getSavedEmail,
+  type UserPlan, type PlanTrip,
+} from "@/lib/plan-store";
+import EmailPrompt from "./EmailPrompt";
 
 type Props = {
   open: boolean;
@@ -16,9 +21,19 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export default function MyPlanScreen({ open, onClose, lang }: Props) {
-  const [plan, setPlan] = useState<MyPlan>({ startDate: null, trips: [] });
+  const [plans, setPlans] = useState<UserPlan[]>([]);
+  const [activePlan, setActivePlan] = useState<UserPlan | null>(null);
+  const [showSelector, setShowSelector] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailMode, setEmailMode] = useState<"save" | "recover">("save");
+  const renameRef = useRef<HTMLInputElement>(null);
 
-  const refresh = useCallback(() => setPlan(getPlan()), []);
+  const refresh = useCallback(() => {
+    setPlans(getPlans());
+    setActivePlan(getActivePlan());
+  }, []);
 
   useEffect(() => {
     if (open) refresh();
@@ -51,6 +66,46 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (renaming && renameRef.current) {
+      renameRef.current.focus();
+      renameRef.current.select();
+    }
+  }, [renaming]);
+
+  const isTh = lang === "th";
+
+  const handleSwitch = (id: string) => {
+    switchPlan(id);
+    setShowSelector(false);
+    refresh();
+  };
+
+  const handleCreate = () => {
+    const count = plans.length + 1;
+    createPlan(isTh ? `แพลน ${count}` : `Plan ${count}`);
+    setShowSelector(false);
+    refresh();
+  };
+
+  const handleRenameStart = (plan: UserPlan) => {
+    setRenaming(plan.id);
+    setRenameValue(plan.name);
+  };
+
+  const handleRenameEnd = () => {
+    if (renaming && renameValue.trim()) {
+      renamePlan(renaming, renameValue.trim());
+    }
+    setRenaming(null);
+    refresh();
+  };
+
+  const handleDelete = (planId: string) => {
+    deletePlan(planId);
+    refresh();
+  };
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStartDate(e.target.value || null);
     refresh();
@@ -65,8 +120,6 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
     clearPlan();
     refresh();
   };
-
-  const isTh = lang === "th";
 
   if (!open) return null;
 
@@ -95,10 +148,29 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
               <path d="M9 14l2 2 4-4" />
             </svg>
           </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>My Plan</p>
-          </div>
-          {plan.trips.length > 0 && (
+
+          {/* Plan name — tap to show selector */}
+          <button
+            onClick={() => setShowSelector(!showSelector)}
+            style={{ flex: 1, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 }}
+          >
+            <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>
+              {activePlan?.name || "My Plan"}
+            </p>
+            {plans.length > 0 && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: showSelector ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            )}
+            {plans.length > 1 && (
+              <span style={{ fontSize: 10, color: "#555", background: "#1a1a1a", padding: "1px 6px", borderRadius: 6, fontWeight: 600 }}>
+                {plans.length}
+              </span>
+            )}
+          </button>
+
+          {activePlan && activePlan.trips.length > 0 && (
             <button onClick={handleClear}
               style={{ background: "none", border: "1px solid #333", color: "#666", padding: "4px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
               {isTh ? "ล้าง" : "Clear"}
@@ -106,9 +178,74 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
           )}
         </div>
 
+        {/* Plan Selector Dropdown */}
+        {showSelector && (
+          <div style={{ borderBottom: "1px solid #1a1a1a", background: "#0f0f0f", padding: "8px 16px", flexShrink: 0 }}>
+            {plans.map((p) => (
+              <div key={p.id} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                borderRadius: 8, marginBottom: 4, cursor: "pointer",
+                background: p.id === activePlan?.id ? "rgba(59,130,246,0.1)" : "transparent",
+                border: p.id === activePlan?.id ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent",
+              }}>
+                {renaming === p.id ? (
+                  <input
+                    ref={renameRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={handleRenameEnd}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRenameEnd(); }}
+                    style={{
+                      flex: 1, background: "#1a1a1a", border: "1px solid #333", borderRadius: 6,
+                      color: "#f5f5f5", fontSize: 13, padding: "4px 8px", fontFamily: "inherit", outline: "none",
+                    }}
+                  />
+                ) : (
+                  <div style={{ flex: 1, minWidth: 0 }} onClick={() => handleSwitch(p.id)}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: p.id === activePlan?.id ? "#60a5fa" : "#ccc" }}>
+                      {p.name}
+                    </p>
+                    <p style={{ fontSize: 10, color: "#555" }}>
+                      {(p.trips as PlanTrip[]).length} {isTh ? "ทริป" : "trips"}
+                    </p>
+                  </div>
+                )}
+
+                {renaming !== p.id && (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); handleRenameStart(p); }}
+                      style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 4, display: "flex" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/>
+                      </svg>
+                    </button>
+                    {plans.length > 1 && (
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }}
+                        style={{ background: "none", border: "none", color: "#555", cursor: "pointer", padding: 4, display: "flex" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+
+            <button onClick={handleCreate}
+              style={{
+                width: "100%", padding: "10px 0", borderRadius: 8, marginTop: 4,
+                border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)",
+                color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}>
+              + {isTh ? "สร้างแพลนใหม่" : "New Plan"}
+            </button>
+          </div>
+        )}
+
         {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
-          {plan.trips.length === 0 ? (
+          {!activePlan || activePlan.trips.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 16px", textAlign: "center" }}>
               <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(59,130,246,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -129,6 +266,12 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 style={{ marginTop: 24, padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                 {isTh ? "ให้ AI แนะนำทริป" : "Ask AI for trips"}
               </button>
+              {!getSavedEmail() && (
+                <button onClick={() => { setEmailMode("recover"); setEmailOpen(true); }}
+                  style={{ marginTop: 16, background: "none", border: "none", color: "#555", fontSize: 12, cursor: "pointer" }}>
+                  {isTh ? "เคยบันทึกแพลนไว้? กู้คืน" : "Have saved plans? Restore"}
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -139,7 +282,7 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 </label>
                 <input
                   type="date"
-                  value={plan.startDate || ""}
+                  value={activePlan.startDate || ""}
                   onChange={handleDateChange}
                   min={new Date().toISOString().split("T")[0]}
                   style={{
@@ -155,11 +298,11 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
 
               {/* Trip list */}
               <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
-                {isTh ? `ทริปในแพลน (${plan.trips.length})` : `Trips (${plan.trips.length})`}
+                {isTh ? `ทริปในแพลน (${activePlan.trips.length})` : `Trips (${activePlan.trips.length})`}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {plan.trips.map((trip, idx) => (
-                  <TripRow key={trip.boatId} trip={trip} index={idx} startDate={plan.startDate} lang={lang} onRemove={handleRemove} />
+                {activePlan.trips.map((trip, idx) => (
+                  <TripRow key={trip.boatId} trip={trip} index={idx} startDate={activePlan.startDate} lang={lang} onRemove={handleRemove} />
                 ))}
               </div>
 
@@ -173,8 +316,37 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 + {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
               </button>
 
+              {/* Save email banner */}
+              {!getSavedEmail() && (
+                <div style={{
+                  marginTop: 20, background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.15)",
+                  borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10,
+                }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(59,130,246,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#ccc" }}>
+                      {isTh ? "บันทึกแพลนถาวร" : "Save plans permanently"}
+                    </p>
+                    <p style={{ fontSize: 11, color: "#666" }}>
+                      {isTh ? "เข้าถึงจากทุกเครื่อง" : "Access from any device"}
+                    </p>
+                  </div>
+                  <button onClick={() => { setEmailMode("save"); setEmailOpen(true); }}
+                    style={{
+                      padding: "6px 14px", borderRadius: 8, border: "none",
+                      background: "#1e40af", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                    }}>
+                    {isTh ? "ใส่อีเมล" : "Add email"}
+                  </button>
+                </div>
+              )}
+
               {/* Contact CTA */}
-              <div style={{ marginTop: 24, background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 20, textAlign: "center" }}>
+              <div style={{ marginTop: 20, background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 20, textAlign: "center" }}>
                 <p style={{ fontSize: 14, color: "#ccc", fontWeight: 600, marginBottom: 4 }}>
                   {isTh ? "พร้อมจองแล้ว?" : "Ready to book?"}
                 </p>
@@ -197,6 +369,8 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
             </>
           )}
         </div>
+
+        <EmailPrompt open={emailOpen} onClose={() => setEmailOpen(false)} lang={lang} mode={emailMode} />
       </div>
     </>
   );

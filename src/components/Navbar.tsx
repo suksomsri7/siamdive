@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
 import MyPlanScreen from "./ark-ai/MyPlanScreen";
+import { initPlanStore } from "@/lib/plan-store";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
@@ -68,6 +69,8 @@ export default function Navbar() {
   const [planOpen,       setPlanOpen]       = useState(false);
   const [contactOpen,    setContactOpen]    = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { initPlanStore(); }, []);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
