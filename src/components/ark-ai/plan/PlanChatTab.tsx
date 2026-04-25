@@ -122,10 +122,10 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: 300 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Pinned */}
       {pinnedMessages.length > 0 && (
-        <div style={{ padding: "8px 0", borderBottom: "1px solid #1a1a1a", marginBottom: 8 }}>
+        <div style={{ padding: "8px 16px", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
           {pinnedMessages.map((m) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
               <span style={{ fontSize: 10, color: "#f59e0b" }}>📌</span>
@@ -138,9 +138,9 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, paddingBottom: 12 }}>
+      <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px" }}>
         {messages.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 16px" }}>
+          <div style={{ textAlign: "center", padding: "40px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💬</div>
             <p style={{ fontSize: 14, color: "#555" }}>
               {isTh ? "เริ่มแชทกับเพื่อนร่วมทริป" : "Start chatting with your trip crew"}
@@ -189,8 +189,9 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
       {/* Input */}
       <div style={{
         display: "flex", gap: 8, alignItems: "center",
-        padding: "8px 0", paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+        padding: "8px 16px", paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
         borderTop: "1px solid #1a1a1a",
+        flexShrink: 0, background: "#0a0a0a",
       }}>
         <input
           value={text}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { renamePlan, removeTrip, getPlans, type PlanTrip } from "@/lib/plan-store";
 import PlanMembers from "./PlanMembers";
 import PlanMediaTab from "./PlanMediaTab";
@@ -39,6 +39,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [nameValue, setNameValue] = useState("");
   const [showMembers, setShowMembers] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const isTh = lang === "th";
 
@@ -55,7 +57,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
 
-  // Also sync from local store for trips
   useEffect(() => {
     const handler = () => {
       const localPlans = getPlans();
@@ -97,6 +98,29 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     }
   };
 
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("deviceId", deviceId);
+      const uploadRes = await fetch("/api/plans/upload", { method: "POST", body: form });
+      if (!uploadRes.ok) return;
+      const { url } = await uploadRes.json();
+      await fetch(`/api/plans/${planId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId, coverUrl: url }),
+      });
+      setPlan((prev) => prev ? { ...prev, coverUrl: url } : prev);
+    } catch {} finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  };
+
   if (!plan) {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -116,6 +140,29 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     { key: "media", label: isTh ? "รูป" : "Media", icon: "📷", count: plan.media.length },
     { key: "chat", label: isTh ? "แชท" : "Chat", icon: "💬", count: plan.chatCount },
   ];
+
+  const tabsBar = (
+    <div style={{ display: "flex", borderBottom: "1px solid #1a1a1a", padding: "0 16px", flexShrink: 0 }}>
+      {tabs.map((t) => (
+        <button key={t.key} onClick={() => setTab(t.key)} style={{
+          flex: 1, padding: "10px 0", background: "none", border: "none",
+          borderBottom: tab === t.key ? "2px solid #3b82f6" : "2px solid transparent",
+          color: tab === t.key ? "#f5f5f5" : "#555",
+          fontSize: 11, fontWeight: 700, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+          transition: "color 0.15s",
+        }}>
+          <span>{t.icon}</span>
+          <span>{t.label}</span>
+          {t.count !== undefined && t.count > 0 && (
+            <span style={{ fontSize: 9, background: tab === t.key ? "#1e40af" : "#222", color: tab === t.key ? "#fff" : "#666", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
+              {t.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -153,152 +200,157 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         </button>
       </div>
 
-      {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
-        {/* Hero */}
-        <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "linear-gradient(135deg, #0f172a, #1e3a5f)" }}>
-          {cover && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          )}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,0.3) 50%, transparent 100%)" }} />
-          <div style={{ position: "absolute", bottom: 12, left: 16, right: 16 }}>
-            <p style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{plan.name}</p>
-            <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-              {trips.length} {isTh ? "ทริป" : "trips"} · {plan.members.length + 1} {isTh ? "สมาชิก" : "members"}
-            </p>
-          </div>
-        </div>
+      <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={handleCoverUpload} />
 
-        {/* Members strip */}
-        <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
-          {/* Owner avatar */}
-          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", border: "2px solid #3b82f6" }}>
-            {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
-          </div>
-          {plan.members.slice(0, 5).map((m) => (
-            <div key={m.id} style={{ width: 28, height: 28, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#888", border: "2px solid #333" }}>
-              {(m.name || m.email)[0].toUpperCase()}
+      {tab === "chat" ? (
+        <>
+          {tabsBar}
+          <PlanChatTab planId={planId} deviceId={deviceId} lang={lang} />
+        </>
+      ) : (
+        <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
+          {/* Hero */}
+          <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "linear-gradient(135deg, #0f172a, #1e3a5f)" }}>
+            {cover && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,0.3) 50%, transparent 100%)" }} />
+            {isOwner && (
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover}
+                style={{
+                  position: "absolute", top: 10, right: 10,
+                  width: 34, height: 34, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                {uploadingCover ? (
+                  <div style={{ width: 16, height: 16, border: "2px solid #555", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                )}
+              </button>
+            )}
+            <div style={{ position: "absolute", bottom: 12, left: 16, right: 16 }}>
+              <p style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{plan.name}</p>
+              <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                {trips.length} {isTh ? "ทริป" : "trips"} · {plan.members.length + 1} {isTh ? "สมาชิก" : "members"}
+              </p>
             </div>
-          ))}
-          {isOwner && (
-            <button onClick={() => setShowMembers(true)} style={{
-              width: 28, height: 28, borderRadius: "50%", background: "transparent",
-              border: "2px dashed #333", display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "#555", fontSize: 14,
-            }}>
-              +
-            </button>
-          )}
-        </div>
+          </div>
 
-        {/* Tabs */}
-        <div style={{ display: "flex", borderBottom: "1px solid #1a1a1a", padding: "0 16px" }}>
-          {tabs.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              flex: 1, padding: "10px 0", background: "none", border: "none",
-              borderBottom: tab === t.key ? "2px solid #3b82f6" : "2px solid transparent",
-              color: tab === t.key ? "#f5f5f5" : "#555",
-              fontSize: 11, fontWeight: 700, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-              transition: "color 0.15s",
-            }}>
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-              {t.count !== undefined && t.count > 0 && (
-                <span style={{ fontSize: 9, background: tab === t.key ? "#1e40af" : "#222", color: tab === t.key ? "#fff" : "#666", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+          {/* Members strip */}
+          <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", border: "2px solid #3b82f6" }}>
+              {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
+            </div>
+            {plan.members.slice(0, 5).map((m) => (
+              <div key={m.id} style={{ width: 28, height: 28, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#888", border: "2px solid #333" }}>
+                {(m.name || m.email)[0].toUpperCase()}
+              </div>
+            ))}
+            {isOwner && (
+              <button onClick={() => setShowMembers(true)} style={{
+                width: 28, height: 28, borderRadius: "50%", background: "transparent",
+                border: "2px dashed #333", display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: "#555", fontSize: 14,
+              }}>
+                +
+              </button>
+            )}
+          </div>
 
-        {/* Tab content */}
-        <div style={{ padding: "16px" }}>
-          {tab === "itinerary" && (
-            <div>
-              {trips.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 16px" }}>
-                  <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
-                    {isTh ? "ยังไม่มีทริปในแพลน" : "No trips yet"}
-                  </p>
-                  <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
-                    style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                    {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {trips.map((trip, idx) => (
-                    <div key={trip.boatId} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 12,
-                    }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{idx + 1}</span>
-                      </div>
-                      {trip.cover ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={trip.cover} alt="" style={{ width: 52, height: 40, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 52, height: 40, background: "#1a1a2e", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                          🤿
-                        </div>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {trip.area && <p style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
-                        <p style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
-                      </div>
-                      {canEdit && (
-                        <button onClick={() => handleRemoveTrip(trip.boatId)}
-                          style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #262626", background: "transparent", color: "#555", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
+          {tabsBar}
 
-                  {canEdit && (
+          {/* Tab content */}
+          <div style={{ padding: "16px" }}>
+            {tab === "itinerary" && (
+              <div>
+                {trips.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 16px" }}>
+                    <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
+                      {isTh ? "ยังไม่มีทริปในแพลน" : "No trips yet"}
+                    </p>
                     <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
-                      style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)", color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
-                      + {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
+                      style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                      {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
                     </button>
-                  )}
-
-                  {/* Summary */}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                    <span style={{ fontSize: 11, color: "#60a5fa", background: "rgba(96,165,250,0.1)", padding: "4px 10px", borderRadius: 8 }}>
-                      🤿 {trips.filter((t) => ["DAYTRIP", "LIVEABOARD", "DIVE_RESORT", "FREEDIVE"].includes(t.type)).length} {isTh ? "ทริปดำน้ำ" : "dive trips"}
-                    </span>
-                    {trips.some((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING") && (
-                      <span style={{ fontSize: 11, color: "#10b981", background: "rgba(16,185,129,0.1)", padding: "4px 10px", borderRadius: 8 }}>
-                        🏝 {trips.filter((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING").length} {isTh ? "ทัวร์" : "tours"}
-                      </span>
-                    )}
-                    <span style={{ fontSize: 11, color: "#888", background: "#1a1a1a", padding: "4px 10px", borderRadius: 8 }}>
-                      👤 {plan.members.length + 1} {isTh ? "คน" : "people"}
-                    </span>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {trips.map((trip, idx) => (
+                      <div key={trip.boatId} style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 12,
+                      }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{idx + 1}</span>
+                        </div>
+                        {trip.cover ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={trip.cover} alt="" style={{ width: 52, height: 40, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 52, height: 40, background: "#1a1a2e", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                            🤿
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {trip.area && <p style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
+                          <p style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
+                        </div>
+                        {canEdit && (
+                          <button onClick={() => handleRemoveTrip(trip.boatId)}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #262626", background: "transparent", color: "#555", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
 
-          {tab === "media" && (
-            <PlanMediaTab planId={planId} deviceId={deviceId} lang={lang} media={plan.media} canEdit={canEdit} onRefresh={fetchPlan} />
-          )}
+                    {canEdit && (
+                      <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
+                        style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)", color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
+                        + {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
+                      </button>
+                    )}
 
-          {tab === "checklist" && (
-            <PlanChecklistTab planId={planId} deviceId={deviceId} lang={lang} checklists={plan.checklists} members={plan.members} canEdit={canEdit} onRefresh={fetchPlan} />
-          )}
+                    {/* Summary */}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                      <span style={{ fontSize: 11, color: "#60a5fa", background: "rgba(96,165,250,0.1)", padding: "4px 10px", borderRadius: 8 }}>
+                        🤿 {trips.filter((t) => ["DAYTRIP", "LIVEABOARD", "DIVE_RESORT", "FREEDIVE"].includes(t.type)).length} {isTh ? "ทริปดำน้ำ" : "dive trips"}
+                      </span>
+                      {trips.some((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING") && (
+                        <span style={{ fontSize: 11, color: "#10b981", background: "rgba(16,185,129,0.1)", padding: "4px 10px", borderRadius: 8 }}>
+                          🏝 {trips.filter((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING").length} {isTh ? "ทัวร์" : "tours"}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 11, color: "#888", background: "#1a1a1a", padding: "4px 10px", borderRadius: 8 }}>
+                        👤 {plan.members.length + 1} {isTh ? "คน" : "people"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-          {tab === "chat" && (
-            <PlanChatTab planId={planId} deviceId={deviceId} lang={lang} />
-          )}
+            {tab === "media" && (
+              <PlanMediaTab planId={planId} deviceId={deviceId} lang={lang} media={plan.media} canEdit={canEdit} onRefresh={fetchPlan} />
+            )}
+
+            {tab === "checklist" && (
+              <PlanChecklistTab planId={planId} deviceId={deviceId} lang={lang} checklists={plan.checklists} members={plan.members} canEdit={canEdit} onRefresh={fetchPlan} />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Members modal */}
       {showMembers && (
