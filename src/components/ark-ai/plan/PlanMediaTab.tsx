@@ -84,52 +84,7 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
 
   return (
     <div>
-      {/* Upload button */}
-      {canEdit && (
-        <div style={{ marginBottom: 16 }}>
-          {uploading && progress ? (
-            <div style={{
-              width: "100%", borderRadius: 10,
-              border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.05)",
-              padding: "10px 14px",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa" }}>
-                  {isTh ? "กำลังอัพโหลด" : "Uploading"} {progress.total > 1 ? `${progress.current}/${progress.total}` : ""}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa" }}>{progress.percent}%</span>
-              </div>
-              <div style={{ width: "100%", height: 6, background: "#1a1a2e", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{
-                  height: "100%", borderRadius: 3,
-                  background: "linear-gradient(90deg, #1e40af, #3b82f6)",
-                  width: `${progress.percent}%`,
-                  transition: "width 0.15s ease",
-                }} />
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => fileRef.current?.click()}
-              style={{
-                width: "100%", padding: "14px 0", borderRadius: 10,
-                border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)",
-                color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer",
-              }}
-            >
-              {isTh ? "📷 อัพโหลดรูป/วิดีโอ" : "📷 Upload Photo/Video"}
-            </button>
-          )}
-        </div>
-      )}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        style={{ display: "none" }}
-        onChange={(e) => e.target.files?.length && handleUpload(e.target.files)}
-      />
+      {/* Upload hidden for now */}
 
       {/* Gallery grid */}
       {media.length === 0 ? (
@@ -139,7 +94,7 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
             {isTh ? "ยังไม่มีรูปในแพลน" : "No photos yet"}
           </p>
           <p style={{ fontSize: 12, color: "#333", marginTop: 4 }}>
-            {isTh ? "อัพโหลดรูปและวิดีโอแชร์กับเพื่อนร่วมทริป" : "Upload photos and videos to share with your trip crew"}
+            {isTh ? "เร็วๆ นี้" : "Coming soon"}
           </p>
         </div>
       ) : (
