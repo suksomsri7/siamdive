@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getPlans, getActivePlan, switchPlan, createPlan, renamePlan, deletePlan,
-  setStartDate, removeTrip, clearPlan,
+  removeTrip, clearPlan,
   type UserPlan, type PlanTrip,
 } from "@/lib/plan-store";
 
@@ -75,11 +75,6 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
 
   const handleDelete = (planId: string) => {
     deletePlan(planId);
-    refresh();
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStartDate(e.target.value || null);
     refresh();
   };
 
@@ -209,30 +204,10 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
     <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
       {selectorHeader}
 
-      {/* Date picker */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          {isTh ? "วันเริ่มต้นทริป" : "Trip start date"}
-        </label>
-        <input
-          type="date"
-          value={activePlan.startDate || ""}
-          onChange={handleDateChange}
-          min={new Date().toISOString().split("T")[0]}
-          style={{
-            display: "block", width: "100%", marginTop: 6,
-            padding: "10px 12px", borderRadius: 10,
-            background: "#161616", border: "1px solid #262626",
-            color: "#f5f5f5", fontSize: 14, fontFamily: "inherit",
-            outline: "none", colorScheme: "dark",
-          }}
-        />
-      </div>
-
       {/* Trip list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {activePlan.trips.map((trip, idx) => (
-          <TripRow key={trip.boatId} trip={trip} index={idx} startDate={activePlan.startDate} lang={lang} onRemove={handleRemove} />
+          <TripRow key={trip.boatId} trip={trip} index={idx} lang={lang} onRemove={handleRemove} />
         ))}
       </div>
 
@@ -244,32 +219,13 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
         </button>
       </div>
 
-      {/* Contact CTA */}
-      <div style={{ marginTop: 20, background: "#111118", border: "1px solid #1e1e2e", borderRadius: 12, padding: 16, textAlign: "center" }}>
-        <p style={{ fontSize: 13, color: "#ccc", marginBottom: 8 }}>
-          {isTh ? "พร้อมจองแล้ว? ติดต่อเราเลย" : "Ready to book? Contact us"}
-        </p>
-        <a href="https://lin.ee/wayWuGH" target="_blank" rel="noopener noreferrer"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "10px 24px", borderRadius: 10, border: "none",
-            background: "#06c755", color: "#fff", fontSize: 13, fontWeight: 700,
-            textDecoration: "none",
-          }}>
-          💬 {isTh ? "จองผ่าน Line" : "Book via Line"}
-        </a>
-      </div>
     </div>
   );
 }
 
-function TripRow({ trip, index, startDate, lang, onRemove }: {
-  trip: PlanTrip; index: number; startDate: string | null; lang: string; onRemove: (id: string) => void;
+function TripRow({ trip, index, lang, onRemove }: {
+  trip: PlanTrip; index: number; lang: string; onRemove: (id: string) => void;
 }) {
-  const dayLabel = startDate
-    ? new Date(new Date(startDate).getTime() + index * 86400000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
-    : `Day ${index + 1}`;
-
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -289,7 +245,6 @@ function TripRow({ trip, index, startDate, lang, onRemove }: {
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 9, color: "#666" }}>{dayLabel}</p>
         {trip.area && <p style={{ fontSize: 8, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
         <p style={{ fontSize: 12, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
         <p style={{ fontSize: 9, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>

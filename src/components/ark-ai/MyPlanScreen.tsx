@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getPlans, getActivePlan, switchPlan, createPlan, renamePlan, deletePlan,
-  setStartDate, removeTrip, clearPlan, getSavedEmail,
+  removeTrip, clearPlan, getSavedEmail,
   type UserPlan, type PlanTrip,
 } from "@/lib/plan-store";
 import EmailPrompt from "./EmailPrompt";
@@ -103,11 +103,6 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
 
   const handleDelete = (planId: string) => {
     deletePlan(planId);
-    refresh();
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStartDate(e.target.value || null);
     refresh();
   };
 
@@ -275,34 +270,13 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
             </div>
           ) : (
             <>
-              {/* Date picker */}
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {isTh ? "วันเริ่มต้นทริป" : "Trip start date"}
-                </label>
-                <input
-                  type="date"
-                  value={activePlan.startDate || ""}
-                  onChange={handleDateChange}
-                  min={new Date().toISOString().split("T")[0]}
-                  style={{
-                    display: "block", width: "100%", marginTop: 6,
-                    padding: "12px 14px", borderRadius: 10,
-                    background: "#111", border: "1px solid #222",
-                    color: "#f5f5f5", fontSize: 15, fontFamily: "inherit",
-                    outline: "none", colorScheme: "dark",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-
               {/* Trip list */}
               <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
                 {isTh ? `ทริปในแพลน (${activePlan.trips.length})` : `Trips (${activePlan.trips.length})`}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {activePlan.trips.map((trip, idx) => (
-                  <TripRow key={trip.boatId} trip={trip} index={idx} startDate={activePlan.startDate} lang={lang} onRemove={handleRemove} />
+                  <TripRow key={trip.boatId} trip={trip} index={idx} lang={lang} onRemove={handleRemove} />
                 ))}
               </div>
 
@@ -345,27 +319,6 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 </div>
               )}
 
-              {/* Contact CTA */}
-              <div style={{ marginTop: 20, background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 20, textAlign: "center" }}>
-                <p style={{ fontSize: 14, color: "#ccc", fontWeight: 600, marginBottom: 4 }}>
-                  {isTh ? "พร้อมจองแล้ว?" : "Ready to book?"}
-                </p>
-                <p style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
-                  {isTh ? "ส่งแพลนนี้ให้ทีมงาน เราจัดให้ครบ" : "Send this plan to our team"}
-                </p>
-                <a href="https://lin.ee/wayWuGH" target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "12px 28px", borderRadius: 10, border: "none",
-                    background: "#06c755", color: "#fff", fontSize: 14, fontWeight: 700,
-                    textDecoration: "none",
-                  }}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" width={18} height={18}>
-                    <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755z"/>
-                  </svg>
-                  {isTh ? "จองผ่าน Line" : "Book via Line"}
-                </a>
-              </div>
             </>
           )}
         </div>
@@ -376,13 +329,9 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
   );
 }
 
-function TripRow({ trip, index, startDate, lang, onRemove }: {
-  trip: PlanTrip; index: number; startDate: string | null; lang: string; onRemove: (id: string) => void;
+function TripRow({ trip, index, lang, onRemove }: {
+  trip: PlanTrip; index: number; lang: string; onRemove: (id: string) => void;
 }) {
-  const dayLabel = startDate
-    ? new Date(new Date(startDate).getTime() + index * 86400000).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
-    : null;
-
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
@@ -402,7 +351,6 @@ function TripRow({ trip, index, startDate, lang, onRemove }: {
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        {dayLabel && <p style={{ fontSize: 10, color: "#555" }}>{dayLabel}</p>}
         {trip.area && <p style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
         <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
         <p style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
