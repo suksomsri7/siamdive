@@ -7,28 +7,28 @@ type L = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
 const T = {
   title: {
-    en: "Plan Your Thailand Dive Trip with AI",
-    th: "วางแผนทริปดำน้ำในไทยด้วย AI",
-    cn: "用 AI 规划你的泰国潜水之旅",
-    ja: "AI でタイのダイビング旅行を計画",
-    ko: "AI 로 태국 다이빙 여행 계획하기",
-    de: "Planen Sie Ihren Thailand-Tauchtrip mit AI",
-    fr: "Planifiez votre plongée en Thaïlande avec AI",
-    ru: "Спланируйте дайвинг в Таиланде с AI",
+    en: "Plan Your Thailand Dive Trip Easier",
+    th: "วางแผนทริปดำน้ำในไทยง่ายขึ้น",
+    cn: "更轻松地规划泰国潜水之旅",
+    ja: "タイのダイビング旅行をもっと簡単に",
+    ko: "태국 다이빙 여행을 더 쉽게 계획하기",
+    de: "Planen Sie Ihren Thailand-Tauchtrip einfacher",
+    fr: "Planifiez votre plongée en Thaïlande plus facilement",
+    ru: "Планируйте дайвинг в Таиланде проще",
   },
   subtitle: {
-    en: "Trained on 100+ guides by Thai divemasters",
-    th: "เรียนรู้จากคู่มือกว่า 100+ เล่มโดย Divemaster ไทย",
-    cn: "基于 100+ 泰国潜水教练指南训练",
-    ja: "タイのダイブマスターによる 100 以上のガイドで訓練",
-    ko: "태국 다이브마스터의 100+ 가이드로 학습",
-    de: "Trainiert mit 100+ Guides thailändischer Tauchlehrer",
-    fr: "Entraîné sur 100+ guides de moniteurs thaïlandais",
-    ru: "Обучен на 100+ руководствах тайских дайвмастеров",
+    en: "AI that understands Thai seas — by Local Divemasters",
+    th: "ด้วย AI ที่เข้าใจทะเลไทย โดย Local Divemaster",
+    cn: "懂泰国海域的 AI — 由当地潜水教练打造",
+    ja: "タイの海を知る AI — 現地ダイブマスター監修",
+    ko: "태국 바다를 아는 AI — 현지 다이브마스터 제작",
+    de: "KI, die Thailands Meere kennt — von lokalen Tauchlehrern",
+    fr: "IA qui connaît les mers thaïlandaises — par des moniteurs locaux",
+    ru: "ИИ, который знает тайские моря — от местных дайвмастеров",
   },
   cta: {
-    en: "Ask Siam AI", th: "ถาม Siam AI", cn: "问 Siam AI", ja: "Siam AI に聞く",
-    ko: "Siam AI 에게 물어보기", de: "Siam AI fragen", fr: "Demander à Siam AI", ru: "Спросить Siam AI",
+    en: "Plan", th: "วางแผน", cn: "规划", ja: "計画する",
+    ko: "계획하기", de: "Planen", fr: "Planifier", ru: "Планировать",
   },
 } as const;
 
@@ -198,11 +198,11 @@ export default function HeroAI({ lang }: { lang: string }) {
         </p>
 
         <div style={{
-          background: "rgba(255,255,255,0.18)", borderRadius: 14,
+          background: "rgba(255,255,255,0.08)", borderRadius: 16,
           padding: 3, marginBottom: 20, textAlign: "left",
-          border: "1px solid rgba(255,255,255,0.25)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
+          border: "none",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
         }}>
           <textarea
             value={text}

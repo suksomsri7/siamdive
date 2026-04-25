@@ -25,6 +25,14 @@ export type RagBoat = {
   packages: RagPackage[];
 };
 
+export type RagSchedulePackage = {
+  title: string;
+  excerpt: string;
+  tiers: { tier: string; price: number }[];
+  isFull: boolean;
+  seats: number | null;
+};
+
 export type RagSchedule = {
   id: string;
   boatId: string;
@@ -35,6 +43,7 @@ export type RagSchedule = {
   status: string;
   minPrice: number;
   area: string;
+  packages: RagSchedulePackage[];
 };
 
 export type RagBlog = {
@@ -122,8 +131,13 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
       },
       packages: {
         include: {
-          package: { include: { priceTiers: { select: { regularPrice: true, salePrice: true } } } },
-          priceTiers: { select: { regularPrice: true, salePrice: true } },
+          package: {
+            include: {
+              translations: { select: { lang: true, title: true, excerpt: true } },
+              priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
+            },
+          },
+          priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
         },
       },
     },
@@ -141,6 +155,20 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
       const defaults = sp.package.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
       return overrides.length ? overrides : defaults;
     });
+    const pkgs: RagSchedulePackage[] = s.packages.map(sp => {
+      const pt = pick(sp.package.translations, lang);
+      const tiers = (sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers).map(t => ({
+        tier: t.tier,
+        price: t.salePrice ?? t.regularPrice,
+      })).filter(t => t.price > 0);
+      return {
+        title: pt?.title || sp.package.name,
+        excerpt: pt?.excerpt || "",
+        tiers,
+        isFull: sp.isFull,
+        seats: sp.availableSeats,
+      };
+    });
     return {
       id: s.id,
       boatId: s.boat.id,
@@ -151,6 +179,7 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
       status: s.status,
       minPrice: allPrices.length ? Math.min(...allPrices) : 0,
       area: area?.name || "",
+      packages: pkgs,
     };
   });
 }
@@ -227,9 +256,17 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}"`
-    ).join("\n"));
+    parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) => {
+      let line = `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}" | scheduleId: "${s.id}"`;
+      if (s.packages.length) {
+        line += `\n  Packages for this schedule:`;
+        s.packages.forEach(p => {
+          const tierInfo = p.tiers.map(t => `${t.tier}`).join(", ");
+          line += `\n    • "${p.title}"${p.excerpt ? ` — ${p.excerpt}` : ""}${tierInfo ? ` [tiers: ${tierInfo}]` : ""}${p.isFull ? " ❌FULL" : ""}${p.seats != null ? ` (${p.seats} seats left)` : ""}`;
+        });
+      }
+      return line;
+    }).join("\n\n"));
   }
 
   if (blogs.length) {

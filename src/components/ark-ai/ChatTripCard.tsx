@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trackChatTripClick } from "@/lib/analytics/client";
-import { addTrip, hasTripInPlan } from "@/lib/plan-store";
+import { hasTripInPlan } from "@/lib/plan-store";
 
 type Props = {
   boatId: string;
@@ -13,6 +13,7 @@ type Props = {
   area: string;
   slug: string;
   cover: string | null;
+  onSelectTrip?: (trip: { boatId: string; title: string; slug: string; type: string; area: string; cover: string | null }) => void;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -23,10 +24,16 @@ const TYPE_LABEL: Record<string, string> = {
 
 const coverCache = new Map<string, string>();
 
-export default function ChatTripCard({ boatId, title, type, area, slug, cover }: Props) {
+export default function ChatTripCard({ boatId, title, type, area, slug, cover, onSelectTrip }: Props) {
   const lang = (useParams().lang as string) || "en";
   const [inPlan, setInPlan] = useState(() => hasTripInPlan(boatId));
   const [imgSrc, setImgSrc] = useState<string | null>(cover || coverCache.get(boatId) || null);
+
+  useEffect(() => {
+    const fn = () => setInPlan(hasTripInPlan(boatId));
+    window.addEventListener("myplan-change", fn);
+    return () => window.removeEventListener("myplan-change", fn);
+  }, [boatId]);
 
   useEffect(() => {
     if (imgSrc || !boatId) return;
@@ -43,8 +50,10 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover }:
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const added = addTrip({ boatId, title, slug, type, area, cover: imgSrc });
-    if (added) setInPlan(true);
+    if (inPlan) return;
+    if (onSelectTrip) {
+      onSelectTrip({ boatId, title, slug, type, area, cover: imgSrc });
+    }
   };
 
   return (
@@ -85,21 +94,33 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover }:
         </span>
       </div>
 
-      {/* Add to plan button */}
+      {/* Add to plan button — prominent */}
       <button
         onClick={handleAdd}
         disabled={inPlan}
         style={{
-          position: "absolute", top: 5, right: 5, width: 22, height: 22,
-          borderRadius: "50%", border: "none", cursor: inPlan ? "default" : "pointer",
-          background: inPlan ? "rgba(74,222,128,0.9)" : "rgba(255,255,255,0.2)",
+          position: "absolute", top: 4, right: 4,
+          width: 28, height: 28,
+          borderRadius: "50%",
+          border: inPlan ? "2px solid rgba(74,222,128,0.6)" : "2px solid rgba(255,255,255,0.5)",
+          cursor: inPlan ? "default" : "pointer",
+          background: inPlan ? "rgba(74,222,128,0.85)" : "rgba(59,130,246,0.85)",
           backdropFilter: "blur(4px)",
-          color: "#fff", fontSize: 13, fontWeight: 700,
+          color: "#fff",
+          fontSize: 16,
+          fontWeight: 700,
           display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background 0.15s",
+          transition: "transform 0.15s, background 0.15s",
+          boxShadow: inPlan ? "none" : "0 2px 8px rgba(59,130,246,0.4)",
         }}
+        onMouseEnter={e => { if (!inPlan) e.currentTarget.style.transform = "scale(1.15)"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
       >
-        {inPlan ? "✓" : "+"}
+        {inPlan ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        )}
       </button>
 
       {/* Bottom info */}

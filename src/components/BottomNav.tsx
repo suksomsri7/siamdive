@@ -74,10 +74,7 @@ export default function BottomNav() {
                 position: "relative",
               }}
             >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 8.5C4 6.57 5.57 5 7.5 5h9C18.43 5 20 6.57 20 8.5v3c0 1.93-1.57 3.5-3.5 3.5H15l-1.5 2.5h-3L9 15H7.5C5.57 15 4 13.43 4 11.5v-3z"/>
-                <path d="M20 9h2M4 9H2"/>
-              </svg>
+              <img src="/ai-mask.png" alt="AI" width={28} height={28} style={{ filter: "brightness(1.1)" }} />
             </button>
           </div>
 

@@ -1,9 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { useParams } from "next/navigation";
 import ChatTripCard from "./ChatTripCard";
 import ChatBlogCard from "./ChatBlogCard";
 import ComparisonTable from "./ComparisonTable";
 import BookingButtons from "./BookingButtons";
+import PackageTable from "./PackageTable";
+import TripSchedulePicker from "./TripSchedulePicker";
 
 type Props = {
   role: "user" | "assistant";
@@ -15,12 +19,22 @@ type Props = {
   lang?: string;
 };
 
+type SelectedTrip = {
+  boatId: string;
+  title: string;
+  slug: string;
+  type: string;
+  area: string;
+  cover: string | null;
+};
+
 type ParsedPart =
   | { type: "text"; content: string }
   | { type: "trip"; data: Record<string, unknown> }
   | { type: "blog"; data: Record<string, unknown> }
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
-  | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } };
+  | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } }
+  | { type: "packages"; data: { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] } };
 
 function extractBalancedJson(text: string, start: number): string | null {
   if (text[start] !== "{") return null;
@@ -41,7 +55,7 @@ function extractBalancedJson(text: string, start: number): string | null {
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING)\{/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES)\{/g;
   let lastIndex = 0;
   let match;
 
@@ -57,7 +71,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(jsonStr);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
@@ -85,6 +99,10 @@ function cleanText(text: string): string {
 function renderMarkdown(rawText: string) {
   const text = cleanText(rawText);
   const lines = text.split("\n");
+
+  while (lines.length && lines[0].trim() === "") lines.shift();
+  while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+
   const elements: React.ReactNode[] = [];
   let i = 0;
 
@@ -95,11 +113,11 @@ function renderMarkdown(rawText: string) {
     html = html.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
     if (line.startsWith("### ")) {
-      elements.push(<h4 key={i} style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", margin: "8px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />);
+      elements.push(<h4 key={i} style={{ fontSize: 15, fontWeight: 700, color: "#f5f5f5", margin: "6px 0 2px" }} dangerouslySetInnerHTML={{ __html: html.slice(4) }} />);
       i++; continue;
     }
     if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", margin: "10px 0 4px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />);
+      elements.push(<h3 key={i} style={{ fontSize: 16, fontWeight: 700, color: "#f5f5f5", margin: "6px 0 2px" }} dangerouslySetInnerHTML={{ __html: html.slice(3) }} />);
       i++; continue;
     }
     if (line.startsWith("- ") || line.startsWith("* ")) {
@@ -115,9 +133,13 @@ function renderMarkdown(rawText: string) {
       i++; continue;
     }
 
-    if (line.trim() === "") { elements.push(<br key={i} />); i++; continue; }
+    if (line.trim() === "") {
+      if (i > 0 && lines[i - 1]?.trim() === "") { i++; continue; }
+      elements.push(<div key={i} style={{ height: 4 }} />);
+      i++; continue;
+    }
 
-    elements.push(<p key={i} style={{ fontSize: 14, lineHeight: 1.6, color: "#ccc", margin: "2px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
+    elements.push(<p key={i} style={{ fontSize: 14, lineHeight: 1.6, color: "#ccc", margin: "1px 0" }} dangerouslySetInnerHTML={{ __html: html }} />);
     i++;
   }
 
@@ -126,6 +148,8 @@ function renderMarkdown(rawText: string) {
 
 export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven }: Props) {
   const isUser = role === "user";
+  const lang = (useParams().lang as string) || "en";
+  const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
 
   if (isUser) {
     return (
@@ -152,20 +176,35 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
 
   const afterTripTexts: string[] = [];
 
+  const handleSelectTrip = (trip: SelectedTrip) => {
+    setSelectedTrip(prev => prev?.boatId === trip.boatId ? null : trip);
+  };
+
   parts.forEach((part, i) => {
     if (part.type === "trip") {
       if (!tripRowPlaced) {
         rendered.push(
           <div key="trip-row" className="ark-trip-row" style={{
             display: "flex", gap: 8, overflowX: "auto", overflowY: "visible",
-            padding: "8px 0 8px",
+            padding: "4px 0",
             scrollbarWidth: "none",
           }}>
             {allTrips.map((t, j) => (
-              <ChatTripCard key={j} {...t as any} />
+              <ChatTripCard key={j} {...t as any} onSelectTrip={handleSelectTrip} />
             ))}
           </div>
         );
+        if (selectedTrip) {
+          rendered.push(
+            <TripSchedulePicker
+              key={`picker-${selectedTrip.boatId}`}
+              {...selectedTrip}
+              lang={lang}
+              onClose={() => setSelectedTrip(null)}
+              onAdded={() => setTimeout(() => setSelectedTrip(null), 1200)}
+            />
+          );
+        }
         tripRowPlaced = true;
       }
       return;
@@ -189,6 +228,9 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         break;
       case "booking":
         rendered.push(<BookingButtons key={i} {...part.data as any} />);
+        break;
+      case "packages":
+        rendered.push(<PackageTable key={i} {...part.data as any} />);
         break;
       default:
         rendered.push(<div key={i}>{renderMarkdown(part.content)}</div>);

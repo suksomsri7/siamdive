@@ -19,7 +19,7 @@ export default function ChatBlogCard({ title, slug, excerpt, cover }: Props) {
       style={{
         display: "flex", alignItems: "center", gap: 12,
         background: "#161616", border: "1px solid #262626", borderRadius: 12,
-        padding: 12, margin: "8px 0", textDecoration: "none",
+        padding: 12, margin: "4px 0 2px", textDecoration: "none",
         transition: "border-color 0.15s",
       }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = "#60a5fa")}

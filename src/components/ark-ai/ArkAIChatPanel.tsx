@@ -130,6 +130,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [feedbackState, setFeedbackState] = useState<Record<number, boolean>>({});
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -180,11 +181,24 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     };
   }, [open]);
 
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current && !showScrollBtn) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streaming]);
+  }, [messages, streaming, showScrollBtn]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distFromBottom > 80);
+  }, []);
 
   const handleFeedback = useCallback((msgIndex: number, positive: boolean) => {
     setFeedbackState(prev => ({ ...prev, [msgIndex]: positive }));
@@ -320,9 +334,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             </svg>
           </button>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #1e40af, #3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff">
-              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" opacity="0.9"/>
-            </svg>
+            <img src="/ai-mask.png" alt="AI" width={18} height={18} />
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5" }}>SIAM AI</p>
@@ -342,7 +354,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
+        <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", position: "relative" }}>
           {messages.length === 0 && (
             <div style={{ padding: "8px 0" }}>
               <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
@@ -362,6 +374,36 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             />
           ))}
         </div>
+
+        {/* Scroll to bottom */}
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            style={{
+              position: "absolute",
+              bottom: 80,
+              right: 20,
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "1px solid #262626",
+              background: "rgba(13,17,23,0.9)",
+              backdropFilter: "blur(8px)",
+              color: "#60a5fa",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+              transition: "opacity 0.2s",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        )}
 
         {/* Input */}
         <div style={{ padding: "10px 16px", paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #1a1a1a", flexShrink: 0, touchAction: "manipulation" }}>

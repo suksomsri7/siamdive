@@ -764,12 +764,13 @@ model Itinerary {
 }
 
 // ── PlanUser ─────────────────────────────────────────────────────────────────
-// Anonymous user identified by deviceId, optionally linked by email
 
 model PlanUser {
   id        String     @id @default(cuid())
   deviceId  String     @unique
   email     String?
+  name      String?
+  avatarUrl String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   plans     UserPlan[]
@@ -778,19 +779,140 @@ model PlanUser {
 }
 
 // ── UserPlan ─────────────────────────────────────────────────────────────────
-// Multiple plans per user, synced between localStorage and DB
 
 model UserPlan {
   id        String   @id @default(cuid())
+  shortId   String   @unique @default(cuid())
   userId    String
   user      PlanUser @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String   @default("My Plan")
-  startDate String?
+  coverUrl  String?
+  status    PlanStatus @default(PLANNING)
   trips     Json     @default("[]")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  members    PlanMember[]
+  media      PlanMedia[]
+  checklists PlanChecklist[]
+  chatMessages PlanChat[]
+  notes      PlanNote[]
+  activities PlanActivity[]
+
   @@index([userId])
+  @@index([shortId])
+}
+
+// ── PlanMember ───────────────────────────────────────────────────────────────
+
+model PlanMember {
+  id        String     @id @default(cuid())
+  planId    String
+  plan      UserPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  email     String
+  name      String?
+  avatarUrl String?
+  role      PlanRole   @default(VIEWER)
+  certLevel String?
+  joinedAt  DateTime   @default(now())
+
+  @@unique([planId, email])
+  @@index([planId])
+  @@index([email])
+}
+
+// ── PlanMedia ────────────────────────────────────────────────────────────────
+
+model PlanMedia {
+  id          String    @id @default(cuid())
+  planId      String
+  plan        UserPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  url         String
+  thumbUrl    String?
+  type        MediaType @default(PHOTO)
+  uploadedBy  String
+  caption     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([planId, createdAt])
+}
+
+// ── PlanChecklist ────────────────────────────────────────────────────────────
+
+model PlanChecklist {
+  id         String   @id @default(cuid())
+  planId     String
+  plan       UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  category   String
+  item       String
+  assignedTo String?
+  checked    Boolean  @default(false)
+  checkedBy  String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([planId])
+}
+
+// ── PlanChat ─────────────────────────────────────────────────────────────────
+
+model PlanChat {
+  id          String   @id @default(cuid())
+  planId      String
+  plan        UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  authorEmail String
+  authorName  String?
+  message     String
+  imageUrl    String?
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([planId, createdAt])
+}
+
+// ── PlanNote ─────────────────────────────────────────────────────────────────
+
+model PlanNote {
+  id          String   @id @default(cuid())
+  planId      String
+  plan        UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tripIndex   Int?
+  content     String
+  authorEmail String
+  createdAt   DateTime @default(now())
+
+  @@index([planId])
+}
+
+// ── PlanActivity ─────────────────────────────────────────────────────────────
+
+model PlanActivity {
+  id         String   @id @default(cuid())
+  planId     String
+  plan       UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  action     String
+  actorEmail String
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  @@index([planId, createdAt])
+}
+
+enum PlanStatus {
+  PLANNING
+  CONFIRMED
+  COMPLETED
+}
+
+enum PlanRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
 }
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
