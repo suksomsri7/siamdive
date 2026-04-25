@@ -18,21 +18,44 @@ type Props = {
 
 export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, onRefresh }: Props) {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
   const [viewer, setViewer] = useState<MediaItem | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isTh = lang === "th";
 
+  const uploadFile = (form: FormData): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/plans/upload");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setProgress((prev) => prev ? { ...prev, percent: Math.round((e.loaded / e.total) * 100) } : null);
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          try { resolve(JSON.parse(xhr.responseText).url); } catch { resolve(null); }
+        } else { resolve(null); }
+      };
+      xhr.onerror = () => resolve(null);
+      xhr.send(form);
+    });
+  };
+
   const handleUpload = async (files: FileList) => {
     setUploading(true);
+    const fileArray = Array.from(files);
     try {
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setProgress({ current: i + 1, total: fileArray.length, percent: 0 });
+
         const form = new FormData();
         form.append("file", file);
         form.append("deviceId", deviceId);
 
-        const uploadRes = await fetch("/api/plans/upload", { method: "POST", body: form });
-        if (!uploadRes.ok) continue;
-        const { url } = await uploadRes.json();
+        const url = await uploadFile(form);
+        if (!url) continue;
 
         const isVideo = file.type.startsWith("video/");
         await fetch(`/api/plans/${planId}/media`, {
@@ -44,6 +67,7 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
       onRefresh();
     } catch {} finally {
       setUploading(false);
+      setProgress(null);
       if (fileRef.current) fileRef.current.value = "";
     }
   };
@@ -62,17 +86,41 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
     <div>
       {/* Upload button */}
       {canEdit && (
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          style={{
-            width: "100%", padding: "14px 0", borderRadius: 10,
-            border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)",
-            color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 16,
-          }}
-        >
-          {uploading ? (isTh ? "กำลังอัพโหลด..." : "Uploading...") : (isTh ? "📷 อัพโหลดรูป/วิดีโอ" : "📷 Upload Photo/Video")}
-        </button>
+        <div style={{ marginBottom: 16 }}>
+          {uploading && progress ? (
+            <div style={{
+              width: "100%", borderRadius: 10,
+              border: "1px solid rgba(59,130,246,0.2)", background: "rgba(59,130,246,0.05)",
+              padding: "10px 14px",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa" }}>
+                  {isTh ? "กำลังอัพโหลด" : "Uploading"} {progress.total > 1 ? `${progress.current}/${progress.total}` : ""}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa" }}>{progress.percent}%</span>
+              </div>
+              <div style={{ width: "100%", height: 6, background: "#1a1a2e", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", borderRadius: 3,
+                  background: "linear-gradient(90deg, #1e40af, #3b82f6)",
+                  width: `${progress.percent}%`,
+                  transition: "width 0.15s ease",
+                }} />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              style={{
+                width: "100%", padding: "14px 0", borderRadius: 10,
+                border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)",
+                color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {isTh ? "📷 อัพโหลดรูป/วิดีโอ" : "📷 Upload Photo/Video"}
+            </button>
+          )}
+        </div>
       )}
       <input
         ref={fileRef}

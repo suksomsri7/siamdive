@@ -114,7 +114,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const tabs: { key: Tab; label: string; icon: string; count?: number }[] = [
     { key: "itinerary", label: isTh ? "ทริป" : "Trips", icon: "🗺", count: trips.length },
     { key: "media", label: isTh ? "รูป" : "Media", icon: "📷", count: plan.media.length },
-    { key: "checklist", label: isTh ? "เตรียมตัว" : "Checklist", icon: "✓" },
     { key: "chat", label: isTh ? "แชท" : "Chat", icon: "💬", count: plan.chatCount },
   ];
 
