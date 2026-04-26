@@ -62,8 +62,11 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   const [loading, setLoading] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
   const [inPlan, setInPlan] = useState(() => hasTripInPlan(boatId));
-  const [filterDate, setFilterDate] = useState("");
-  const [filterMonth, setFilterMonth] = useState("");
+  const tomorrowISO = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
+  const currentMonthISO = () => new Date().toISOString().slice(0, 7);
+
+  const [filterDate, setFilterDate] = useState(() => usesDatePicker ? tomorrowISO() : "");
+  const [filterMonth, setFilterMonth] = useState(() => usesDatePicker ? "" : currentMonthISO());
 
   const usesDatePicker = type === "DAYTRIP" || type === "SNORKELING";
   const isTh = lang === "th";
@@ -219,7 +222,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                         background: isSel ? "rgba(59,130,246,0.1)" : "#121418",
                         opacity: allFull ? 0.5 : 1,
                         transition: "all 0.15s",
-                        overflow: "hidden",
                       }}
                     >
                       <button
@@ -275,14 +277,15 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                         onClick={handleAdd}
                         disabled={inPlan}
                         style={{
-                          width: 32, height: "100%", minHeight: 44,
-                          background: inPlan ? "#14532d" : "rgba(59,130,246,0.15)",
+                          width: 30, height: 30,
+                          borderRadius: "50%",
+                          background: inPlan ? "#14532d" : "#3b82f6",
                           border: "none",
-                          borderLeft: `1px solid ${isSel ? "#3b82f6" : "#1e2d40"}`,
-                          color: inPlan ? "#22c55e" : "#60a5fa",
+                          color: "#fff",
                           cursor: inPlan ? "default" : "pointer",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           flexShrink: 0,
+                          marginRight: 6,
                           transition: "background 0.15s",
                         }}
                       >
