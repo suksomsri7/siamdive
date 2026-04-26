@@ -17,6 +17,7 @@ export type PlanTrip = {
 export type UserPlan = {
   id: string;
   name: string;
+  coverUrl?: string | null;
   startDate: string | null;
   trips: PlanTrip[];
   createdAt: string;
@@ -236,6 +237,15 @@ export function renamePlan(planId: string, name: string) {
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
+}
+
+export function updatePlanCoverUrl(planId: string, coverUrl: string) {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return;
+  plan.coverUrl = coverUrl;
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
 }
 
 export function deletePlan(planId: string) {

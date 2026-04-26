@@ -72,7 +72,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
   plan: UserPlan; lang: string; onOpen: (id: string) => void; onDelete: (id: string) => void;
 }) {
   const trips = plan.trips as PlanTrip[];
-  const cover = trips.find((t) => t.cover)?.cover;
+  const cover = plan.coverUrl || trips.find((t) => t.cover)?.cover;
   const isTh = lang === "th";
 
   return (

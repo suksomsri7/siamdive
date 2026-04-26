@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { renamePlan, removeTrip, getPlans, type PlanTrip } from "@/lib/plan-store";
+import { renamePlan, removeTrip, getPlans, updatePlanCoverUrl, type PlanTrip } from "@/lib/plan-store";
 import PlanMembers from "./PlanMembers";
-import PlanMediaTab from "./PlanMediaTab";
+
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 
@@ -71,8 +71,14 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
   const handleRename = () => {
     if (nameValue.trim() && nameValue.trim() !== plan?.name) {
-      renamePlan(planId, nameValue.trim());
-      setPlan((prev) => prev ? { ...prev, name: nameValue.trim() } : prev);
+      const newName = nameValue.trim();
+      renamePlan(planId, newName);
+      setPlan((prev) => prev ? { ...prev, name: newName } : prev);
+      fetch(`/api/plans/${planId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId, name: newName }),
+      }).catch(() => {});
     }
     setRenaming(false);
   };
@@ -115,6 +121,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         body: JSON.stringify({ deviceId, coverUrl: url }),
       });
       setPlan((prev) => prev ? { ...prev, coverUrl: url } : prev);
+      updatePlanCoverUrl(planId, url);
     } catch {} finally {
       setUploadingCover(false);
       if (coverInputRef.current) coverInputRef.current.value = "";
@@ -137,7 +144,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
   const tabs: { key: Tab; label: string; icon: string; count?: number }[] = [
     { key: "itinerary", label: isTh ? "ทริป" : "Trips", icon: "🗺", count: trips.length },
-    { key: "media", label: isTh ? "รูป" : "Media", icon: "📷", count: plan.media.length },
     { key: "chat", label: isTh ? "แชท" : "Chat", icon: "💬", count: plan.chatCount },
   ];
 
@@ -339,10 +345,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 )}
               </div>
-            )}
-
-            {tab === "media" && (
-              <PlanMediaTab planId={planId} deviceId={deviceId} lang={lang} media={plan.media} canEdit={canEdit} onRefresh={fetchPlan} />
             )}
 
             {tab === "checklist" && (
