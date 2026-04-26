@@ -126,53 +126,65 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   return (
     <div style={{
       margin: "4px 0 2px",
-      background: "#0d1117",
-      border: "1px solid #1e2d40",
-      borderRadius: 12,
+      background: "rgba(15,23,42,0.65)",
+      backdropFilter: "blur(24px) saturate(1.6)",
+      WebkitBackdropFilter: "blur(24px) saturate(1.6)",
+      border: "1px solid rgba(148,163,184,0.12)",
+      borderRadius: 16,
       overflow: "hidden",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)",
     }}>
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "8px 12px",
-        borderBottom: "1px solid #1e2d40",
+        padding: "10px 14px",
+        borderBottom: "1px solid rgba(148,163,184,0.08)",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)",
       }}>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+          <p style={{ fontSize: 10, color: "#93c5fd", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
             Select Schedule & Package
           </p>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.9)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {title}
           </p>
         </div>
         <button onClick={onClose} style={{
-          width: 24, height: 24, borderRadius: "50%", border: "none",
-          background: "rgba(255,255,255,0.08)", color: "#888",
+          width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(255,255,255,0.06)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          color: "rgba(255,255,255,0.5)",
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 14, flexShrink: 0,
+          fontSize: 12, flexShrink: 0,
+          transition: "background 0.2s",
         }}>
           ✕
         </button>
       </div>
 
       {loading ? (
-        <div style={{ padding: "20px 0", textAlign: "center", color: "#555", fontSize: 12 }}>
-          Loading...
+        <div style={{ padding: "24px 0", textAlign: "center" }}>
+          <div style={{ width: 20, height: 20, border: "2px solid rgba(148,163,184,0.15)", borderTopColor: "#60a5fa", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       ) : !boat ? (
-        <div style={{ padding: "16px", textAlign: "center", color: "#666", fontSize: 12 }}>
+        <div style={{ padding: "20px 16px", textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
           ไม่สามารถโหลดข้อมูลได้
         </div>
       ) : (
-        <div style={{ padding: "8px 10px 10px" }}>
+        <div style={{ padding: "10px 12px 12px" }}>
           {/* Date / Month picker */}
           {allSchedules.length > 0 && (
             <div style={{
-              marginBottom: 8, padding: "8px 10px",
-              background: "#121418", border: "1px solid #1e2d40", borderRadius: 10,
-              display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+              marginBottom: 10, padding: "10px 12px",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(148,163,184,0.1)",
+              borderRadius: 12,
+              display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
             }}>
-              <label style={{ fontSize: 10, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <label style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                 <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
@@ -190,12 +202,14 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                   setSelectedSchedule(null);
                 }}
                 style={{
-                  background: "#0d0d0d", border: "1px solid #262626", borderRadius: 8,
-                  color: "#f5f5f5", fontSize: 12, padding: "6px 10px",
+                  background: "rgba(0,0,0,0.25)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 8,
+                  color: "rgba(255,255,255,0.85)", fontSize: 12, padding: "7px 10px",
                   outline: "none", colorScheme: "dark", flex: 1, minWidth: 120,
+                  backdropFilter: "blur(4px)",
+                  WebkitBackdropFilter: "blur(4px)",
                 }}
               />
-              <span style={{ fontSize: 10, color: "#666" }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>
                 {schedules.length} {isTh ? "รอบ" : "trips"}
               </span>
             </div>
@@ -203,11 +217,11 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
 
           {/* Schedules */}
           {schedules.length > 0 && (
-            <div style={{ marginBottom: 6 }}>
-              <p style={{ fontSize: 10, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>
+            <div style={{ marginBottom: 8 }}>
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>
                 Departures · {schedules.length} trips
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto", scrollbarWidth: "thin" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto", scrollbarWidth: "thin" }}>
                 {schedules.slice(0, 20).map(s => {
                   const isSel = selectedSchedule === s.id;
                   const allFull = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
@@ -218,18 +232,25 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                       key={s.id}
                       style={{
                         display: "flex", alignItems: "center", gap: 0,
-                        borderRadius: 10,
-                        border: `1px solid ${isSel ? "#3b82f6" : "#1e2d40"}`,
-                        background: isSel ? "rgba(59,130,246,0.1)" : "#121418",
-                        opacity: allFull ? 0.5 : 1,
-                        transition: "all 0.15s",
+                        borderRadius: 14,
+                        border: `1px solid ${isSel ? "rgba(96,165,250,0.35)" : "rgba(148,163,184,0.08)"}`,
+                        background: isSel
+                          ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.06))"
+                          : "rgba(255,255,255,0.03)",
+                        opacity: allFull ? 0.45 : 1,
+                        transition: "all 0.25s ease",
+                        boxShadow: isSel
+                          ? "0 4px 16px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
+                          : "inset 0 1px 0 rgba(255,255,255,0.03)",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
                       }}
                     >
                       <button
                         onClick={() => setSelectedSchedule(isSel ? null : s.id)}
                         style={{
                           flex: 1,
-                          padding: "8px 10px",
+                          padding: "10px 12px",
                           background: "transparent",
                           border: "none",
                           cursor: "pointer",
@@ -241,17 +262,17 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                         }}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 13, fontWeight: 800, color: isSel ? "#60a5fa" : "#f5f5f5", margin: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: isSel ? "#93c5fd" : "rgba(255,255,255,0.88)", margin: 0, letterSpacing: "-0.01em" }}>
                             {fmtDate(s.departureDate!)}
                             {s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
                           </p>
                           {st?.title && (
-                            <p style={{ fontSize: 11, color: "#777", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {st.title}
                             </p>
                           )}
                           {st?.route && (
-                            <p style={{ fontSize: 10, color: "#555", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3 }}>
+                            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3 }}>
                               <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                               </svg>
@@ -261,33 +282,36 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                         </div>
                         <div style={{ flexShrink: 0, textAlign: "right" }}>
                           {allFull ? (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.1)", padding: "2px 8px", borderRadius: 6 }}>FULL</span>
                           ) : minPrice > 0 ? (
                             <>
-                              <p style={{ fontSize: 8, color: "#555", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>from</p>
-                              <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa", margin: 0 }}>฿{minPrice.toLocaleString()}</p>
+                              <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>from</p>
+                              <p style={{ fontSize: 15, fontWeight: 900, color: "#93c5fd", margin: 0 }}>฿{minPrice.toLocaleString()}</p>
                             </>
                           ) : (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#888" }}>Contact</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>Contact</span>
                           )}
                         </div>
                       </button>
 
-                      {/* + Add to plan per row */}
+                      {/* + Add to plan */}
                       <button
                         onClick={handleAdd}
                         disabled={inPlan}
                         style={{
-                          width: 30, height: 30,
+                          width: 32, height: 32,
                           borderRadius: "50%",
-                          background: inPlan ? "#14532d" : "#3b82f6",
-                          border: "none",
-                          color: "#fff",
+                          background: inPlan
+                            ? "rgba(34,197,94,0.15)"
+                            : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                          border: inPlan ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
+                          color: inPlan ? "#4ade80" : "#fff",
                           cursor: inPlan ? "default" : "pointer",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           flexShrink: 0,
-                          marginRight: 6,
-                          transition: "background 0.15s",
+                          marginRight: 8,
+                          transition: "all 0.2s ease",
+                          boxShadow: inPlan ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
                         }}
                       >
                         {inPlan ? (
@@ -304,61 +328,70 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
           )}
 
           {schedules.length === 0 && (
-            <div style={{ textAlign: "center", padding: "14px 0", color: "#555", fontSize: 12, background: "#0f0f0f", border: "1px dashed #1e2d40", borderRadius: 8, marginBottom: 6 }}>
+            <div style={{
+              textAlign: "center", padding: "18px 0", color: "rgba(255,255,255,0.3)", fontSize: 12,
+              background: "rgba(255,255,255,0.02)",
+              border: "1px dashed rgba(148,163,184,0.1)", borderRadius: 12, marginBottom: 8,
+            }}>
               {(filterDate || filterMonth)
                 ? (isTh ? "ไม่มี Schedule ในช่วงที่เลือก" : "No schedules for selected period")
                 : (isTh ? "ไม่มี Schedule ที่กำลังจะมา" : "No upcoming schedules")}
             </div>
           )}
 
-          {/* Packages — show when schedule selected */}
+          {/* Packages */}
           {selSched && packages.length > 0 && (
             <div>
-              <p style={{ fontSize: 10, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>
                 Packages · {packages.length}
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {packages.map(pkg => {
                   const pt = pick(pkg.translations, lang);
                   const { isFull, minPrice, seats } = getPackageInfo(pkg);
                   return (
                     <div key={pkg.id} style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "6px 8px",
-                      borderRadius: 8,
-                      background: isFull ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
-                      opacity: isFull ? 0.45 : 1,
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      background: isFull ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(148,163,184,0.06)",
+                      opacity: isFull ? 0.4 : 1,
+                      backdropFilter: "blur(4px)",
+                      WebkitBackdropFilter: "blur(4px)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+                      transition: "opacity 0.2s",
                     }}>
                       {pkg.photos[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={pkg.photos[0]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                        <img src={pkg.photos[0]} alt="" style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }} />
                       ) : (
-                        <div style={{ width: 36, height: 36, borderRadius: 6, background: "#1e2d40", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: 8, background: "rgba(255,255,255,0.04)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, border: "1px solid rgba(255,255,255,0.04)" }}>
                           📦
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: "#e5e5e5", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {pt?.title || pkg.name}
                         </p>
                         {pt?.excerpt && (
-                          <p style={{ fontSize: 10, color: "#777", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {pt.excerpt.replace(/<[^>]+>/g, "").slice(0, 60)}
                           </p>
                         )}
                       </div>
                       <div style={{ flexShrink: 0, textAlign: "right" }}>
                         {isFull ? (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#ef4444" }}>FULL</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171", background: "rgba(248,113,113,0.1)", padding: "2px 8px", borderRadius: 6 }}>FULL</span>
                         ) : minPrice > 0 ? (
-                          <span style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa" }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: "#93c5fd" }}>
                             ฿{minPrice.toLocaleString()}
                           </span>
                         ) : (
-                          <span style={{ fontSize: 10, color: "#888" }}>Contact</span>
+                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>Contact</span>
                         )}
                         {seats != null && !isFull && (
-                          <p style={{ fontSize: 9, color: "#555", margin: 0 }}>{seats} seats</p>
+                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", margin: 0 }}>{seats} seats</p>
                         )}
                       </div>
                     </div>
