@@ -62,14 +62,15 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   const [loading, setLoading] = useState(true);
   const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
   const [inPlan, setInPlan] = useState(() => hasTripInPlan(boatId));
+
+  const usesDatePicker = type === "DAYTRIP" || type === "SNORKELING";
+  const isTh = lang === "th";
+
   const tomorrowISO = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
   const currentMonthISO = () => new Date().toISOString().slice(0, 7);
 
   const [filterDate, setFilterDate] = useState(() => usesDatePicker ? tomorrowISO() : "");
   const [filterMonth, setFilterMonth] = useState(() => usesDatePicker ? "" : currentMonthISO());
-
-  const usesDatePicker = type === "DAYTRIP" || type === "SNORKELING";
-  const isTh = lang === "th";
 
   useEffect(() => {
     fetch(`/api/public/boats/${boatId}`)
