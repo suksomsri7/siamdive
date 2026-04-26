@@ -11,6 +11,7 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
   const [plans, setPlans] = useState<UserPlan[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     const p = getPlans();
@@ -54,9 +55,15 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
     setCreating(false);
   };
 
-  const handleDelete = (planId: string) => {
-    deletePlan(planId);
-    if (activePlanId === planId) setActivePlanId(null);
+  const handleDeleteRequest = (planId: string) => {
+    setDeletingPlanId(planId);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deletingPlanId) return;
+    deletePlan(deletingPlanId);
+    if (activePlanId === deletingPlanId) setActivePlanId(null);
+    setDeletingPlanId(null);
     refresh();
   };
 
@@ -105,7 +112,7 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 plans={plans}
                 lang={lang}
                 onOpen={handleOpenPlan}
-                onDelete={handleDelete}
+                onDelete={handleDeleteRequest}
                 onCreateStart={() => setCreating(true)}
               />
             </div>
@@ -118,8 +125,54 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
                 onClose={() => setCreating(false)}
               />
             )}
+
+            {/* Delete Confirmation Modal */}
+            {deletingPlanId && (
+              <DeleteConfirmModal
+                lang={lang}
+                planName={plans.find((p) => p.id === deletingPlanId)?.name || ""}
+                onConfirm={handleDeleteConfirm}
+                onClose={() => setDeletingPlanId(null)}
+              />
+            )}
           </>
         )}
+      </div>
+    </>
+  );
+}
+
+function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: string; planName: string; onConfirm: () => void; onClose: () => void }) {
+  const isTh = lang === "th";
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1400, background: "rgba(0,0,0,0.7)" }} />
+      <div style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1401,
+        background: "#111", borderRadius: "16px 16px 0 0",
+        padding: "24px 20px", paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+        textAlign: "center",
+      }}>
+        <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginBottom: 8 }}>
+          {isTh ? "ลบแพลนนี้?" : "Delete this plan?"}
+        </p>
+        <p style={{ fontSize: 13, color: "#888", marginBottom: 20, lineHeight: 1.5 }}>
+          {isTh
+            ? `"${planName}" จะถูกลบถาวร ไม่สามารถกู้คืนได้`
+            : `"${planName}" will be permanently deleted and cannot be recovered`}
+        </p>
+        <button onClick={onConfirm}
+          style={{
+            width: "100%", padding: "14px 0", borderRadius: 10, border: "none",
+            background: "#dc2626", color: "#fff",
+            fontSize: 15, fontWeight: 700, cursor: "pointer",
+          }}>
+          {isTh ? "ลบแพลน" : "Delete Plan"}
+        </button>
+        <button onClick={onClose}
+          style={{ width: "100%", padding: "10px 0", marginTop: 8, background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
+          {isTh ? "ยกเลิก" : "Cancel"}
+        </button>
       </div>
     </>
   );

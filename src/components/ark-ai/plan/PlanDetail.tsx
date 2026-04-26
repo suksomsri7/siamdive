@@ -286,7 +286,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                     </p>
                     <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
                       style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                      {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
+                      {isTh ? "ทริปแนะนำจาก AI" : "Recommended trips from AI"}
                     </button>
                   </div>
                 ) : (
@@ -324,7 +324,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                     {canEdit && (
                       <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
                         style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)", color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
-                        + {isTh ? "เพิ่มทริปจาก AI" : "Add trips from AI"}
+                        + {isTh ? "ทริปแนะนำจาก AI" : "Recommended trips from AI"}
                       </button>
                     )}
 
