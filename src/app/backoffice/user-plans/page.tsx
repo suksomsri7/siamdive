@@ -31,6 +31,12 @@ type CustomerProfile = {
   timeline: { ts: string; type: string; label: string; path?: string; entityType?: string; entityId?: string }[];
 };
 
+type AiSummary = {
+  summary: string;
+  generatedAt: string;
+  cached: boolean;
+};
+
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PLANNING: { bg: "#1e3a5f", color: "#60a5fa" },
   CONFIRMED: { bg: "#14532d", color: "#4ade80" },
@@ -56,6 +62,8 @@ export default function UserPlansPage() {
   const [detailTab, setDetailTab] = useState<"info" | "itinerary" | "brief">("info");
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const limit = 20;
 
@@ -92,12 +100,23 @@ export default function UserPlansPage() {
     }
   };
 
+  const loadAiSummary = async (planId: string, refresh = false) => {
+    setAiLoading(true);
+    try {
+      const res = await fetch(`/api/user-plans/${planId}/summary${refresh ? "?refresh=1" : ""}`);
+      if (res.ok) setAiSummary(await res.json());
+    } catch {} finally {
+      setAiLoading(false);
+    }
+  };
+
   const openDetail = async (planId: string) => {
     setPanelOpen(true);
     setDetailLoading(true);
     setDetail(null);
     setDetailTab("info");
     setProfile(null);
+    setAiSummary(null);
     try {
       const res = await fetch(`/api/user-plans/${planId}`);
       if (res.ok) setDetail(await res.json());
@@ -279,6 +298,50 @@ export default function UserPlansPage() {
               <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
             ) : detailTab === "brief" ? (
               <div style={{ padding: "16px 20px" }}>
+                {/* AI Summary */}
+                <div style={{ marginBottom: 20, padding: 16, background: "#111", borderRadius: 10, border: "1px solid #1a1a1a" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: aiSummary ? 12 : 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6" }}>AI Summary</p>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {aiSummary && (
+                        <button
+                          onClick={() => detail && loadAiSummary(detail.id, true)}
+                          disabled={aiLoading}
+                          style={{
+                            padding: "5px 12px", borderRadius: 6, border: "1px solid #262626",
+                            background: "transparent", color: "#888", fontSize: 11, cursor: aiLoading ? "default" : "pointer",
+                          }}
+                        >
+                          {aiLoading ? "กำลังสร้าง..." : "Refresh"}
+                        </button>
+                      )}
+                      {!aiSummary && (
+                        <button
+                          onClick={() => detail && loadAiSummary(detail.id)}
+                          disabled={aiLoading}
+                          style={{
+                            padding: "5px 14px", borderRadius: 6, border: "none",
+                            background: aiLoading ? "#1e3a5f" : "#1e40af", color: "#fff",
+                            fontSize: 11, fontWeight: 600, cursor: aiLoading ? "default" : "pointer",
+                          }}
+                        >
+                          {aiLoading ? "กำลังวิเครา���ห์..." : "สร้าง AI Summary"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {aiSummary && (
+                    <>
+                      <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                        {aiSummary.summary}
+                      </div>
+                      <p style={{ fontSize: 10, color: "#333", marginTop: 8 }}>
+                        {aiSummary.cached ? "cached" : "just generated"} · {fmtDate(aiSummary.generatedAt)}
+                      </p>
+                    </>
+                  )}
+                </div>
+
                 {profileLoading ? (
                   <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
                 ) : !profile || !profile.linked ? (

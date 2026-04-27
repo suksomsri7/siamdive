@@ -740,6 +740,19 @@ model AiConfig {
   updatedAt         DateTime @updatedAt
 }
 
+// ── PlanAiSummary ───────────────────────────────────────────────────────────
+// Cached AI-generated customer brief summary per plan
+
+model PlanAiSummary {
+  id          String   @id @default(cuid())
+  planId      String   @unique
+  summary     String
+  eventCount  Int      @default(0)
+  generatedAt DateTime @default(now())
+
+  @@index([planId])
+}
+
 // ── Itinerary ────────────────────────────────────────────────────────────────
 
 model Itinerary {
