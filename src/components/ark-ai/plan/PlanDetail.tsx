@@ -41,7 +41,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [nameValue, setNameValue] = useState("");
   const [showMembers, setShowMembers] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [emailGateAction, setEmailGateAction] = useState<"members" | "share" | null>(null);
+  const [emailGateAction, setEmailGateAction] = useState<"members" | "share" | "contact" | null>(null);
+  const [pendingLineUrl, setPendingLineUrl] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -305,6 +306,14 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       lang={lang}
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
+                      onContactClick={(lineUrl) => {
+                        if (plan.owner.email) {
+                          window.open(lineUrl, "_blank");
+                        } else {
+                          setPendingLineUrl(lineUrl);
+                          setEmailGateAction("contact");
+                        }
+                      }}
                       onAddPackage={(slug, departureDate) => {
                         const t = trips.find((tr) => tr.slug === slug);
                         onClose();
@@ -348,9 +357,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           onSuccess={(newEmail, newName) => {
             setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail, name: newName ?? prev.owner.name } } : prev);
             const action = emailGateAction;
+            const lineUrl = pendingLineUrl;
             setEmailGateAction(null);
+            setPendingLineUrl(null);
             if (action === "members") setShowMembers(true);
             if (action === "share") handleShare();
+            if (action === "contact" && lineUrl) window.open(lineUrl, "_blank");
           }}
           onClose={() => setEmailGateAction(null)}
         />

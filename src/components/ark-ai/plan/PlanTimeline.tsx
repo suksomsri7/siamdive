@@ -15,6 +15,7 @@ type Props = {
   canEdit: boolean;
   onTripRemoved?: () => void;
   onAddPackage?: (slug: string, departureDate?: string) => void;
+  onContactClick?: (lineUrl: string) => void;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -51,7 +52,7 @@ function generateDayDates(departure: string, returnDate: string | null): string[
   });
 }
 
-export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage }: Props) {
+export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage, onContactClick }: Props) {
   const isTh = lang === "th";
 
   const scheduled = trips
@@ -125,7 +126,8 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
                 return `- ${t.title}${dep ? ` (${dep})` : ""}`;
               });
               const msg = `Hi, I'd like to book:\n${lines.join("\n")}\nEstimated budget: ฿${totalBudget.toLocaleString()}`;
-              window.open(`https://line.me/R/oaMessage/@siamdive/?${encodeURIComponent(msg)}`, "_blank");
+              const url = `https://line.me/R/oaMessage/@siamdive/?${encodeURIComponent(msg)}`;
+              if (onContactClick) { onContactClick(url); } else { window.open(url, "_blank"); }
             }}
             style={{
               padding: "8px 14px", borderRadius: 8,
