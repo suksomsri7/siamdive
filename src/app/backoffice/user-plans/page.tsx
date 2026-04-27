@@ -22,6 +22,15 @@ type PlanDetail = {
   createdAt: string; updatedAt: string;
 };
 
+type CustomerProfile = {
+  linked: boolean;
+  visitor: { device: string | null; os: string | null; browser: string | null; country: string | null; city: string | null; lang: string | null } | null;
+  acquisition: { firstReferrer: string | null; firstUtmSource: string | null; firstUtmMedium: string | null; firstUtmCampaign: string | null; firstLandingPath: string | null } | null;
+  engagement: { totalSessions: number; totalEvents: number; firstSeenAt: string | null; lastSeenAt: string | null; totalDaysActive: number } | null;
+  interests: { topTrips: { boatId: string; title: string; viewCount: number }[]; topBlogs: { blogId: string; title: string; viewCount: number }[]; searches: { query: string; resultsCount: number; ts: string }[] } | null;
+  timeline: { ts: string; type: string; label: string; path?: string; entityType?: string; entityId?: string }[];
+};
+
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PLANNING: { bg: "#1e3a5f", color: "#60a5fa" },
   CONFIRMED: { bg: "#14532d", color: "#4ade80" },
@@ -44,7 +53,9 @@ export default function UserPlansPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [detailTab, setDetailTab] = useState<"info" | "itinerary">("info");
+  const [detailTab, setDetailTab] = useState<"info" | "itinerary" | "brief">("info");
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const limit = 20;
 
@@ -71,11 +82,22 @@ export default function UserPlansPage() {
     setSearch(query.trim());
   };
 
+  const loadProfile = async (planId: string) => {
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`/api/user-plans/${planId}/profile`);
+      if (res.ok) setProfile(await res.json());
+    } catch {} finally {
+      setProfileLoading(false);
+    }
+  };
+
   const openDetail = async (planId: string) => {
     setPanelOpen(true);
     setDetailLoading(true);
     setDetail(null);
     setDetailTab("info");
+    setProfile(null);
     try {
       const res = await fetch(`/api/user-plans/${planId}`);
       if (res.ok) setDetail(await res.json());
@@ -236,14 +258,17 @@ export default function UserPlansPage() {
               </div>
               {detail && (
                 <div style={{ display: "flex", borderBottom: "1px solid #1a1a1a", padding: "0 20px" }}>
-                  {(["info", "itinerary"] as const).map((t) => (
-                    <button key={t} onClick={() => setDetailTab(t)} style={{
+                  {(["info", "itinerary", "brief"] as const).map((t) => (
+                    <button key={t} onClick={() => {
+                      setDetailTab(t);
+                      if (t === "brief" && !profile && detail) loadProfile(detail.id);
+                    }} style={{
                       padding: "10px 16px", background: "none", border: "none",
                       borderBottom: detailTab === t ? "2px solid #3b82f6" : "2px solid transparent",
                       color: detailTab === t ? "#e5e5e5" : "#555",
-                      fontSize: 12, fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                      fontSize: 12, fontWeight: 600, cursor: "pointer",
                     }}>
-                      {t === "info" ? "Info" : `Itinerary (${Array.isArray(detail.trips) ? detail.trips.length : 0})`}
+                      {t === "info" ? "Info" : t === "itinerary" ? `Itinerary (${Array.isArray(detail.trips) ? detail.trips.length : 0})` : "Customer Brief"}
                     </button>
                   ))}
                 </div>
@@ -252,6 +277,95 @@ export default function UserPlansPage() {
 
             {detailLoading || !detail ? (
               <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
+            ) : detailTab === "brief" ? (
+              <div style={{ padding: "16px 20px" }}>
+                {profileLoading ? (
+                  <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
+                ) : !profile || !profile.linked ? (
+                  <div style={{ padding: 40, textAlign: "center", color: "#555" }}>ไม่พบข้อมูลพฤติกรรม</div>
+                ) : (
+                  <>
+                    {/* Visitor & Acquisition */}
+                    <Section title="Visitor">
+                      <InfoRow label="Device" value={[profile.visitor?.device, profile.visitor?.os, profile.visitor?.browser].filter(Boolean).join(" · ") || "-"} />
+                      <InfoRow label="Location" value={[profile.visitor?.city, profile.visitor?.country].filter(Boolean).join(", ") || "-"} />
+                      <InfoRow label="Language" value={profile.visitor?.lang || "-"} />
+                    </Section>
+                    <Section title="Acquisition">
+                      <InfoRow label="Referrer" value={profile.acquisition?.firstReferrer || "(direct)"} />
+                      {profile.acquisition?.firstUtmSource && <InfoRow label="UTM Source" value={profile.acquisition.firstUtmSource} />}
+                      {profile.acquisition?.firstUtmMedium && <InfoRow label="UTM Medium" value={profile.acquisition.firstUtmMedium} />}
+                      {profile.acquisition?.firstUtmCampaign && <InfoRow label="UTM Campaign" value={profile.acquisition.firstUtmCampaign} />}
+                      <InfoRow label="Landing" value={profile.acquisition?.firstLandingPath || "-"} mono />
+                    </Section>
+
+                    {/* Engagement */}
+                    <Section title="Engagement">
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}>
+                        <StatBox label="Sessions" value={profile.engagement?.totalSessions ?? 0} />
+                        <StatBox label="Events" value={profile.engagement?.totalEvents ?? 0} />
+                        <StatBox label="Days Active" value={profile.engagement?.totalDaysActive ?? 0} />
+                      </div>
+                      <InfoRow label="First Seen" value={profile.engagement?.firstSeenAt ? fmtDate(profile.engagement.firstSeenAt) : "-"} />
+                      <InfoRow label="Last Seen" value={profile.engagement?.lastSeenAt ? fmtDate(profile.engagement.lastSeenAt) : "-"} />
+                    </Section>
+
+                    {/* Top Trips */}
+                    {(profile.interests?.topTrips?.length ?? 0) > 0 && (
+                      <Section title="Top Trips Viewed">
+                        {profile.interests!.topTrips.map((t) => (
+                          <div key={t.boatId} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f0f0f" }}>
+                            <span style={{ fontSize: 12, color: "#ccc" }}>{t.title}</span>
+                            <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 600 }}>{t.viewCount}x</span>
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+
+                    {/* Top Blogs */}
+                    {(profile.interests?.topBlogs?.length ?? 0) > 0 && (
+                      <Section title="Blogs Read">
+                        {profile.interests!.topBlogs.map((b) => (
+                          <div key={b.blogId} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f0f0f" }}>
+                            <span style={{ fontSize: 12, color: "#ccc" }}>{b.title}</span>
+                            <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 600 }}>{b.viewCount}x</span>
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+
+                    {/* Searches */}
+                    {(profile.interests?.searches?.length ?? 0) > 0 && (
+                      <Section title="Searches">
+                        {profile.interests!.searches.map((s, i) => (
+                          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #0f0f0f" }}>
+                            <span style={{ fontSize: 12, color: "#ccc" }}>&ldquo;{s.query}&rdquo;</span>
+                            <span style={{ fontSize: 11, color: "#555" }}>{s.resultsCount} results</span>
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+
+                    {/* Timeline */}
+                    {profile.timeline.length > 0 && (
+                      <Section title="Activity Timeline">
+                        {profile.timeline.map((e, i) => (
+                          <div key={i} style={{ display: "flex", gap: 10, padding: "5px 0", borderBottom: "1px solid #0a0a0a", alignItems: "baseline" }}>
+                            <span style={{ fontSize: 10, color: "#444", fontFamily: "monospace", whiteSpace: "nowrap", flexShrink: 0 }}>
+                              {new Date(e.ts).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                              {" "}
+                              {new Date(e.ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            <span style={{ fontSize: 12, color: "#ccc" }}>{e.label}</span>
+                            {e.path && <span style={{ fontSize: 10, color: "#333", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.path}</span>}
+                          </div>
+                        ))}
+                      </Section>
+                    )}
+                    <div style={{ height: 40 }} />
+                  </>
+                )}
+              </div>
             ) : detailTab === "itinerary" ? (
               <div style={{ padding: "16px 20px" }}>
                 {/* Plan hero */}
