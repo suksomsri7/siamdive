@@ -58,6 +58,7 @@ export default function SearchFab() {
   const [results,      setResults]      = useState<Result[] | null>(null);
   const [resultsType,  setResultsType]  = useState<TripType | null>(null);
   const [collapsed,    setCollapsed]    = useState(false);
+  const [navigating,  setNavigating]   = useState<Result | null>(null);
 
   const switchType = (t: TripType) => {
     if (t === type) return;
@@ -127,9 +128,14 @@ export default function SearchFab() {
     const q = dateParam ? `?date=${dateParam}` : "";
     const rank = (results ?? []).findIndex((x) => x.scheduleId === r.scheduleId) + 1;
     trackSearchResultClick("SCHEDULE", r.scheduleId, rank || 1);
+    setNavigating(r);
     router.push(`/${lang}/trips/${r.boat.slug}${q}`);
-    setOpen(false);
   };
+
+  useEffect(() => {
+    if (navigating) { setNavigating(null); setOpen(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return (
     <>
@@ -245,8 +251,39 @@ export default function SearchFab() {
               </div>
               )}
 
+              {/* Navigating overlay */}
+              {navigating && (
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  padding: "40px 20px", gap: 16,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", maxWidth: 360 }}>
+                    {navigating.boat.cover
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={navigating.boat.cover} alt="" style={{ width: 56, height: 42, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                      : <div style={{ width: 56, height: 42, background: "#222", borderRadius: 8, flexShrink: 0 }} />
+                    }
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>
+                        {navigating.boat.title}
+                      </p>
+                      <p style={{ fontSize: 11, color: "#666", margin: "2px 0 0" }}>
+                        {fmtDate(navigating.departureDate)}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{
+                    width: 28, height: 28,
+                    border: "2.5px solid #333", borderTopColor: "#3b82f6",
+                    borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                  }} />
+                  <p style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>กำลังเปิดข้อมูลทริป...</p>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+
               {/* Results */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 28px", minHeight: 120 }}>
+              {!navigating && <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 28px", minHeight: 120 }}>
                 {results === null ? (
                   <p style={{ fontSize: 12, color: "#444", textAlign: "center", padding: "20px 0" }}>
                     เลือก{type === "DAYTRIP" ? "วันที่" : "เดือน"} แล้วกดค้นหา
@@ -346,7 +383,7 @@ export default function SearchFab() {
                     </div>
                   </>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
 
