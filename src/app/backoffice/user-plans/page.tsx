@@ -6,7 +6,7 @@ import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 type PlanRow = {
   id: string; shortId: string; name: string; status: string; coverUrl: string | null;
   ownerEmail: string | null; ownerName: string | null;
-  tripCount: number; memberCount: number; mediaCount: number; checklistCount: number; chatCount: number;
+  tripCount: number; packageCount: number; memberCount: number; mediaCount: number; checklistCount: number; chatCount: number;
   createdAt: string; updatedAt: string;
 };
 
@@ -145,7 +145,7 @@ export default function UserPlansPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #1a1a1a" }}>
-              {["Plan Name", "Owner", "Trips", "Members", "Status", "Updated"].map((h) => (
+              {["Plan Name", "Owner", "Trips", "Pkgs", "Members", "Status", "Updated"].map((h) => (
                 <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "#555", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
                   {h}
                 </th>
@@ -154,9 +154,9 @@ export default function UserPlansPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</td></tr>
+              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</td></tr>
             ) : plans.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#555" }}>
+              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#555" }}>
                 {search ? "No plans found" : "No user plans yet"}
               </td></tr>
             ) : plans.map((p) => {
@@ -177,6 +177,7 @@ export default function UserPlansPage() {
                     {p.ownerName && <p style={{ color: "#444", fontSize: 11 }}>{p.ownerName}</p>}
                   </td>
                   <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.tripCount}</td>
+                  <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.packageCount}</td>
                   <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.memberCount + 1}</td>
                   <td style={{ padding: "10px 12px" }}>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: sc.bg, color: sc.color }}>
@@ -254,6 +255,22 @@ export default function UserPlansPage() {
               <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
             ) : detailTab === "itinerary" ? (
               <div style={{ padding: "16px 20px" }}>
+                {/* Plan hero */}
+                <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", borderRadius: 12, overflow: "hidden", background: "#111", marginBottom: 16 }}>
+                  {(detail.coverUrl || (Array.isArray(detail.trips) && detail.trips.find(t => t.cover))) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={detail.coverUrl || detail.trips.find(t => t.cover)?.cover || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  )}
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)" }} />
+                  <div style={{ position: "absolute", bottom: 12, left: 14, right: 14 }}>
+                    <p style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: 0 }}>{detail.name}</p>
+                    <p style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                      {Array.isArray(detail.trips) ? detail.trips.length : 0} trips · {detail.members.length + 1} members
+                      {detail.owner.email && ` · ${detail.owner.email}`}
+                    </p>
+                  </div>
+                </div>
+
                 {Array.isArray(detail.trips) && detail.trips.length > 0 ? (
                   <PlanTimeline
                     planId={detail.id}

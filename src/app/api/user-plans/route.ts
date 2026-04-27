@@ -46,6 +46,9 @@ export async function GET(req: NextRequest) {
         ownerEmail: p.user.email,
         ownerName: p.user.name,
         tripCount: Array.isArray(p.trips) ? (p.trips as unknown[]).length : 0,
+        packageCount: Array.isArray(p.trips)
+          ? (p.trips as { schedule?: { packages?: unknown[] } }[]).reduce((sum, t) => sum + (t.schedule?.packages?.length || 0), 0)
+          : 0,
         memberCount: p._count.members,
         mediaCount: p._count.media,
         checklistCount: p._count.checklists,
