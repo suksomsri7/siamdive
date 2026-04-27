@@ -5,12 +5,13 @@ import { attachEmail } from "@/lib/plan-store";
 
 type Props = {
   lang: string;
-  onSuccess: (email: string) => void;
+  onSuccess: (email: string, name: string | null) => void;
   onClose: () => void;
 };
 
 export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,9 +25,9 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
     }
     setSaving(true);
     setError("");
-    const ok = await attachEmail(trimmed);
+    const ok = await attachEmail(trimmed, name.trim() || undefined);
     if (ok) {
-      onSuccess(trimmed);
+      onSuccess(trimmed, name.trim() || null);
     } else {
       setError(isTh ? "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง" : "Something went wrong. Please try again.");
       setSaving(false);
@@ -56,6 +57,18 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
 
         <input
           autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={isTh ? "ชื่อที่ใช้เรียก" : "Your name"}
+          style={{
+            width: "100%", padding: "12px 14px", borderRadius: 10,
+            background: "#0a0a0a", border: "1px solid #262626",
+            color: "#f5f5f5", fontSize: 14, fontFamily: "inherit", outline: "none",
+            boxSizing: "border-box", marginBottom: 10,
+          }}
+        />
+
+        <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}

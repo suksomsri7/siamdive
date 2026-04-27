@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 // POST /api/plans/email — attach email to device user
 export async function POST(req: NextRequest) {
   try {
-    const { deviceId, email } = (await req.json()) as {
+    const { deviceId, email, name } = (await req.json()) as {
       deviceId: string;
       email: string;
+      name?: string;
     };
 
     if (!deviceId || !email) {
@@ -35,9 +36,12 @@ export async function POST(req: NextRequest) {
       await prisma.planUser.delete({ where: { id: existing.id } });
     }
 
+    const data: { email: string; name?: string } = { email: normalized };
+    if (name?.trim()) data.name = name.trim();
+
     await prisma.planUser.update({
       where: { id: user.id },
-      data: { email: normalized },
+      data,
     });
 
     return NextResponse.json({ ok: true, email: normalized });

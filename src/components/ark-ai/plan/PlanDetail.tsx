@@ -345,8 +345,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       {emailGateAction && (
         <EmailGateModal
           lang={lang}
-          onSuccess={(newEmail) => {
-            setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail } } : prev);
+          onSuccess={(newEmail, newName) => {
+            setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail, name: newName ?? prev.owner.name } } : prev);
             const action = emailGateAction;
             setEmailGateAction(null);
             if (action === "members") setShowMembers(true);

@@ -4,6 +4,18 @@ const ACTIVE_KEY = "siamdive:activePlanId";
 const EMAIL_KEY = "siamdive:planEmail";
 const OLD_KEY = "siamdive:myplan";
 
+export type PlanTripSchedule = {
+  scheduleId: string;
+  departureDate: string;
+  returnDate: string | null;
+  title: string;
+  route: string;
+  itinerary: string;
+  excerpt?: string;
+  content?: string;
+  packages: { name: string; minPrice: number; qty?: number }[];
+};
+
 export type PlanTrip = {
   boatId: string;
   title: string;
@@ -12,6 +24,8 @@ export type PlanTrip = {
   area: string;
   cover: string | null;
   addedAt: number;
+  schedule?: PlanTripSchedule;
+  note?: string;
 };
 
 export type UserPlan = {
@@ -273,15 +287,41 @@ export function setStartDate(date: string | null) {
   scheduleSync();
 }
 
+export function suggestPlanName(trip: { area?: string; schedule?: { departureDate?: string } }): string {
+  const parts: string[] = [];
+  if (trip.area) parts.push(trip.area);
+  if (trip.schedule?.departureDate) {
+    const d = new Date(trip.schedule.departureDate);
+    parts.push(d.toLocaleDateString("th-TH", { month: "short", year: "2-digit" }));
+  }
+  return parts.length > 0 ? parts.join(" ") : "My Plan";
+}
+
+function mergeOrAdd(plan: UserPlan, trip: Omit<PlanTrip, "addedAt">): boolean {
+  const existing = plan.trips.find((t) =>
+    t.boatId === trip.boatId &&
+    (t.schedule?.scheduleId ?? "") === (trip.schedule?.scheduleId ?? "")
+  );
+  if (existing && existing.schedule && trip.schedule?.packages?.length) {
+    const existingNames = new Set(existing.schedule.packages.map(p => p.name));
+    const newPkgs = trip.schedule.packages.filter(p => !existingNames.has(p.name));
+    if (newPkgs.length === 0) return false;
+    existing.schedule.packages.push(...newPkgs);
+    return true;
+  }
+  if (existing) return false;
+  plan.trips.push({ ...trip, addedAt: Date.now() });
+  return true;
+}
+
 export function addTrip(trip: Omit<PlanTrip, "addedAt">): boolean {
   const plans = readPlans();
   let plan = plans.find((p) => p.id === getActivePlanId()) || plans[0];
 
-  // Auto-create first plan if none exist
   if (!plan) {
     plan = {
       id: generateId(),
-      name: "My Plan",
+      name: suggestPlanName(trip),
       startDate: null,
       trips: [],
       createdAt: new Date().toISOString(),
@@ -291,19 +331,106 @@ export function addTrip(trip: Omit<PlanTrip, "addedAt">): boolean {
     setActivePlanId(plan.id);
   }
 
-  if (plan.trips.some((t) => t.boatId === trip.boatId)) return false;
-  plan.trips.push({ ...trip, addedAt: Date.now() });
+  if (!mergeOrAdd(plan, trip)) return false;
+  autoSetStartDate(plan);
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
+  window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
   return true;
 }
 
-export function removeTrip(boatId: string) {
+export function addTripToPlan(planId: string, trip: Omit<PlanTrip, "addedAt">): boolean {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return false;
+
+  if (!mergeOrAdd(plan, trip)) return false;
+  autoSetStartDate(plan);
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+  window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
+  return true;
+}
+
+function autoSetStartDate(plan: UserPlan) {
+  const dates = plan.trips
+    .map((t) => t.schedule?.departureDate)
+    .filter((d): d is string => !!d)
+    .sort();
+  if (dates.length > 0) plan.startDate = dates[0];
+}
+
+export type DateConflict = {
+  existingTrip: PlanTrip;
+  newDeparture: string;
+  newReturn: string;
+};
+
+export function checkDateConflicts(
+  planId: string,
+  departure: string,
+  returnDate: string | null,
+): DateConflict[] {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return [];
+
+  const newDep = departure;
+  const newRet = returnDate || departure;
+  const conflicts: DateConflict[] = [];
+
+  for (const t of plan.trips) {
+    if (!t.schedule?.departureDate) continue;
+    const eDep = t.schedule.departureDate;
+    const eRet = t.schedule.returnDate || eDep;
+    if (newDep <= eRet && newRet >= eDep) {
+      conflicts.push({ existingTrip: t, newDeparture: departure, newReturn: newRet });
+    }
+  }
+  return conflicts;
+}
+
+export function removeTrip(boatId: string, scheduleId?: string) {
   const plans = readPlans();
   const plan = plans.find((p) => p.id === getActivePlanId()) || plans[0];
   if (!plan) return;
-  plan.trips = plan.trips.filter((t) => t.boatId !== boatId);
+  plan.trips = plan.trips.filter((t) => {
+    if (t.boatId !== boatId) return true;
+    if (scheduleId) return (t.schedule?.scheduleId ?? "") !== scheduleId;
+    return false;
+  });
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+}
+
+export function removeTripByIndex(planId: string, index: number) {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return;
+  plan.trips.splice(index, 1);
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+}
+
+export function updateTripPackages(planId: string, tripIndex: number, packages: { name: string; minPrice: number; qty?: number }[]) {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan || !plan.trips[tripIndex]?.schedule) return;
+  plan.trips[tripIndex].schedule!.packages = packages;
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+}
+
+export function updateTripNote(planId: string, tripIndex: number, note: string) {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan || !plan.trips[tripIndex]) return;
+  plan.trips[tripIndex].note = note || undefined;
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
@@ -326,8 +453,8 @@ export function hasTripInPlan(boatId: string): boolean {
 }
 
 export function tripCount(): number {
-  const plan = getActivePlan();
-  return plan ? plan.trips.length : 0;
+  const plans = readPlans();
+  return plans.reduce((sum, p) => sum + p.trips.length, 0);
 }
 
 // ── Backward compat ──────────────────────────────────────────────────────────
@@ -348,14 +475,16 @@ export function getSavedEmail(): string | null {
   return localStorage.getItem(EMAIL_KEY);
 }
 
-export async function attachEmail(email: string): Promise<boolean> {
+export async function attachEmail(email: string, name?: string): Promise<boolean> {
   const deviceId = getDeviceId();
   if (!deviceId) return false;
   try {
+    const body: Record<string, string> = { deviceId, email };
+    if (name) body.name = name;
     const res = await fetch("/api/plans/email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId, email }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       localStorage.setItem(EMAIL_KEY, email.toLowerCase().trim());
