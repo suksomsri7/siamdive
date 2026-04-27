@@ -219,6 +219,11 @@ function PackageRow({ pkg, index, canEdit, onChange, onRemove }: {
           </p>
         )}
       </div>
+      {!canEdit && (
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6, flexShrink: 0 }}>
+          x{qty}
+        </span>
+      )}
       {canEdit && (
         <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
           <button onClick={() => qty > 1 ? onChange(index, qty - 1) : onRemove(index)}
