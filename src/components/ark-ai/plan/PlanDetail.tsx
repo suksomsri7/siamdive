@@ -7,6 +7,7 @@ import EmailGateModal from "./EmailGateModal";
 import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
+import ContactChannelSheet from "./ContactChannelSheet";
 import { getSavedEmail } from "@/lib/plan-store";
 
 type PlanData = {
@@ -42,7 +43,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [showMembers, setShowMembers] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [emailGateAction, setEmailGateAction] = useState<"members" | "share" | "contact" | null>(null);
-  const [pendingLineUrl, setPendingLineUrl] = useState<string | null>(null);
+  const [contactMessage, setContactMessage] = useState<string | null>(null);
+  const [showChannelSheet, setShowChannelSheet] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -306,11 +308,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       lang={lang}
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
-                      onContactClick={(lineUrl) => {
+                      onContactClick={(msg) => {
+                        setContactMessage(msg);
                         if (plan.owner.email) {
-                          window.open(lineUrl, "_blank");
+                          setShowChannelSheet(true);
                         } else {
-                          setPendingLineUrl(lineUrl);
                           setEmailGateAction("contact");
                         }
                       }}
@@ -357,14 +359,20 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           onSuccess={(newEmail, newName) => {
             setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail, name: newName ?? prev.owner.name } } : prev);
             const action = emailGateAction;
-            const lineUrl = pendingLineUrl;
             setEmailGateAction(null);
-            setPendingLineUrl(null);
             if (action === "members") setShowMembers(true);
             if (action === "share") handleShare();
-            if (action === "contact" && lineUrl) window.open(lineUrl, "_blank");
+            if (action === "contact") setShowChannelSheet(true);
           }}
           onClose={() => setEmailGateAction(null)}
+        />
+      )}
+
+      {showChannelSheet && contactMessage && (
+        <ContactChannelSheet
+          message={contactMessage}
+          lang={lang}
+          onClose={() => { setShowChannelSheet(false); setContactMessage(null); }}
         />
       )}
     </>
