@@ -4,6 +4,26 @@ import { requireAuth } from "@/lib/apiAuth";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await ctx.params;
+
+  try {
+    const plan = await prisma.userPlan.findFirst({
+      where: { OR: [{ id }, { shortId: id }] },
+    });
+    if (!plan) {
+      return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    }
+    await prisma.userPlan.delete({ where: { id: plan.id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest, ctx: Ctx) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;

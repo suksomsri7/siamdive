@@ -47,6 +47,8 @@ export default function UserPlansPage() {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [detailTab, setDetailTab] = useState<"info" | "itinerary">("info");
 
   const limit = 20;
 
@@ -77,11 +79,27 @@ export default function UserPlansPage() {
     setPanelOpen(true);
     setDetailLoading(true);
     setDetail(null);
+    setDetailTab("info");
     try {
       const res = await fetch(`/api/user-plans/${planId}`);
       if (res.ok) setDetail(await res.json());
     } catch {} finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleDelete = async (planId: string) => {
+    if (!confirm("Delete this plan? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/user-plans/${planId}`, { method: "DELETE" });
+      if (res.ok) {
+        setPanelOpen(false);
+        setDetail(null);
+        load();
+      }
+    } catch {} finally {
+      setDeleting(false);
     }
   };
 
@@ -207,13 +225,93 @@ export default function UserPlansPage() {
             <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
 
             {/* Panel header */}
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a1a", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#0d0d0d", zIndex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#e5e5e5" }}>Plan Detail</p>
-              <button onClick={() => setPanelOpen(false)} style={{ background: "none", border: "none", color: "#555", fontSize: 18, cursor: "pointer", padding: 4 }}>✕</button>
+            <div style={{ position: "sticky", top: 0, background: "#0d0d0d", zIndex: 1 }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a1a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "#e5e5e5" }}>Plan Detail</p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {detail && (
+                    <button onClick={() => handleDelete(detail.id)} disabled={deleting}
+                      style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid #7f1d1d", background: "transparent", color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                      {deleting ? "..." : "Delete"}
+                    </button>
+                  )}
+                  <button onClick={() => setPanelOpen(false)} style={{ background: "none", border: "none", color: "#555", fontSize: 18, cursor: "pointer", padding: 4 }}>✕</button>
+                </div>
+              </div>
+              {detail && (
+                <div style={{ display: "flex", borderBottom: "1px solid #1a1a1a", padding: "0 20px" }}>
+                  {(["info", "itinerary"] as const).map((t) => (
+                    <button key={t} onClick={() => setDetailTab(t)} style={{
+                      padding: "10px 16px", background: "none", border: "none",
+                      borderBottom: detailTab === t ? "2px solid #3b82f6" : "2px solid transparent",
+                      color: detailTab === t ? "#e5e5e5" : "#555",
+                      fontSize: 12, fontWeight: 600, cursor: "pointer", textTransform: "capitalize",
+                    }}>
+                      {t === "info" ? "Info" : `Itinerary (${Array.isArray(detail.trips) ? detail.trips.length : 0})`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {detailLoading || !detail ? (
               <div style={{ padding: 40, textAlign: "center", color: "#555" }}>Loading...</div>
+            ) : detailTab === "itinerary" ? (
+              <div style={{ padding: "16px 20px" }}>
+                {Array.isArray(detail.trips) && detail.trips.length > 0 ? (
+                  <div style={{ background: "#0a0a0a", borderRadius: 12, padding: 16 }}>
+                    {detail.trips.map((t, i) => {
+                      const dep = t.schedule?.departureDate;
+                      const ret = t.schedule?.returnDate;
+                      return (
+                        <div key={i} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: i < detail.trips.length - 1 ? "1px solid #151515" : "none" }}>
+                          {/* Number */}
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{i + 1}</span>
+                          </div>
+                          {/* Cover */}
+                          {t.cover ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.cover} alt="" style={{ width: 56, height: 42, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 56, height: 42, background: "#161616", borderRadius: 6, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                              🤿
+                            </div>
+                          )}
+                          {/* Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
+                            <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                              {t.type && <Tag>{TYPE_LABEL[t.type] || t.type}</Tag>}
+                              {t.area && <Tag>{t.area}</Tag>}
+                            </div>
+                            {dep && (
+                              <p style={{ fontSize: 11, color: "#60a5fa", marginTop: 4 }}>
+                                {fmtDate(dep)}{ret ? ` — ${fmtDate(ret)}` : ""}
+                              </p>
+                            )}
+                            {t.schedule?.route && (
+                              <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{t.schedule.route}</p>
+                            )}
+                            {t.schedule?.packages && t.schedule.packages.length > 0 && (
+                              <div style={{ marginTop: 4 }}>
+                                {t.schedule.packages.map((pkg, pi) => (
+                                  <p key={pi} style={{ fontSize: 11, color: "#888" }}>
+                                    {pkg.name} — {pkg.minPrice.toLocaleString()}B{pkg.qty ? ` x${pkg.qty}` : ""}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ textAlign: "center", color: "#555", padding: 40 }}>No trips in this plan</p>
+                )}
+                <div style={{ height: 40 }} />
+              </div>
             ) : (
               <div style={{ padding: "16px 20px" }}>
                 {/* Cover */}
@@ -253,33 +351,6 @@ export default function UserPlansPage() {
                     <StatBox label="Chat" value={detail.chatCount} />
                   </div>
                 </Section>
-
-                {/* Trips */}
-                {Array.isArray(detail.trips) && detail.trips.length > 0 && (
-                  <Section title={`Trips (${detail.trips.length})`}>
-                    {detail.trips.map((t, i) => (
-                      <div key={i} style={{ padding: "10px 0", borderBottom: i < detail.trips.length - 1 ? "1px solid #111" : "none" }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#e5e5e5" }}>{t.title}</p>
-                        <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                          {t.type && <Tag>{TYPE_LABEL[t.type] || t.type}</Tag>}
-                          {t.area && <Tag>{t.area}</Tag>}
-                          {t.schedule?.departureDate && (
-                            <Tag>{fmtDate(t.schedule.departureDate)}{t.schedule.returnDate ? ` - ${fmtDate(t.schedule.returnDate)}` : ""}</Tag>
-                          )}
-                        </div>
-                        {t.schedule?.packages && t.schedule.packages.length > 0 && (
-                          <div style={{ marginTop: 6 }}>
-                            {t.schedule.packages.map((pkg, pi) => (
-                              <p key={pi} style={{ fontSize: 11, color: "#555" }}>
-                                {pkg.name} — {pkg.minPrice.toLocaleString()}B {pkg.qty ? `x${pkg.qty}` : ""}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </Section>
-                )}
 
                 {/* Members */}
                 {detail.members.length > 0 && (

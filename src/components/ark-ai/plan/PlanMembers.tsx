@@ -17,7 +17,6 @@ type Props = {
 
 export default function PlanMembers({ planId, deviceId, lang, owner, members, onClose }: Props) {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [role, setRole] = useState<"EDITOR" | "VIEWER">("EDITOR");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +36,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
       const res = await fetch(`/api/plans/${planId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, email: trimmed, name: name.trim() || undefined, role }),
+        body: JSON.stringify({ deviceId, email: trimmed, role }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -51,7 +50,6 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
         return [...prev, newMember];
       });
       setEmail("");
-      setName("");
     } catch {
       setError("Network error");
     } finally {
@@ -139,19 +137,13 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
           <p style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 8 }}>
             {isTh ? "เชิญสมาชิก" : "Invite Member"}
           </p>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div style={{ marginBottom: 8 }}>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               type="email"
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, background: "#0a0a0a", border: "1px solid #262626", color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none" }}
-            />
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={isTh ? "ชื่อ" : "Name"}
-              style={{ width: 90, padding: "10px 12px", borderRadius: 8, background: "#0a0a0a", border: "1px solid #262626", color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "#0a0a0a", border: "1px solid #262626", color: "#f5f5f5", fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
             />
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
