@@ -8,6 +8,8 @@ import TripCard from "./TripCard";
 import { InfoModal, type Trip } from "./TripPullUp";
 import HeroAI from "./HeroAI";
 import RecentlyViewedRow, { type RecentBoat } from "./RecentlyViewedRow";
+import NearbyTripsRow from "./NearbyTripsRow";
+import RecommendedTripsRow from "./RecommendedTripsRow";
 import { trackRowClick, trackTripView } from "@/lib/analytics/client";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
 import { formatDateLabel } from "@/lib/formatDate";
@@ -278,6 +280,30 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                   })}
                 </div>
               </section>
+              <NearbyTripsRow
+                lang={lang}
+                onSelect={(s) => {
+                  setSelected({
+                    slug: s.slug, title: s.title, description: "",
+                    price: s.price, duration: "", type: s.type,
+                    destinationName: s.destinationName, imageUrl: s.imageUrl, boatId: s.boatId,
+                    initialDate: s.initialDate,
+                  });
+                }}
+                onRecentUpdate={() => setRecentKey(k => k + 1)}
+              />
+              <RecommendedTripsRow
+                lang={lang}
+                onSelect={(s) => {
+                  setSelected({
+                    slug: s.slug, title: s.title, description: "",
+                    price: s.price, duration: "", type: s.type,
+                    destinationName: s.destinationName, imageUrl: s.imageUrl, boatId: s.boatId,
+                    initialDate: s.initialDate,
+                  });
+                }}
+                onRecentUpdate={() => setRecentKey(k => k + 1)}
+              />
               </div>
             );
           }
