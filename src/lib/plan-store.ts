@@ -1,3 +1,5 @@
+import { trackPlanCreate, trackPlanTripAdd, trackPlanTripRemove } from "@/lib/analytics/client";
+
 const DEVICE_KEY = "siamdive:deviceId";
 const PLANS_KEY = "siamdive:plans";
 const ACTIVE_KEY = "siamdive:activePlanId";
@@ -240,6 +242,7 @@ export function createPlan(name: string): UserPlan {
   writePlans(plans);
   setActivePlanId(plan.id);
   scheduleSync();
+  trackPlanCreate(plan.id, name);
   return plan;
 }
 
@@ -336,6 +339,7 @@ export function addTrip(trip: Omit<PlanTrip, "addedAt">): boolean {
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
+  trackPlanTripAdd(plan.id, trip.title, trip.boatId);
   window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
   return true;
 }
@@ -350,6 +354,7 @@ export function addTripToPlan(planId: string, trip: Omit<PlanTrip, "addedAt">): 
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
+  trackPlanTripAdd(planId, trip.title, trip.boatId);
   window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
   return true;
 }
@@ -410,10 +415,12 @@ export function removeTripByIndex(planId: string, index: number) {
   const plans = readPlans();
   const plan = plans.find((p) => p.id === planId);
   if (!plan) return;
+  const removed = plan.trips[index];
   plan.trips.splice(index, 1);
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();
+  if (removed) trackPlanTripRemove(planId, removed.title);
 }
 
 export function updateTripPackages(planId: string, tripIndex: number, packages: { name: string; minPrice: number; qty?: number }[]) {

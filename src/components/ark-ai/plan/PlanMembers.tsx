@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackPlanInvite } from "@/lib/analytics/client";
 
 type Member = {
   id: string; email: string; name: string | null; role: string; certLevel: string | null;
@@ -44,6 +45,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
         return;
       }
       const newMember = await res.json();
+      trackPlanInvite(planId, trimmed, role);
       setLocalMembers((prev) => {
         const idx = prev.findIndex((m) => m.email === newMember.email);
         if (idx >= 0) { const copy = [...prev]; copy[idx] = newMember; return copy; }

@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
+import { trackPlanContact } from "@/lib/analytics/client";
 
 type Channel = { key: string; label: string; color: string; icon: string; url: string };
 
 type Props = {
+  planId: string;
   message: string;
   lang: string;
   onClose: () => void;
@@ -51,7 +53,7 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
   ),
 };
 
-export default function ContactChannelSheet({ message, lang, onClose }: Props) {
+export default function ContactChannelSheet({ planId, message, lang, onClose }: Props) {
   const isTh = lang === "th";
   const channels = buildChannels(message);
 
@@ -79,7 +81,7 @@ export default function ContactChannelSheet({ message, lang, onClose }: Props) {
           {channels.map((ch) => (
             <button
               key={ch.key}
-              onClick={() => { window.open(ch.url, "_blank"); onClose(); }}
+              onClick={() => { trackPlanContact(planId, ch.key); window.open(ch.url, "_blank"); onClose(); }}
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px", borderRadius: 12,

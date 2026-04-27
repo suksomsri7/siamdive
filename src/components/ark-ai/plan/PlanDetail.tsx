@@ -9,6 +9,7 @@ import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import { getSavedEmail } from "@/lib/plan-store";
+import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 
 type PlanData = {
   id: string; shortId: string; name: string; coverUrl: string | null;
@@ -102,6 +103,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const handleShare = async () => {
     if (!plan) return;
     setSharing(true);
+    trackPlanShare(planId, plan.shortId);
     const url = `${location.origin}/${lang}/plan/${plan.shortId}`;
     try {
       if (navigator.share) {
@@ -359,6 +361,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           lang={lang}
           onSuccess={(newEmail, newName) => {
             setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail, name: newName ?? prev.owner.name } } : prev);
+            trackPlanEmailLink(planId, newEmail);
             const action = emailGateAction;
             setEmailGateAction(null);
             if (action === "members") setShowMembers(true);
@@ -374,6 +377,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
       {showChannelSheet && contactMessage && (
         <ContactChannelSheet
+          planId={planId}
           message={contactMessage}
           lang={lang}
           onClose={() => { setShowChannelSheet(false); setContactMessage(null); }}

@@ -28,7 +28,15 @@ export type AnalyticsEventType =
   | "CHAT_TRIP_CLICK"
   | "CHAT_ITINERARY_SAVE"
   | "CHAT_ITINERARY_SHARE"
-  | "PLAN_VIEW";
+  | "BOOKING_INTENT_KAKAO"
+  | "PLAN_VIEW"
+  | "PLAN_CREATE"
+  | "PLAN_TRIP_ADD"
+  | "PLAN_TRIP_REMOVE"
+  | "PLAN_SHARE"
+  | "PLAN_INVITE"
+  | "PLAN_CONTACT"
+  | "PLAN_EMAIL_LINK";
 
 export type TrackEventInput = {
   type: AnalyticsEventType;

@@ -355,3 +355,36 @@ export const trackChatItineraryShare = (shortId: string) =>
 
 export const trackPlanView = (shortId: string) =>
   track("PLAN_VIEW", { entityType: "ITINERARY", entityId: shortId });
+
+// ── My Plan lifecycle analytics (includes deviceId + email for per-user tracking) ──
+
+function planUserProps(extra?: Record<string, unknown>): Record<string, unknown> {
+  let deviceId: string | null = null;
+  let email: string | null = null;
+  try {
+    deviceId = window.localStorage.getItem("siamdive:deviceId");
+    email = window.localStorage.getItem("siamdive:planEmail");
+  } catch {}
+  return { deviceId, email, ...extra };
+}
+
+export const trackPlanCreate = (planId: string, planName: string) =>
+  track("PLAN_CREATE", { entityType: "PLAN", entityId: planId, properties: planUserProps({ planName }) });
+
+export const trackPlanTripAdd = (planId: string, tripTitle: string, boatId?: string) =>
+  track("PLAN_TRIP_ADD", { entityType: "PLAN", entityId: planId, properties: planUserProps({ tripTitle, boatId }) });
+
+export const trackPlanTripRemove = (planId: string, tripTitle: string) =>
+  track("PLAN_TRIP_REMOVE", { entityType: "PLAN", entityId: planId, properties: planUserProps({ tripTitle }) });
+
+export const trackPlanShare = (planId: string, shortId: string) =>
+  track("PLAN_SHARE", { entityType: "PLAN", entityId: planId, properties: planUserProps({ shortId }) });
+
+export const trackPlanInvite = (planId: string, invitedEmail: string, role: string) =>
+  track("PLAN_INVITE", { entityType: "PLAN", entityId: planId, properties: planUserProps({ invitedEmail, role }) });
+
+export const trackPlanContact = (planId: string, channel: string) =>
+  track("PLAN_CONTACT", { entityType: "PLAN", entityId: planId, properties: planUserProps({ channel }) });
+
+export const trackPlanEmailLink = (planId: string, email: string) =>
+  track("PLAN_EMAIL_LINK", { entityType: "PLAN", entityId: planId, properties: planUserProps({ linkedEmail: email }) });
