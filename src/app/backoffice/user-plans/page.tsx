@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 
 type PlanRow = {
   id: string; shortId: string; name: string; status: string; coverUrl: string | null;
@@ -12,7 +13,7 @@ type PlanRow = {
 type PlanDetail = {
   id: string; shortId: string; name: string; status: string; coverUrl: string | null;
   owner: { email: string | null; name: string | null; deviceId: string; createdAt: string };
-  trips: { boatId: string; title: string; slug: string; type: string; area: string; cover: string | null; schedule?: { departureDate: string; returnDate: string | null; route: string; packages: { name: string; minPrice: number; qty?: number }[] } }[];
+  trips: { boatId: string; title: string; slug: string; type: string; area: string; cover: string | null; addedAt?: number; note?: string; schedule?: { scheduleId: string; departureDate: string; returnDate: string | null; route: string; packages: { name: string; minPrice: number; qty?: number }[] } }[];
   members: { id: string; email: string; name: string | null; role: string; certLevel: string | null; joinedAt: string }[];
   media: { id: string; url: string; type: string; createdAt: string }[];
   checklists: { id: string; category: string; item: string; checked: boolean }[];
@@ -25,11 +26,6 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PLANNING: { bg: "#1e3a5f", color: "#60a5fa" },
   CONFIRMED: { bg: "#14532d", color: "#4ade80" },
   COMPLETED: { bg: "#1a1a1a", color: "#888" },
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  DAYTRIP: "Day Trip", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort",
-  FREEDIVE: "Freedive", LAND_TOUR: "Land Tour", SNORKELING: "Snorkeling",
 };
 
 function fmtDate(iso: string) {
@@ -259,54 +255,18 @@ export default function UserPlansPage() {
             ) : detailTab === "itinerary" ? (
               <div style={{ padding: "16px 20px" }}>
                 {Array.isArray(detail.trips) && detail.trips.length > 0 ? (
-                  <div style={{ background: "#0a0a0a", borderRadius: 12, padding: 16 }}>
-                    {detail.trips.map((t, i) => {
-                      const dep = t.schedule?.departureDate;
-                      const ret = t.schedule?.returnDate;
-                      return (
-                        <div key={i} style={{ display: "flex", gap: 12, padding: "12px 0", borderBottom: i < detail.trips.length - 1 ? "1px solid #151515" : "none" }}>
-                          {/* Number */}
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{i + 1}</span>
-                          </div>
-                          {/* Cover */}
-                          {t.cover ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={t.cover} alt="" style={{ width: 56, height: 42, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
-                          ) : (
-                            <div style={{ width: 56, height: 42, background: "#161616", borderRadius: 6, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                              🤿
-                            </div>
-                          )}
-                          {/* Info */}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
-                            <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-                              {t.type && <Tag>{TYPE_LABEL[t.type] || t.type}</Tag>}
-                              {t.area && <Tag>{t.area}</Tag>}
-                            </div>
-                            {dep && (
-                              <p style={{ fontSize: 11, color: "#60a5fa", marginTop: 4 }}>
-                                {fmtDate(dep)}{ret ? ` — ${fmtDate(ret)}` : ""}
-                              </p>
-                            )}
-                            {t.schedule?.route && (
-                              <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{t.schedule.route}</p>
-                            )}
-                            {t.schedule?.packages && t.schedule.packages.length > 0 && (
-                              <div style={{ marginTop: 4 }}>
-                                {t.schedule.packages.map((pkg, pi) => (
-                                  <p key={pi} style={{ fontSize: 11, color: "#888" }}>
-                                    {pkg.name} — {pkg.minPrice.toLocaleString()}B{pkg.qty ? ` x${pkg.qty}` : ""}
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <PlanTimeline
+                    planId={detail.id}
+                    trips={detail.trips.map((t) => ({
+                      ...t,
+                      slug: t.slug || "",
+                      area: t.area || "",
+                      cover: t.cover || null,
+                      addedAt: t.addedAt || 0,
+                    }))}
+                    lang="en"
+                    canEdit={false}
+                  />
                 ) : (
                   <p style={{ textAlign: "center", color: "#555", padding: 40 }}>No trips in this plan</p>
                 )}
@@ -423,10 +383,3 @@ function StatBox({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ fontSize: 10, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6 }}>
-      {children}
-    </span>
-  );
-}
