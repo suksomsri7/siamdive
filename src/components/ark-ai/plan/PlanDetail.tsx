@@ -309,7 +309,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
                       onContactClick={(msg) => {
-                        setContactMessage(msg);
+                        const extra = `\nPlan: ${plan.shortId}` + (plan.owner.email ? `\nEmail: ${plan.owner.email}` : "");
+                        setContactMessage(msg + extra);
                         if (plan.owner.email) {
                           setShowChannelSheet(true);
                         } else {
@@ -362,7 +363,10 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             setEmailGateAction(null);
             if (action === "members") setShowMembers(true);
             if (action === "share") handleShare();
-            if (action === "contact") setShowChannelSheet(true);
+            if (action === "contact") {
+              setContactMessage((prev) => prev ? prev + `\nEmail: ${newEmail}` : prev);
+              setShowChannelSheet(true);
+            }
           }}
           onClose={() => setEmailGateAction(null)}
         />

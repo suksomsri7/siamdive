@@ -10,7 +10,7 @@ type Props = {
   onClose: () => void;
 };
 
-const PHONE = "66953969415";
+const PHONE = "66893768135";
 
 function buildChannels(msg: string): Channel[] {
   const enc = encodeURIComponent(msg);
