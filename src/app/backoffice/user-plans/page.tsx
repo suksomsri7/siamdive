@@ -6,7 +6,7 @@ import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 type PlanRow = {
   id: string; shortId: string; name: string; status: string; coverUrl: string | null;
   ownerEmail: string | null; ownerName: string | null;
-  tripCount: number; packageCount: number; memberCount: number; mediaCount: number; checklistCount: number; chatCount: number;
+  tripCount: number; totalQty: number; memberCount: number; mediaCount: number; checklistCount: number; chatCount: number;
   createdAt: string; updatedAt: string;
 };
 
@@ -145,7 +145,7 @@ export default function UserPlansPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #1a1a1a" }}>
-              {["Plan Name", "Owner", "Trips", "Pkgs", "Members", "Status", "Updated"].map((h) => (
+              {["Plan Name", "Owner", "Trips", "Qty", "Members", "Status", "Updated"].map((h) => (
                 <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "#555", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
                   {h}
                 </th>
@@ -177,7 +177,7 @@ export default function UserPlansPage() {
                     {p.ownerName && <p style={{ color: "#444", fontSize: 11 }}>{p.ownerName}</p>}
                   </td>
                   <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.tripCount}</td>
-                  <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.packageCount}</td>
+                  <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.totalQty || "-"}</td>
                   <td style={{ padding: "10px 12px", color: "#ccc", textAlign: "center" }}>{p.memberCount + 1}</td>
                   <td style={{ padding: "10px 12px" }}>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: sc.bg, color: sc.color }}>
