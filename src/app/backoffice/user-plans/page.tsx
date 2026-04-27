@@ -100,12 +100,22 @@ export default function UserPlansPage() {
     }
   };
 
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const loadAiSummary = async (planId: string, refresh = false) => {
     setAiLoading(true);
+    setAiError(null);
     try {
       const res = await fetch(`/api/user-plans/${planId}/summary${refresh ? "?refresh=1" : ""}`);
-      if (res.ok) setAiSummary(await res.json());
-    } catch {} finally {
+      if (res.ok) {
+        setAiSummary(await res.json());
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setAiError(data.error || `Error ${res.status}`);
+      }
+    } catch (e) {
+      setAiError("Network error");
+    } finally {
       setAiLoading(false);
     }
   };
@@ -117,6 +127,7 @@ export default function UserPlansPage() {
     setDetailTab("info");
     setProfile(null);
     setAiSummary(null);
+    setAiError(null);
     try {
       const res = await fetch(`/api/user-plans/${planId}`);
       if (res.ok) setDetail(await res.json());
@@ -330,6 +341,9 @@ export default function UserPlansPage() {
                       )}
                     </div>
                   </div>
+                  {aiError && (
+                    <p style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{aiError}</p>
+                  )}
                   {aiSummary && (
                     <>
                       <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>

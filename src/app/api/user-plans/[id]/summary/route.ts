@@ -11,6 +11,114 @@ async function getAiKey() {
   return config?.apiKeyEncrypted ? decrypt(config.apiKeyEncrypted) : (process.env.ANTHROPIC_API_KEY || "");
 }
 
+const EVENT_LABELS: Record<string, string> = {
+  PAGE_VIEW: "Viewed page", TRIP_VIEW: "Viewed trip", SCHEDULE_VIEW: "Viewed schedule",
+  BLOG_VIEW: "Read blog", BLOG_READ_COMPLETE: "Finished reading", SEARCH: "Searched",
+  SEARCH_RESULT_CLICK: "Clicked search result", FILTER_APPLY: "Applied filter",
+  BOOKING_INTENT_LINE: "Contact via LINE", BOOKING_INTENT_WHATSAPP: "Contact via WhatsApp",
+  BOOKING_INTENT_EMAIL: "Contact via Email", BOOKING_INTENT_CALL: "Contact via Phone",
+  PLAN_CREATE: "Created plan", PLAN_TRIP_ADD: "Added trip to plan",
+  PLAN_TRIP_REMOVE: "Removed trip", PLAN_SHARE: "Shared plan",
+  PLAN_INVITE: "Invited member", PLAN_CONTACT: "Contacted via plan",
+  CHAT_OPEN: "Opened AI chat", CHAT_MESSAGE: "Chat message",
+  CHAT_TRIP_CLICK: "Clicked trip from chat",
+  SESSION_START: "Started session",
+};
+
+async function fetchProfile(deviceId: string) {
+  const vidRows = await prisma.$queryRaw<Array<{ visitorId: string }>>`
+    SELECT DISTINCT "visitorId" FROM "AnalyticsEvent"
+    WHERE type::text LIKE 'PLAN_%' AND properties->>'deviceId' = ${deviceId}
+    ORDER BY "visitorId" LIMIT 3
+  `;
+  if (vidRows.length === 0) return { linked: false, eventCount: 0 };
+
+  const visitorIds = vidRows.map((r) => r.visitorId);
+
+  const [sessionRow, engagement, topTripsRaw, topBlogsRaw, searches, timelineRaw, totalEvents] = await Promise.all([
+    prisma.$queryRaw<Array<{
+      device: string | null; os: string | null; browser: string | null;
+      country: string | null; city: string | null; lang: string | null;
+      firstReferrer: string | null; firstUtmSource: string | null;
+      firstUtmMedium: string | null; firstLandingPath: string | null;
+    }>>`
+      SELECT device, os, browser, country, city, lang,
+             "firstReferrer", "firstUtmSource", "firstUtmMedium", "firstLandingPath"
+      FROM "AnalyticsSession"
+      WHERE "visitorId" = ANY(${visitorIds}) AND "isBot" = FALSE
+      ORDER BY "startedAt" DESC LIMIT 1
+    `,
+    prisma.$queryRaw<Array<{
+      totalSessions: number; totalEvents: number;
+      firstSeenAt: Date; lastSeenAt: Date; totalDaysActive: number;
+    }>>`
+      SELECT COUNT(DISTINCT id)::int AS "totalSessions",
+             COALESCE(SUM("eventCount"), 0)::int AS "totalEvents",
+             MIN("startedAt") AS "firstSeenAt", MAX("lastSeenAt") AS "lastSeenAt",
+             COUNT(DISTINCT DATE("startedAt" AT TIME ZONE 'Asia/Bangkok'))::int AS "totalDaysActive"
+      FROM "AnalyticsSession"
+      WHERE "visitorId" = ANY(${visitorIds}) AND "isBot" = FALSE
+    `,
+    prisma.$queryRaw<Array<{ entityId: string; viewCount: number }>>`
+      SELECT "entityId", COUNT(*)::int AS "viewCount" FROM "AnalyticsEvent"
+      WHERE "visitorId" = ANY(${visitorIds}) AND type IN ('TRIP_VIEW', 'SCHEDULE_VIEW')
+        AND "entityType" = 'BOAT' AND "entityId" IS NOT NULL
+      GROUP BY "entityId" ORDER BY "viewCount" DESC LIMIT 5
+    `,
+    prisma.$queryRaw<Array<{ entityId: string; viewCount: number }>>`
+      SELECT "entityId", COUNT(*)::int AS "viewCount" FROM "AnalyticsEvent"
+      WHERE "visitorId" = ANY(${visitorIds}) AND type IN ('BLOG_VIEW', 'BLOG_READ_COMPLETE')
+        AND "entityType" = 'BLOG' AND "entityId" IS NOT NULL
+      GROUP BY "entityId" ORDER BY "viewCount" DESC LIMIT 3
+    `,
+    prisma.$queryRaw<Array<{ query: string; resultsCount: number; ts: Date }>>`
+      SELECT "queryRaw" AS query, "resultsCount"::int, ts FROM "AnalyticsSearch"
+      WHERE "visitorId" = ANY(${visitorIds}) ORDER BY ts DESC LIMIT 10
+    `,
+    prisma.$queryRaw<Array<{ ts: Date; type: string; path: string | null }>>`
+      SELECT ts, type::text, path FROM "AnalyticsEvent"
+      WHERE "visitorId" = ANY(${visitorIds}) ORDER BY ts DESC LIMIT 30
+    `,
+    prisma.analyticsEvent.count({ where: { visitorId: { in: visitorIds } } }),
+  ]);
+
+  const boatIds = topTripsRaw.map((r) => r.entityId);
+  const blogIds = topBlogsRaw.map((r) => r.entityId);
+
+  const [boats, blogs] = await Promise.all([
+    boatIds.length > 0
+      ? prisma.boat.findMany({ where: { id: { in: boatIds } }, select: { id: true, name: true, translations: { where: { lang: "en" }, select: { title: true } } } })
+      : [],
+    blogIds.length > 0
+      ? prisma.blog.findMany({ where: { id: { in: blogIds } }, select: { id: true, translations: { where: { lang: "en" }, select: { title: true } } } })
+      : [],
+  ]);
+
+  const boatMap = new Map(boats.map((b) => [b.id, b.translations[0]?.title || b.name]));
+  const blogMap = new Map(blogs.map((b) => [b.id, b.translations[0]?.title || b.id]));
+
+  const s = sessionRow[0] || null;
+  const eng = engagement[0] || null;
+
+  return {
+    linked: true,
+    eventCount: totalEvents,
+    visitor: s ? { device: s.device, os: s.os, country: s.country, city: s.city, lang: s.lang } : null,
+    acquisition: s ? { firstReferrer: s.firstReferrer, firstUtmSource: s.firstUtmSource, firstUtmMedium: s.firstUtmMedium, firstLandingPath: s.firstLandingPath } : null,
+    engagement: eng ? {
+      totalSessions: eng.totalSessions, totalEvents: eng.totalEvents,
+      firstSeenAt: eng.firstSeenAt?.toISOString() || null, lastSeenAt: eng.lastSeenAt?.toISOString() || null,
+      totalDaysActive: eng.totalDaysActive,
+    } : null,
+    interests: {
+      topTrips: topTripsRaw.map((r) => ({ title: boatMap.get(r.entityId) || r.entityId, viewCount: r.viewCount })),
+      topBlogs: topBlogsRaw.map((r) => ({ title: blogMap.get(r.entityId) || r.entityId, viewCount: r.viewCount })),
+      searches: searches.map((s) => ({ query: s.query })),
+    },
+    timeline: timelineRaw.map((e) => ({ ts: e.ts.toISOString(), label: EVENT_LABELS[e.type] || e.type, path: e.path })),
+  };
+}
+
 export async function GET(req: NextRequest, ctx: Ctx) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
@@ -18,54 +126,33 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const refresh = req.nextUrl.searchParams.get("refresh") === "1";
 
-  const plan = await prisma.userPlan.findFirst({
-    where: { OR: [{ id }, { shortId: id }] },
-    include: {
-      user: { select: { deviceId: true, email: true, name: true } },
-      members: { select: { email: true, name: true, certLevel: true } },
-    },
-  });
-  if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
-
-  const deviceId = plan.user.deviceId;
-
-  const currentEventCount = await prisma.analyticsEvent.count({
-    where: {
-      visitorId: {
-        in: (await prisma.$queryRaw<Array<{ visitorId: string }>>`
-          SELECT DISTINCT "visitorId" FROM "AnalyticsEvent"
-          WHERE type::text LIKE 'PLAN_%' AND properties->>'deviceId' = ${deviceId}
-          LIMIT 3
-        `).map((r) => r.visitorId),
-      },
-    },
-  });
-
-  if (!refresh) {
-    const cached = await prisma.planAiSummary.findUnique({ where: { planId: plan.id } });
-    if (cached && cached.eventCount === currentEventCount) {
-      return NextResponse.json({ summary: cached.summary, generatedAt: cached.generatedAt.toISOString(), cached: true });
-    }
-  }
-
-  const profileRes = await fetch(new URL(`/api/user-plans/${plan.id}/profile`, req.url), {
-    headers: { cookie: req.headers.get("cookie") || "", authorization: req.headers.get("authorization") || "" },
-  });
-  if (!profileRes.ok) return NextResponse.json({ error: "profile_fetch_failed" }, { status: 500 });
-  const profile = await profileRes.json();
-
-  const trips = Array.isArray(plan.trips) ? plan.trips as Array<{ title?: string; type?: string; area?: string; schedule?: { departureDate?: string; packages?: Array<{ name?: string; minPrice?: number; qty?: number }> } }> : [];
-
-  const prompt = buildPrompt({
-    planName: plan.name,
-    status: plan.status,
-    owner: { email: plan.user.email, name: plan.user.name },
-    members: plan.members,
-    trips,
-    profile,
-  });
-
   try {
+    const plan = await prisma.userPlan.findFirst({
+      where: { OR: [{ id }, { shortId: id }] },
+      include: {
+        user: { select: { deviceId: true, email: true, name: true } },
+        members: { select: { email: true, name: true, certLevel: true } },
+      },
+    });
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+
+    const profile = await fetchProfile(plan.user.deviceId);
+
+    if (!refresh) {
+      const cached = await prisma.planAiSummary.findUnique({ where: { planId: plan.id } });
+      if (cached && cached.eventCount === profile.eventCount) {
+        return NextResponse.json({ summary: cached.summary, generatedAt: cached.generatedAt.toISOString(), cached: true });
+      }
+    }
+
+    const trips = Array.isArray(plan.trips) ? plan.trips as Array<{ title?: string; type?: string; area?: string; schedule?: { departureDate?: string; packages?: Array<{ name?: string; minPrice?: number; qty?: number }> } }> : [];
+
+    const prompt = buildPrompt({
+      planName: plan.name, status: plan.status,
+      owner: { email: plan.user.email, name: plan.user.name },
+      members: plan.members, trips, profile,
+    });
+
     const apiKey = await getAiKey();
     if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 500 });
 
@@ -81,12 +168,13 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     await prisma.planAiSummary.upsert({
       where: { planId: plan.id },
-      create: { planId: plan.id, summary, eventCount: currentEventCount },
-      update: { summary, eventCount: currentEventCount, generatedAt: new Date() },
+      create: { planId: plan.id, summary, eventCount: profile.eventCount },
+      update: { summary, eventCount: profile.eventCount, generatedAt: new Date() },
     });
 
     return NextResponse.json({ summary, generatedAt: new Date().toISOString(), cached: false });
-  } catch {
+  } catch (err) {
+    console.error("[summary]", err);
     return NextResponse.json({ error: "ai_generation_failed" }, { status: 500 });
   }
 }
@@ -99,9 +187,9 @@ function buildPrompt(data: {
   trips: Array<{ title?: string; type?: string; area?: string; schedule?: { departureDate?: string; packages?: Array<{ name?: string; minPrice?: number; qty?: number }> } }>;
   profile: {
     linked: boolean;
-    visitor?: { device?: string; os?: string; country?: string; city?: string; lang?: string } | null;
-    acquisition?: { firstReferrer?: string; firstUtmSource?: string; firstUtmMedium?: string; firstLandingPath?: string } | null;
-    engagement?: { totalSessions?: number; totalEvents?: number; firstSeenAt?: string; lastSeenAt?: string; totalDaysActive?: number } | null;
+    visitor?: { device?: string | null; os?: string | null; country?: string | null; city?: string | null; lang?: string | null } | null;
+    acquisition?: { firstReferrer?: string | null; firstUtmSource?: string | null; firstUtmMedium?: string | null; firstLandingPath?: string | null } | null;
+    engagement?: { totalSessions?: number; totalEvents?: number; firstSeenAt?: string | null; lastSeenAt?: string | null; totalDaysActive?: number } | null;
     interests?: { topTrips?: Array<{ title: string; viewCount: number }>; topBlogs?: Array<{ title: string; viewCount: number }>; searches?: Array<{ query: string }> } | null;
     timeline?: Array<{ ts: string; label: string }>;
   };
@@ -110,7 +198,6 @@ function buildPrompt(data: {
 
   const parts: string[] = [];
   parts.push(`# Customer Data for Plan "${planName}" (${status})`);
-
   parts.push(`\n## Owner\n- Email: ${owner.email || "ไม่มี"}\n- Name: ${owner.name || "ไม่มี"}`);
 
   if (members.length > 0) {
@@ -154,6 +241,8 @@ function buildPrompt(data: {
       parts.push(`\n## Recent Activity (last ${profile.timeline.length} events)`);
       profile.timeline.slice(0, 15).forEach((e) => parts.push(`- ${e.ts}: ${e.label}`));
     }
+  } else {
+    parts.push(`\n## Behavior Data\nNo analytics data linked to this user yet.`);
   }
 
   parts.push(`\n---\nจากข้อมูลทั้งหมด ให้สรุปเป็นภาษาไทยสำหรับ admin ที่จะตอบลูกค้า โดยมี 4 ส่วน:
