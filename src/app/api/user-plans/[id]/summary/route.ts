@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/ark-ai/encryption";
 import { requireAuth } from "@/lib/apiAuth";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-async function getAiKey() {
+async function getAiConfig() {
   const config = await prisma.aiConfig.findUnique({ where: { id: "default" } });
-  return config?.apiKeyEncrypted ? decrypt(config.apiKeyEncrypted) : (process.env.ANTHROPIC_API_KEY || "");
+  return {
+    provider: config?.provider || "anthropic",
+    apiKey: config?.apiKeyEncrypted ? decrypt(config.apiKeyEncrypted) : (process.env.ANTHROPIC_API_KEY || ""),
+    model: config?.model || "claude-haiku-4-5-20251001",
+  };
 }
 
 const EVENT_LABELS: Record<string, string> = {
@@ -153,18 +158,31 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       members: plan.members, trips, profile,
     });
 
-    const apiKey = await getAiKey();
-    if (!apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 500 });
+    const aiConfig = await getAiConfig();
+    if (!aiConfig.apiKey) return NextResponse.json({ error: "ai_not_configured" }, { status: 500 });
 
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      temperature: 0.3,
-      messages: [{ role: "user", content: prompt }],
-    });
+    let summary = "";
 
-    const summary = msg.content[0].type === "text" ? msg.content[0].text : "";
+    if (aiConfig.provider === "anthropic") {
+      const client = new Anthropic({ apiKey: aiConfig.apiKey });
+      const msg = await client.messages.create({
+        model: aiConfig.model, max_tokens: 1024, temperature: 0.3,
+        messages: [{ role: "user", content: prompt }],
+      });
+      summary = msg.content[0].type === "text" ? msg.content[0].text : "";
+    } else {
+      const baseURL = aiConfig.provider === "openrouter"
+        ? "https://openrouter.ai/api/v1"
+        : aiConfig.provider === "openai"
+          ? "https://api.openai.com/v1"
+          : undefined;
+      const client = new OpenAI({ apiKey: aiConfig.apiKey, baseURL });
+      const res = await client.chat.completions.create({
+        model: aiConfig.model, max_tokens: 1024, temperature: 0.3,
+        messages: [{ role: "user", content: prompt }],
+      });
+      summary = res.choices[0]?.message?.content || "";
+    }
 
     await prisma.planAiSummary.upsert({
       where: { planId: plan.id },
