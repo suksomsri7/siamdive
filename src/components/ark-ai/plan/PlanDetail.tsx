@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { renamePlan, removeTrip, getPlans, updatePlanCoverUrl, type PlanTrip } from "@/lib/plan-store";
+import { renamePlan, removeTripByIndex, getPlans, updatePlanCoverUrl, type PlanTrip } from "@/lib/plan-store";
 import PlanMembers from "./PlanMembers";
-
+import EmailGateModal from "./EmailGateModal";
+import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
+import { getSavedEmail } from "@/lib/plan-store";
 
 type PlanData = {
   id: string; shortId: string; name: string; coverUrl: string | null;
@@ -39,6 +41,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [nameValue, setNameValue] = useState("");
   const [showMembers, setShowMembers] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [emailGateAction, setEmailGateAction] = useState<"members" | "share" | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +52,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       const res = await fetch(`/api/plans/${planId}?deviceId=${encodeURIComponent(deviceId)}`);
       if (res.ok) {
         const data = await res.json();
+        const local = getPlans().find((p) => p.id === planId);
+        if (local) data.trips = local.trips;
         setPlan(data);
         setNameValue(data.name);
       }
@@ -83,9 +88,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     setRenaming(false);
   };
 
-  const handleRemoveTrip = (boatId: string) => {
-    removeTrip(boatId);
-    setPlan((prev) => prev ? { ...prev, trips: prev.trips.filter((t) => t.boatId !== boatId) } : prev);
+  const handleTripRemoved = () => {
+    const localPlans = getPlans();
+    const local = localPlans.find((p) => p.id === planId);
+    if (local) {
+      setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
+    }
   };
 
   const handleShare = async () => {
@@ -144,7 +152,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
   const tabs: { key: Tab; label: string; icon: string; count?: number }[] = [
     { key: "itinerary", label: isTh ? "ทริป" : "Trips", icon: "🗺", count: trips.length },
-    { key: "chat", label: isTh ? "แชท" : "Chat", icon: "💬", count: plan.chatCount },
   ];
 
   const tabsBar = (
@@ -152,16 +159,16 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       {tabs.map((t) => (
         <button key={t.key} onClick={() => setTab(t.key)} style={{
           flex: 1, padding: "10px 0", background: "none", border: "none",
-          borderBottom: tab === t.key ? "2px solid #3b82f6" : "2px solid transparent",
+          borderBottom: tab === t.key ? "2px solid #f5f5f5" : "2px solid transparent",
           color: tab === t.key ? "#f5f5f5" : "#555",
-          fontSize: 11, fontWeight: 700, cursor: "pointer",
+          fontSize: 11, fontWeight: 600, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
           transition: "color 0.15s",
         }}>
           <span>{t.icon}</span>
           <span>{t.label}</span>
           {t.count !== undefined && t.count > 0 && (
-            <span style={{ fontSize: 9, background: tab === t.key ? "#1e40af" : "#222", color: tab === t.key ? "#fff" : "#666", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
+            <span style={{ fontSize: 9, background: tab === t.key ? "#222" : "#1a1a1a", color: tab === t.key ? "#f5f5f5" : "#555", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
               {t.count}
             </span>
           )}
@@ -197,7 +204,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           </p>
         )}
 
-        <button onClick={handleShare} disabled={sharing}
+        <button onClick={() => plan.owner.email ? handleShare() : setEmailGateAction("share")} disabled={sharing}
           style={{ background: "none", border: "none", color: "#60a5fa", cursor: "pointer", padding: 4, marginLeft: 4, display: "flex" }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -214,14 +221,15 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           <PlanChatTab planId={planId} deviceId={deviceId} lang={lang} />
         </>
       ) : (
+        <>
         <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
           {/* Hero */}
-          <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "linear-gradient(135deg, #0f172a, #1e3a5f)" }}>
+          <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "#111" }}>
             {cover && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             )}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,0.3) 50%, transparent 100%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0a0a0a 0%, transparent 60%)" }} />
             {isOwner && (
               <button
                 onClick={() => coverInputRef.current?.click()}
@@ -229,7 +237,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                 style={{
                   position: "absolute", top: 10, right: 10,
                   width: 34, height: 34, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(0,0,0,0.5)", border: "1px solid #333",
                   color: "#fff", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
@@ -254,7 +262,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
           {/* Members strip */}
           <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", border: "2px solid #3b82f6" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#e5e5e5", border: "2px solid #333" }}>
               {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
             </div>
             {plan.members.slice(0, 5).map((m) => (
@@ -263,7 +271,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
               </div>
             ))}
             {isOwner && (
-              <button onClick={() => setShowMembers(true)} style={{
+              <button onClick={() => plan.owner.email ? setShowMembers(true) : setEmailGateAction("members")} style={{
                 width: 28, height: 28, borderRadius: "50%", background: "transparent",
                 border: "2px dashed #333", display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: "pointer", color: "#555", fontSize: 14,
@@ -285,63 +293,27 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       {isTh ? "ยังไม่มีทริปในแพลน" : "No trips yet"}
                     </p>
                     <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
-                      style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                      {isTh ? "ทริปแนะนำจาก AI" : "Recommended trips from AI"}
+                      style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                      {isTh ? "ทริปจาก AI" : "Recommended trips from AI"}
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {trips.map((trip, idx) => (
-                      <div key={trip.boatId} style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 12,
-                      }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{idx + 1}</span>
-                        </div>
-                        {trip.cover ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={trip.cover} alt="" style={{ width: 52, height: 40, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: 52, height: 40, background: "#1a1a2e", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                            🤿
-                          </div>
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          {trip.area && <p style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
-                          <p style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
-                        </div>
-                        {canEdit && (
-                          <button onClick={() => handleRemoveTrip(trip.boatId)}
-                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #262626", background: "transparent", color: "#555", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                  <div>
+                    <PlanTimeline
+                      planId={planId}
+                      trips={trips}
+                      lang={lang}
+                      canEdit={canEdit}
+                      onTripRemoved={handleTripRemoved}
+                      onAddPackage={(slug, departureDate) => {
+                        const t = trips.find((tr) => tr.slug === slug);
+                        onClose();
+                        setTimeout(() => window.dispatchEvent(new CustomEvent("open-trip-info", {
+                          detail: { slug, title: t?.title, type: t?.type, area: t?.area, cover: t?.cover, boatId: t?.boatId, initialDate: departureDate },
+                        })), 100);
+                      }}
+                    />
 
-                    {canEdit && (
-                      <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
-                        style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)", color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
-                        + {isTh ? "ทริปแนะนำจาก AI" : "Recommended trips from AI"}
-                      </button>
-                    )}
-
-                    {/* Summary */}
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                      <span style={{ fontSize: 11, color: "#60a5fa", background: "rgba(96,165,250,0.1)", padding: "4px 10px", borderRadius: 8 }}>
-                        🤿 {trips.filter((t) => ["DAYTRIP", "LIVEABOARD", "DIVE_RESORT", "FREEDIVE"].includes(t.type)).length} {isTh ? "ทริปดำน้ำ" : "dive trips"}
-                      </span>
-                      {trips.some((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING") && (
-                        <span style={{ fontSize: 11, color: "#10b981", background: "rgba(16,185,129,0.1)", padding: "4px 10px", borderRadius: 8 }}>
-                          🏝 {trips.filter((t) => t.type === "LAND_TOUR" || t.type === "SNORKELING").length} {isTh ? "ทัวร์" : "tours"}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 11, color: "#888", background: "#1a1a1a", padding: "4px 10px", borderRadius: 8 }}>
-                        👤 {plan.members.length + 1} {isTh ? "คน" : "people"}
-                      </span>
-                    </div>
                   </div>
                 )}
               </div>
@@ -351,7 +323,10 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
               <PlanChecklistTab planId={planId} deviceId={deviceId} lang={lang} checklists={plan.checklists} members={plan.members} canEdit={canEdit} onRefresh={fetchPlan} />
             )}
           </div>
+          <div style={{ height: 72 }} />
         </div>
+
+        </>
       )}
 
       {/* Members modal */}
@@ -363,6 +338,21 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           owner={plan.owner}
           members={plan.members}
           onClose={() => { setShowMembers(false); fetchPlan(); }}
+        />
+      )}
+
+      {/* Email gate — require email before invite/share */}
+      {emailGateAction && (
+        <EmailGateModal
+          lang={lang}
+          onSuccess={(newEmail) => {
+            setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail } } : prev);
+            const action = emailGateAction;
+            setEmailGateAction(null);
+            if (action === "members") setShowMembers(true);
+            if (action === "share") handleShare();
+          }}
+          onClose={() => setEmailGateAction(null)}
         />
       )}
     </>
