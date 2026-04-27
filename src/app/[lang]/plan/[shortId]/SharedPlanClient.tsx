@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
+import type { PlanTrip } from "@/lib/plan-store";
 
 type Trip = {
-  boatId: string; title: string; type: string; area?: string; cover?: string;
+  boatId: string; title: string; slug?: string; type: string; area?: string; cover?: string;
+  addedAt?: number; schedule?: PlanTrip["schedule"]; note?: string;
 };
 
 type Props = {
@@ -79,35 +82,28 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
           ))}
         </div>
 
-        {/* Trips list */}
+        {/* Trips timeline */}
         {plan.trips.length > 0 && (
           <div style={{ marginBottom: 24 }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 10 }}>
               {isTh ? "ทริปในแพลน" : "Trips in this plan"}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {plan.trips.map((trip, idx) => (
-                <div key={trip.boatId || idx} style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  background: "#111", border: "1px solid #1e1e2e", borderRadius: 12, padding: 12,
-                }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{idx + 1}</span>
-                  </div>
-                  {trip.cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={trip.cover} alt="" style={{ width: 52, height: 40, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 52, height: 40, background: "#1a1a2e", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤿</div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {trip.area && <p style={{ fontSize: 9, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase" }}>{trip.area}</p>}
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
-                    <p style={{ fontSize: 10, color: "#555" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PlanTimeline
+              planId={plan.shortId}
+              trips={plan.trips.map(t => ({
+                boatId: t.boatId,
+                title: t.title,
+                slug: t.slug || "",
+                type: t.type,
+                area: t.area || "",
+                cover: t.cover || null,
+                addedAt: t.addedAt || 0,
+                schedule: t.schedule,
+                note: t.note,
+              }))}
+              lang={currentLang}
+              canEdit={false}
+            />
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { SessionProvider } from "next-auth/react";
 import LangSetter from "./LangSetter";
 import AnalyticsProvider from "./AnalyticsProvider";
+import PlanToast from "./PlanToast";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <Suspense fallback={null}>
         <AnalyticsProvider />
       </Suspense>
+      <PlanToast />
       {children}
     </SessionProvider>
   );

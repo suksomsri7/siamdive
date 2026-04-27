@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getPlans, createPlan, deletePlan, getDeviceId, type UserPlan } from "@/lib/plan-store";
+import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan } from "@/lib/plan-store";
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 
@@ -77,7 +77,10 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
 
   return (
     <>
-      <style>{`@keyframes planFadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+      <style>{`
+        @keyframes planFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes planNavPulse { 0% { transform: scale(1); } 50% { transform: scale(0.92); } 100% { transform: scale(1); } }
+      `}</style>
       <div style={{
         position: "fixed", inset: 0, zIndex: 1300,
         background: "#0a0a0a", color: "#e5e5e5",
@@ -107,7 +110,7 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
             </div>
 
             {/* Plan List */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "16px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px", paddingBottom: 88, overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
               <PlanList
                 plans={plans}
                 lang={lang}
@@ -137,6 +140,8 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
             )}
           </>
         )}
+
+        <PlanBottomNav onClose={onClose} />
       </div>
     </>
   );
@@ -178,6 +183,108 @@ function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: stri
   );
 }
 
+function PlanBottomNav({ onClose }: { onClose: () => void }) {
+  const [tapped, setTapped] = useState<string | null>(null);
+  const [badge, setBadge] = useState(0);
+
+  useEffect(() => {
+    setBadge(tripCount());
+    const handler = () => setBadge(tripCount());
+    window.addEventListener("myplan-change", handler);
+    return () => window.removeEventListener("myplan-change", handler);
+  }, []);
+
+  const handleTap = (id: string, action: () => void) => {
+    setTapped(id);
+    action();
+    setTimeout(() => setTapped(null), 300);
+  };
+
+  return (
+    <nav style={{
+      position: "absolute", bottom: 0, left: 0, right: 0,
+      display: "flex", justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      <div style={{
+        width: "100%", maxWidth: 480,
+        display: "flex", alignItems: "stretch",
+        background: "linear-gradient(to top, rgba(8,8,8,0.98), rgba(13,13,13,0.95))",
+        backdropFilter: "blur(20px) saturate(1.5)",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}>
+        {/* Search */}
+        <button
+          onClick={() => handleTap("search", () => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-search")), 100); })}
+          style={{
+            flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", gap: 3,
+            padding: "10px 0 8px", border: "none", background: "transparent",
+            color: "rgba(255,255,255,0.4)", cursor: "pointer",
+            animation: tapped === "search" ? "planNavPulse 0.3s ease" : "none",
+            transition: "color 0.15s",
+          }}
+        >
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>Search</span>
+        </button>
+
+        {/* AI center button */}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button
+            onClick={() => handleTap("ai", () => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); })}
+            style={{
+              width: 52, height: 52, borderRadius: "50%",
+              background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+              border: "none", color: "#fff", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 4px 20px rgba(59,130,246,0.35)",
+              transform: "translateY(-12px)",
+              animation: tapped === "ai" ? "planNavPulse 0.3s ease" : "none",
+              transition: "box-shadow 0.2s",
+            }}
+          >
+            <img src="/ai-mask.png" alt="AI" width={28} height={28} style={{ filter: "brightness(1.1)" }} />
+          </button>
+        </div>
+
+        {/* My Plan (active) */}
+        <button
+          style={{
+            flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", gap: 3,
+            padding: "10px 0 8px", border: "none", background: "transparent",
+            color: "#fff", cursor: "default",
+          }}
+        >
+          <div style={{ position: "relative" }}>
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+              <path d="M9 14l2 2 4-4" />
+            </svg>
+            {badge > 0 && (
+              <span style={{
+                position: "absolute", top: -5, right: -10,
+                minWidth: 16, height: 16, borderRadius: 8,
+                background: "#ef4444", color: "#fff",
+                fontSize: 9, fontWeight: 900,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "0 4px",
+                boxShadow: "0 2px 6px rgba(239,68,68,0.4)",
+              }}>{badge}</span>
+            )}
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>My Plan</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 function CreatePlanModal({ lang, onCreate, onClose }: { lang: string; onCreate: (name: string) => void; onClose: () => void }) {
   const [name, setName] = useState("");
   const isTh = lang === "th";
@@ -211,7 +318,7 @@ function CreatePlanModal({ lang, onCreate, onClose }: { lang: string; onCreate: 
           disabled={!name.trim()}
           style={{
             width: "100%", padding: "14px 0", borderRadius: 10, border: "none",
-            background: name.trim() ? "linear-gradient(135deg, #1e40af, #3b82f6)" : "#222",
+            background: name.trim() ? "#1e40af" : "#1a1a1a",
             color: name.trim() ? "#fff" : "#555",
             fontSize: 15, fontWeight: 700, cursor: name.trim() ? "pointer" : "default",
             marginTop: 12,

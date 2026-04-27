@@ -160,7 +160,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
                   onDoubleClick={() => handlePin(msg.id, !msg.pinned)}
                   style={{
                     maxWidth: "80%", padding: "8px 12px", borderRadius: 12,
-                    background: own ? "#1e40af" : "#1a1a1a",
+                    background: own ? "#1a1a2e" : "#1a1a1a",
                     borderBottomRightRadius: own ? 4 : 12,
                     borderBottomLeftRadius: own ? 12 : 4,
                     cursor: "default",
@@ -209,7 +209,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
           disabled={!text.trim() || sending}
           style={{
             width: 36, height: 36, borderRadius: "50%", border: "none",
-            background: text.trim() ? "#1e40af" : "#222",
+            background: text.trim() ? "#1a1a2e" : "#1a1a1a",
             color: text.trim() ? "#fff" : "#555",
             cursor: text.trim() ? "pointer" : "default",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,

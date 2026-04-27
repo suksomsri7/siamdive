@@ -22,6 +22,9 @@ type Props = {
   width?: number | string;
   height?: number | string;
   multi?: boolean;
+
+  // Fires after each image save with both cover and OG URLs + position index
+  onImageSaved?: (result: { coverUrl: string; ogUrl: string; index: number }) => void;
 };
 
 // ── Client-side resize before upload ─────────────────────────────────────────
@@ -216,26 +219,28 @@ export default function ImageEditorField(props: Props) {
   // ── Save from editor ──────────────────────────────────────────────────────
   const handleSave = (result: { coverUrl: string; ogUrl: string }) => {
     if (!editorState) return;
+    let savedIndex = 0;
     if (isMulti && props.onChangeMulti) {
       const urls = props.values ?? [];
       if (editorState.replaceUrl) {
-        // Re-edit: replace at same index
         const idx = urls.indexOf(editorState.replaceUrl);
         if (idx >= 0) {
+          savedIndex = idx;
           const newUrls = [...urls];
           newUrls[idx] = result.coverUrl;
           props.onChangeMulti(newUrls);
         } else {
-          // Original url not found — append as new
+          savedIndex = urls.length;
           props.onChangeMulti([...urls, result.coverUrl]);
         }
       } else {
-        // New image
+        savedIndex = urls.length;
         props.onChangeMulti([...urls, result.coverUrl]);
       }
     } else {
       props.onChange?.(result.coverUrl);
     }
+    props.onImageSaved?.({ ...result, index: savedIndex });
     setEditorState(null);
   };
 

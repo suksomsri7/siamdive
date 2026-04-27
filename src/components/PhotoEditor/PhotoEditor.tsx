@@ -328,7 +328,6 @@ export default function PhotoEditor({
       }
 
       const blob = await (await fetch(dataUrl)).blob();
-      console.log("Rendered JPEG blob:", (blob.size / 1024).toFixed(0), "KB");
 
       const editJson: EditJson = {
         crop: { x: imagePos.x, y: imagePos.y, width: (sourceImage?.width ?? 0) * imageScale, height: (sourceImage?.height ?? 0) * imageScale },
@@ -515,6 +514,7 @@ export default function PhotoEditor({
                   const clampY = Math.max(wmH / 2 + pad, Math.min(CANVAS_H - wmH / 2 - pad, watermark.y));
                   return (
                     <KonvaImage
+                      name="watermark"
                       image={watermarkImg}
                       x={clampX}
                       y={clampY}

@@ -114,8 +114,6 @@ export async function POST(req: NextRequest) {
     await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
     // OG: 1200x630 JPG q90 (Facebook/Twitter standard).
-    // If editor was already at 1200×630, this is a no-op resize.
-    // If at 16:9, ~6% center-crop top/bottom (acceptable for social previews).
     const ogFilename = `${id}-og.jpg`;
     const ogBuf = await sharp(renderedBuf)
       .resize(1200, 630, { fit: "cover", position: "centre" })

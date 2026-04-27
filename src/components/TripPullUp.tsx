@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
+import { getPlans, addTrip, addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
+import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
+import DateConflictModal from "./ark-ai/plan/DateConflictModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Trip = {
@@ -426,6 +429,131 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const [expandedSched, setExpandedSched] = useState<string | null>(null);
   const [showShare,    setShowShare]     = useState(false);
 
+  const [addedScheduleIds, setAddedScheduleIds] = useState<Set<string>>(() => {
+    if (!trip.boatId) return new Set();
+    const plans = getPlans();
+    const ids = new Set<string>();
+    for (const p of plans) {
+      for (const t of p.trips) {
+        if (t.boatId === trip.boatId && t.schedule?.scheduleId) ids.add(t.schedule.scheduleId);
+      }
+    }
+    return ids;
+  });
+  const [addedPkgKeys, setAddedPkgKeys] = useState<Set<string>>(() => {
+    if (!trip.boatId) return new Set();
+    const plans = getPlans();
+    const keys = new Set<string>();
+    for (const p of plans) {
+      for (const t of p.trips) {
+        if (t.boatId === trip.boatId && t.schedule?.packages) {
+          const sid = t.schedule.scheduleId || "";
+          for (const pkg of t.schedule.packages) keys.add(`${sid}:${pkg.name}`);
+        }
+      }
+    }
+    return keys;
+  });
+  const [pendingPlanTrip, setPendingPlanTrip] = useState<Omit<PlanTrip, "addedAt"> | null>(null);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
+  const [planConflicts, setPlanConflicts] = useState<DateConflict[]>([]);
+  const [planTargetId, setPlanTargetId] = useState<string | null>(null);
+
+  const buildPlanTrip = (sched: ScheduleData | null, specificPkg?: { id: string }): Omit<PlanTrip, "addedAt"> => {
+    const boatTr = pickTrans(boat?.translations, lang);
+    const schedTr = sched ? pickTrans(sched.translations, lang) : undefined;
+    const pkgList = specificPkg
+      ? sched?.packages.filter(sp => sp.packageId === specificPkg.id) || []
+      : sched?.packages || [];
+    const scheduleData: PlanTripSchedule | undefined = sched?.departureDate ? {
+      scheduleId: sched.id,
+      departureDate: sched.departureDate,
+      returnDate: sched.returnDate,
+      title: schedTr?.title || "",
+      route: schedTr?.route || "",
+      itinerary: schedTr?.itinerary || "",
+      excerpt: schedTr?.excerpt || "",
+      content: schedTr?.content || "",
+      packages: pkgList.map(sp => {
+        const pkg = boat?.packages.find(p => p.id === sp.packageId);
+        const pt = pkg ? pickTrans(pkg.translations, lang) : undefined;
+        const tiers = sp.priceTiers?.length ? sp.priceTiers : (pkg?.priceTiers || []);
+        const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
+        return { name: pt?.title || pkg?.name || "Package", minPrice: prices.length ? Math.min(...prices) : 0 };
+      }),
+    } : undefined;
+    return {
+      boatId: trip.boatId || "",
+      title: boatTr?.title || trip.title,
+      slug: trip.slug,
+      type: boat?.type || trip.type,
+      area: trip.destinationName,
+      cover: boat?.covers[0] || trip.imageUrl || null,
+      schedule: scheduleData,
+    };
+  };
+
+  const doAddToPlan = (planId: string, t: Omit<PlanTrip, "addedAt">) => {
+    const added = addTripToPlan(planId, t);
+    if (added) {
+      if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
+      if (t.schedule?.packages) {
+        const sid = t.schedule.scheduleId || "";
+        setAddedPkgKeys(prev => {
+          const next = new Set(prev);
+          for (const pkg of t.schedule!.packages) next.add(`${sid}:${pkg.name}`);
+          return next;
+        });
+      }
+    }
+    setPendingPlanTrip(null);
+    setPlanTargetId(null);
+    setPlanConflicts([]);
+  };
+
+  const handleAddToPlan = (sched: ScheduleData | null, specificPkg?: { id: string }) => {
+    const t = buildPlanTrip(sched, specificPkg);
+    const plans = getPlans();
+    if (plans.length === 0) {
+      addTrip(t);
+      if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
+      if (t.schedule?.packages) { const sid = t.schedule.scheduleId || ""; setAddedPkgKeys(prev => { const n = new Set(prev); for (const p of t.schedule!.packages) n.add(`${sid}:${p.name}`); return n; }); }
+      return;
+    }
+    if (plans.length === 1) {
+      const planId = plans[0].id;
+      if (sched?.departureDate) {
+        const c = checkDateConflicts(planId, sched.departureDate, sched.returnDate);
+        if (c.length > 0) { setPendingPlanTrip(t); setPlanTargetId(planId); setPlanConflicts(c); return; }
+      }
+      doAddToPlan(planId, t);
+      return;
+    }
+    setPendingPlanTrip(t);
+    setShowPlanSelector(true);
+  };
+
+  const handlePlanSelected = (planId: string) => {
+    setShowPlanSelector(false);
+    if (!pendingPlanTrip) return;
+    if (pendingPlanTrip.schedule?.departureDate) {
+      const c = checkDateConflicts(planId, pendingPlanTrip.schedule.departureDate, pendingPlanTrip.schedule.returnDate);
+      if (c.length > 0) { setPlanTargetId(planId); setPlanConflicts(c); return; }
+    }
+    doAddToPlan(planId, pendingPlanTrip);
+  };
+
+  const handleConflictConfirm = () => {
+    if (planTargetId && pendingPlanTrip) doAddToPlan(planTargetId, pendingPlanTrip);
+  };
+
+  const handleConflictNewPlan = () => {
+    if (!pendingPlanTrip) return;
+    const name = suggestPlanName(pendingPlanTrip);
+    const plan = createPlan(name);
+    doAddToPlan(plan.id, pendingPlanTrip);
+  };
+
   // Lock body scroll while InfoModal is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -746,50 +874,77 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                         transition: "background 0.25s, border-color 0.25s",
                         opacity: allFull ? 0.6 : 1,
                       }}>
-                        <button
-                          onClick={() => {
-                            setExpandedSched(isOpen ? null : s.id);
-                            if (!isOpen && trip.boatId && s.departureDate) {
-                              pushRecentBoat(trip.boatId, s.departureDate);
-                            }
-                          }}
-                          style={{ width: "100%", background: "transparent", border: "none", padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", textAlign: "left" }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>
-                              📅 {dep}{ret ? ` → ${ret}` : ""}
-                            </p>
-                            {st?.title && (
-                              <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {st.title}
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <button
+                            onClick={() => {
+                              setExpandedSched(isOpen ? null : s.id);
+                              if (!isOpen && trip.boatId && s.departureDate) {
+                                pushRecentBoat(trip.boatId, s.departureDate);
+                              }
+                            }}
+                            style={{ flex: 1, background: "transparent", border: "none", padding: "14px 16px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", textAlign: "left", minWidth: 0 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 2 }}>
+                                📅 {dep}{ret ? ` → ${ret}` : ""}
                               </p>
-                            )}
-                          </div>
-                          {allFull ? (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
-                          ) : minPrice > 0 ? (
-                            <div style={{ textAlign: "right", flexShrink: 0 }}>
-                              <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
-                              <p style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
+                              {st?.title && (
+                                <p style={{ fontSize: 12, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {st.title}
+                                </p>
+                              )}
                             </div>
-                          ) : (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#aaa" }}>Contact</span>
-                          )}
-                          {hasDetail && (
-                            <span style={{
-                              width: 28, height: 28, borderRadius: "50%",
-                              background: isOpen ? "#3b82f6" : "rgba(255,255,255,0.06)",
-                              color: isOpen ? "#fff" : "#666",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              transition: "transform 0.25s ease, background 0.2s",
-                              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                              flexShrink: 0,
-                            }}>
-                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="6 9 12 15 18 9"/>
-                              </svg>
-                            </span>
-                          )}
-                        </button>
+                            {allFull ? (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>FULL</span>
+                            ) : minPrice > 0 ? (
+                              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                                <p style={{ fontSize: 16, fontWeight: 900, color: "#60a5fa" }}>฿{minPrice.toLocaleString()}</p>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#aaa" }}>Contact</span>
+                            )}
+                            {hasDetail && (
+                              <span style={{
+                                width: 28, height: 28, borderRadius: "50%",
+                                background: isOpen ? "#3b82f6" : "rgba(255,255,255,0.06)",
+                                color: isOpen ? "#fff" : "#666",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                transition: "transform 0.25s ease, background 0.2s",
+                                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                                flexShrink: 0,
+                              }}>
+                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                              </span>
+                            )}
+                          </button>
+                          {!allFull && (() => {
+                            const isAdded = addedScheduleIds.has(s.id);
+                            return (
+                              <button
+                                onClick={() => !isAdded && handleAddToPlan(s)}
+                                disabled={isAdded}
+                                style={{
+                                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginRight: 12,
+                                  background: isAdded ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                                  border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
+                                  color: isAdded ? "#4ade80" : "#fff",
+                                  cursor: isAdded ? "default" : "pointer",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
+                                  transition: "all 0.2s ease",
+                                }}
+                              >
+                                {isAdded ? (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                )}
+                              </button>
+                            );
+                          })()}
+                        </div>
 
                         {/* Expanded detail */}
                         {hasDetail && (
@@ -854,61 +1009,92 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                     overflow: "hidden",
                     transition: "background 0.25s, border-color 0.25s",
                   }}>
-                    {/* Compact header — always visible, click to expand */}
-                    <button
-                      onClick={() => setExpandedPkg(isOpen ? null : pkg.id)}
-                      style={{
-                        width: "100%",
-                        background: "transparent",
-                        border: "none",
-                        padding: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        color: "inherit",
-                      }}
-                    >
-                      {/* Thumbnail */}
-                      <div style={{ width: 84, height: 84, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "#1a1a1a", position: "relative" }}>
-                        {cover ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={cover} alt={pTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        ) : (
-                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, background: "linear-gradient(135deg,#0f172a,#1e3a5f)" }}>🤿</div>
-                        )}
-                      </div>
-                      {/* Title */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{pTitle}</h3>
-                      </div>
-                      {/* Price + chevron */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                        <div style={{ textAlign: "right" }}>
-                          {pkgIsFull ? (
-                            <p style={{ fontSize: 14, fontWeight: 900, color: "#ef4444", lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.05em" }}>FULL</p>
-                          ) : minPrice != null && minPrice > 0 ? (
-                            <>
-                              <p style={{ fontSize: 9, color: "#666", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>เริ่มต้น</p>
-                              <p style={{ fontSize: 17, fontWeight: 900, color: "#60a5fa", lineHeight: 1 }}>{formatPrice(minPrice)}</p>
-                            </>
+                    {/* Compact header — always visible */}
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <button
+                        onClick={() => setExpandedPkg(isOpen ? null : pkg.id)}
+                        style={{
+                          flex: 1,
+                          background: "transparent",
+                          border: "none",
+                          padding: 12,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 14,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          color: "inherit",
+                          minWidth: 0,
+                        }}
+                      >
+                        {/* Thumbnail */}
+                        <div style={{ width: 84, height: 84, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "#1a1a1a", position: "relative" }}>
+                          {cover ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={cover} alt={pTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           ) : (
-                            <p style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", lineHeight: 1.2 }}>ติดต่อสอบถาม</p>
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, background: "linear-gradient(135deg,#0f172a,#1e3a5f)" }}>🤿</div>
                           )}
                         </div>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: "50%",
-                          background: isOpen ? "#3b82f6" : "rgba(255,255,255,0.06)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff",
-                          transition: "background 0.2s, transform 0.3s cubic-bezier(0.22,1,0.36,1)",
-                          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                        }}>
-                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        {/* Title */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h3 style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{pTitle}</h3>
                         </div>
-                      </div>
-                    </button>
+                        {/* Price + chevron */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                          <div style={{ textAlign: "right" }}>
+                            {pkgIsFull ? (
+                              <p style={{ fontSize: 14, fontWeight: 900, color: "#ef4444", lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.05em" }}>FULL</p>
+                            ) : minPrice != null && minPrice > 0 ? (
+                              <>
+                                <p style={{ fontSize: 9, color: "#666", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 2 }}>เริ่มต้น</p>
+                                <p style={{ fontSize: 17, fontWeight: 900, color: "#60a5fa", lineHeight: 1 }}>{formatPrice(minPrice)}</p>
+                              </>
+                            ) : (
+                              <p style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", lineHeight: 1.2 }}>ติดต่อสอบถาม</p>
+                            )}
+                          </div>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: "50%",
+                            background: isOpen ? "#3b82f6" : "rgba(255,255,255,0.06)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            color: "#fff",
+                            transition: "background 0.2s, transform 0.3s cubic-bezier(0.22,1,0.36,1)",
+                            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          }}>
+                            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                          </div>
+                        </div>
+                      </button>
+                      {/* + Add to plan */}
+                      {!pkgIsFull && (() => {
+                        const sched = matchingSchedules.length > 0 ? matchingSchedules[0] : null;
+                        const pkgName = pt?.title || pkg.name;
+                        const isAdded = addedPkgKeys.has(`${sched?.id || ""}:${pkgName}`);
+                        return (
+                          <button
+                            onClick={() => !isAdded && handleAddToPlan(sched, { id: pkg.id })}
+                            disabled={isAdded}
+                            style={{
+                              width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginRight: 12,
+                              background: isAdded ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
+                              border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
+                              color: isAdded ? "#4ade80" : "#fff",
+                              cursor: isAdded ? "default" : "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
+                              transition: "all 0.2s ease",
+                            }}
+                          >
+                            {isAdded ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            )}
+                          </button>
+                        );
+                      })()}
+                    </div>
 
                     {/* Expanded body */}
                     <div style={{
@@ -1023,7 +1209,27 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
       {showVideos && trip.boatId && (
         <ReelViewer boatId={trip.boatId} onClose={() => setShowVideos(false)} />
       )}
+
     </div>
+
+    {showPlanSelector && (
+      <PlanSelectorSheet
+        lang={lang}
+        suggestedName={pendingPlanTrip ? suggestPlanName(pendingPlanTrip) : undefined}
+        onSelect={handlePlanSelected}
+        onClose={() => { setShowPlanSelector(false); setPendingPlanTrip(null); }}
+      />
+    )}
+
+    {planConflicts.length > 0 && (
+      <DateConflictModal
+        conflicts={planConflicts}
+        lang={lang}
+        onConfirm={handleConflictConfirm}
+        onCreateNewPlan={handleConflictNewPlan}
+        onClose={() => { setPlanConflicts([]); setPendingPlanTrip(null); setPlanTargetId(null); }}
+      />
+    )}
     </>
   );
 }
@@ -1408,6 +1614,7 @@ export default function TripPullUp({ trip, onClose }: { trip: Trip | null; onClo
           onClose={() => setShowShare(false)}
         />
       )}
+
     </>
   );
 }

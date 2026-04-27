@@ -213,15 +213,17 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
 }
 
 // ── Cover Gallery (uses reusable ImageEditorField) ────────────────────────────
-function CoverGallery({ images, onChange }: {
+function CoverGallery({ images, onChange, onImageSaved }: {
   images: string[];
   onChange: (urls: string[]) => void;
+  onImageSaved?: (result: { coverUrl: string; ogUrl: string; index: number }) => void;
 }) {
   return (
     <ImageEditorField
       multi
       values={images}
       onChangeMulti={onChange}
+      onImageSaved={onImageSaved}
       aspectRatio={16 / 9}
     />
   );
@@ -689,7 +691,18 @@ export default function BlogsPage() {
                 <span style={{ fontSize: 10, color: "#6b7280" }}>แนะนำ 1200×800px (อัตราส่วน 3:2)</span>
               </div>
               <CoverGallery images={form.covers}
-                onChange={(urls) => setForm((f) => ({ ...f, covers: urls }))} />
+                onChange={(urls) => setForm((f) => ({ ...f, covers: urls }))}
+                onImageSaved={({ ogUrl, index }) => {
+                  if (index === 0) {
+                    setForm((f) => {
+                      const next = { ...f };
+                      for (const l of ALL_LANGS) {
+                        next[l] = { ...next[l], ogImage: ogUrl };
+                      }
+                      return next;
+                    });
+                  }
+                }} />
             </div>
 
             {/* Lang tabs */}

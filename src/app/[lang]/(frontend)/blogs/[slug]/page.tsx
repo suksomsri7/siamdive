@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
@@ -19,6 +20,60 @@ const BOAT_TYPE_SEGMENT: Record<string, string> = {
   SCUBA_INSTRUCTOR: "scuba-instructor",
   FREEDIVE_INSTRUCTOR: "freedive-instructor",
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string; slug: string }>;
+}): Promise<Metadata> {
+  const { lang, slug } = await params;
+  const decodedSlug = decodeURIComponent(slug);
+
+  let slugTrans = await prisma.blogTranslation.findUnique({
+    where: { slug_lang: { slug: decodedSlug, lang } },
+    select: { blogId: true },
+  });
+  if (!slugTrans) {
+    slugTrans = await prisma.blogTranslation.findFirst({
+      where: { slug: decodedSlug },
+      select: { blogId: true },
+    });
+  }
+  if (!slugTrans) return {};
+
+  const blog = await prisma.blog.findUnique({
+    where: { id: slugTrans.blogId },
+    include: { translations: true },
+  });
+  if (!blog || blog.status !== "PUBLISHED") return {};
+
+  const trans = blog.translations.find(t => t.lang === lang)
+    ?? blog.translations.find(t => t.slug === decodedSlug)
+    ?? blog.translations[0];
+  if (!trans) return {};
+
+  const title = trans.ogTitle || trans.title;
+  const description = trans.ogDescription || trans.excerpt;
+  const ogImage = trans.ogImage || blog.covers[0] || "";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(ogImage ? { images: [{ url: ogImage, width: 1200, height: 630 }] } : {}),
+      locale: lang,
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
+  };
+}
 
 export default async function BlogDetailPage({
   params,

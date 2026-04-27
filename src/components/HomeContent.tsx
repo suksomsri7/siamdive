@@ -47,6 +47,27 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
   const [recentKey, setRecentKey] = useState(0);
   useEffect(() => { setMounted(true); }, []);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (!d?.slug) return;
+      setSelected({
+        slug: d.slug,
+        title: d.title || "",
+        description: "",
+        price: 0,
+        duration: "",
+        type: d.type === "LIVEABOARD" ? "LIVEABOARD" : "DAYTRIP",
+        destinationName: d.area || "",
+        imageUrl: d.cover || undefined,
+        boatId: d.boatId || undefined,
+        initialDate: d.initialDate || undefined,
+      });
+    };
+    window.addEventListener("open-trip-info", handler);
+    return () => window.removeEventListener("open-trip-info", handler);
+  }, []);
+
   const isModalOpen = selected !== null;
   useEffect(() => {
     if (!isModalOpen) return;

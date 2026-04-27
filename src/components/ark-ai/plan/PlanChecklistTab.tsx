@@ -162,7 +162,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
             <span style={{ fontSize: 12, color: "#888" }}>
               {checkedCount}/{items.length} {isTh ? "เสร็จแล้ว" : "completed"}
             </span>
-            <span style={{ fontSize: 12, color: checkedCount === items.length ? "#10b981" : "#555" }}>
+            <span style={{ fontSize: 12, color: checkedCount === items.length ? "#22c55e" : "#555" }}>
               {items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}%
             </span>
           </div>
@@ -170,7 +170,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
             <div style={{
               height: "100%", borderRadius: 2, transition: "width 0.3s",
               width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
-              background: checkedCount === items.length ? "#10b981" : "linear-gradient(90deg, #1e40af, #3b82f6)",
+              background: checkedCount === items.length ? "#22c55e" : "#333",
             }} />
           </div>
         </div>
@@ -186,8 +186,8 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
           {canEdit && (
             <button onClick={() => setShowTemplate(true)} style={{
               padding: "12px 28px", borderRadius: 10, border: "none",
-              background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff",
-              fontSize: 14, fontWeight: 700, cursor: "pointer",
+              background: "#1e40af", color: "#fff",
+              fontSize: 14, fontWeight: 600, cursor: "pointer",
             }}>
               {isTh ? "เลือกจาก Template" : "Use Template"}
             </button>
@@ -197,13 +197,13 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
         <div>
           {categories.map((cat) => (
             <div key={cat} style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", marginBottom: 6 }}>{cat}</p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: "#666", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>{cat}</p>
               {items.filter((i) => i.category === cat).map((item) => (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
                   <button onClick={() => handleToggle(item)} style={{
                     width: 22, height: 22, borderRadius: 6, flexShrink: 0,
                     border: item.checked ? "none" : "2px solid #333",
-                    background: item.checked ? "#10b981" : "transparent",
+                    background: item.checked ? "#22c55e" : "transparent",
                     color: "#fff", fontSize: 12, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
@@ -253,8 +253,8 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
       {canEdit && items.length > 0 && (
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <button onClick={() => setAddingItem(true)} style={{
-            flex: 1, padding: "10px 0", borderRadius: 8, border: "1px dashed rgba(59,130,246,0.3)",
-            background: "rgba(59,130,246,0.05)", color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer",
+            flex: 1, padding: "10px 0", borderRadius: 8, border: "1px dashed #333",
+            background: "transparent", color: "#666", fontSize: 12, fontWeight: 600, cursor: "pointer",
           }}>
             + {isTh ? "เพิ่มรายการ" : "Add Item"}
           </button>

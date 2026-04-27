@@ -96,7 +96,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
           {/* Owner */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #1a1a1a" }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", border: "2px solid #3b82f6", flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#e5e5e5", border: "2px solid #333", flexShrink: 0 }}>
               {(owner.name || owner.email || "O")[0].toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -105,7 +105,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
               </p>
               {owner.email && <p style={{ fontSize: 11, color: "#555" }}>{owner.email}</p>}
             </div>
-            <span style={{ fontSize: 10, color: "#3b82f6", background: "rgba(59,130,246,0.1)", padding: "2px 8px", borderRadius: 6, fontWeight: 700 }}>
+            <span style={{ fontSize: 10, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
               {ROLE_LABEL.OWNER}
             </span>
           </div>
@@ -123,7 +123,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
                 <p style={{ fontSize: 11, color: "#555" }}>{m.email}</p>
                 {m.certLevel && <p style={{ fontSize: 10, color: "#10b981" }}>🤿 {m.certLevel}</p>}
               </div>
-              <span style={{ fontSize: 10, color: m.role === "EDITOR" ? "#f59e0b" : "#555", background: m.role === "EDITOR" ? "rgba(245,158,11,0.1)" : "#1a1a1a", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
+              <span style={{ fontSize: 10, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
                 {ROLE_LABEL[m.role] || m.role}
               </span>
               <button onClick={() => handleRemove(m.email)}
@@ -168,7 +168,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
               disabled={sending || !email.trim()}
               style={{
                 flex: 1, padding: "10px 0", borderRadius: 8, border: "none",
-                background: email.trim() ? "linear-gradient(135deg, #1e40af, #3b82f6)" : "#222",
+                background: email.trim() ? "#1e40af" : "#1a1a1a",
                 color: email.trim() ? "#fff" : "#555", fontSize: 13, fontWeight: 700,
                 cursor: email.trim() ? "pointer" : "default",
               }}

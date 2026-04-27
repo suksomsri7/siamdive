@@ -16,8 +16,8 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
   if (plans.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 16px", textAlign: "center" }}>
-        <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(59,130,246,0.08)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "#161616", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
             <rect x="9" y="3" width="6" height="4" rx="1" />
             <line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" />
@@ -34,8 +34,8 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
         <button onClick={onCreateStart}
           style={{
             padding: "14px 32px", borderRadius: 12, border: "none",
-            background: "linear-gradient(135deg, #1e40af, #3b82f6)", color: "#fff",
-            fontSize: 15, fontWeight: 700, cursor: "pointer",
+            background: "#1e40af", color: "#fff",
+            fontSize: 15, fontWeight: 600, cursor: "pointer",
           }}>
           {isTh ? "+ สร้างแพลนใหม่" : "+ Create New Plan"}
         </button>
@@ -52,14 +52,14 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
 
         {/* Create new card */}
         <button onClick={onCreateStart} style={{
-          background: "transparent", border: "2px dashed #222", borderRadius: 14,
+          background: "transparent", border: "1px dashed #333", borderRadius: 14,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
           gap: 8, padding: "32px 16px", cursor: "pointer", minHeight: 160,
         }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#666" }}>
             {isTh ? "สร้างแพลนใหม่" : "New Plan"}
           </span>
         </button>
@@ -87,7 +87,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1a1a1a")}
     >
       {/* Cover */}
-      <div style={{ width: "100%", aspectRatio: "16/10", background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)", position: "relative" }}>
+      <div style={{ width: "100%", aspectRatio: "16/10", background: "#161616", position: "relative" }}>
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -99,7 +99,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
             </svg>
           </div>
         )}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)" }} />
 
         {/* Trip thumbnails strip */}
         {trips.length > 1 && (
@@ -109,7 +109,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={i} src={t.cover} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: "cover", border: "1px solid rgba(0,0,0,0.5)" }} />
               ) : (
-                <div key={i} style={{ width: 20, height: 20, borderRadius: 4, background: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#fff", border: "1px solid rgba(0,0,0,0.5)" }}>
+                <div key={i} style={{ width: 20, height: 20, borderRadius: 4, background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#888", border: "1px solid rgba(0,0,0,0.5)" }}>
                   {i + 1}
                 </div>
               )
