@@ -18,7 +18,7 @@ function emptyLangForm(): LangForm {
   return Object.fromEntries(ALL_LANGS.map(l => [l, ""])) as LangForm;
 }
 
-type Tab = "service-areas" | "seo" | "branding" | "ai";
+type Tab = "service-areas" | "seo" | "branding" | "ai" | "rec-ai";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("service-areas");
@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
       {/* Sub-menu tabs */}
       <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #1a1a1a", marginBottom: 28 }}>
-        {([["service-areas", "พื้นที่ให้บริการ"], ["seo", "SEO หน้าแรก"], ["branding", "Branding & Watermark"], ["ai", "Ark AI"]] as [Tab, string][]).map(([key, label]) => (
+        {([["service-areas", "พื้นที่ให้บริการ"], ["seo", "SEO หน้าแรก"], ["branding", "Branding & Watermark"], ["ai", "Ark AI"], ["rec-ai", "Recommendation AI"]] as [Tab, string][]).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             style={{ padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: tab === key ? "#e5e5e5" : "#333", borderBottom: tab === key ? "2px solid #3b82f6" : "2px solid transparent", marginBottom: -1 }}>
             {label}
@@ -41,6 +41,7 @@ export default function SettingsPage() {
       {tab === "seo" && <SeoPanel />}
       {tab === "branding" && <BrandingPanel />}
       {tab === "ai" && <AiConfigPanel />}
+      {tab === "rec-ai" && <RecommendationAiPanel />}
     </div>
   );
 }
@@ -748,6 +749,193 @@ function AiConfigPanel() {
             {testing ? "Testing..." : "Test Connection"}
           </button>
         </div>
+        {testResult && (
+          <div style={{ padding: 10, borderRadius: 8, background: testResult.ok ? "rgba(74,222,128,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${testResult.ok ? "rgba(74,222,128,0.3)" : "rgba(239,68,68,0.3)"}` }}>
+            <p style={{ fontSize: 12, color: testResult.ok ? "#4ade80" : "#ef4444" }}>{testResult.ok ? "✓" : "✗"} {testResult.msg}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Recommendation AI Config Panel ─────────────────────────────────────────
+
+const REC_MODELS: { id: string; label: string; cost: string }[] = [
+  { id: "deepseek/deepseek-chat-v3-0324", label: "DeepSeek V3", cost: "$0.14/M" },
+  { id: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash", cost: "$0.10/M" },
+  { id: "meta-llama/llama-3.3-70b-instruct", label: "Llama 3.3 70B", cost: "$0.18/M" },
+  { id: "anthropic/claude-haiku-4", label: "Claude Haiku 4", cost: "$0.80/M" },
+  { id: "openai/gpt-4o-mini", label: "GPT-4o Mini", cost: "$0.15/M" },
+  { id: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4", cost: "$3.00/M" },
+];
+
+type RecAiConfig = {
+  provider: string; hasApiKey: boolean; apiKeyPreview: string; model: string;
+  maxTokens: number; temperature: number;
+  minActivity: number; cacheTTLDays: number; cooldownMinutes: number;
+  abTestEnabled: boolean; enabled: boolean;
+};
+
+function RecommendationAiPanel() {
+  const [config, setConfig] = useState<RecAiConfig | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("deepseek/deepseek-chat-v3-0324");
+  const [maxTokens, setMaxTokens] = useState(512);
+  const [temperature, setTemperature] = useState(0.3);
+  const [minActivity, setMinActivity] = useState(5);
+  const [cacheTTLDays, setCacheTTLDays] = useState(7);
+  const [cooldownMinutes, setCooldownMinutes] = useState(60);
+  const [abTestEnabled, setAbTestEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/recommendation-ai/config").then(r => r.json()).then((c: RecAiConfig) => {
+      setConfig(c);
+      setModel(c.model); setMaxTokens(c.maxTokens); setTemperature(c.temperature);
+      setMinActivity(c.minActivity); setCacheTTLDays(c.cacheTTLDays);
+      setCooldownMinutes(c.cooldownMinutes); setAbTestEnabled(c.abTestEnabled);
+      setEnabled(c.enabled);
+    }).catch(() => {});
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true); setSaved(false);
+    const body: Record<string, unknown> = {
+      provider: "openrouter", model, maxTokens, temperature,
+      minActivity, cacheTTLDays, cooldownMinutes, abTestEnabled, enabled,
+    };
+    if (apiKey) body.apiKey = apiKey;
+    await fetch("/api/recommendation-ai/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setApiKey(""); setSaving(false); setSaved(true);
+    const updated = await fetch("/api/recommendation-ai/config").then(r => r.json());
+    setConfig(updated);
+  };
+
+  const handleTest = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const res = await fetch("/api/recommendation-ai/config", { method: "POST" });
+      const data = await res.json();
+      setTestResult({ ok: data.ok, msg: data.ok ? `Connected! Model: ${data.model}` : data.error });
+    } catch { setTestResult({ ok: false, msg: "Connection failed" }); }
+    setTesting(false);
+  };
+
+  if (!config) return <div style={{ color: "#444", fontSize: 13 }}>Loading...</div>;
+
+  const selectedModel = REC_MODELS.find(m => m.id === model);
+  const badge = { fontSize: 11, padding: "3px 10px", borderRadius: 12, fontWeight: 700 };
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <p style={{ fontSize: 12, color: "#555", marginBottom: 20 }}>
+        AI-powered trip recommendations — analyzes visitor behavior and suggests relevant trips + schedules.
+      </p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {/* Master toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+          <button onClick={() => setEnabled(!enabled)}
+            style={{ width: 42, height: 24, borderRadius: 12, border: "none", cursor: "pointer", padding: 2, background: enabled ? "#10b981" : "#333", display: "flex", alignItems: "center", justifyContent: enabled ? "flex-end" : "flex-start", transition: "all 0.2s" }}>
+            <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff" }} />
+          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: "#bbb", fontWeight: 600 }}>Enable AI Recommendations</div>
+            <div style={{ fontSize: 11, color: "#555" }}>When off, all users see rule-based recommendations</div>
+          </div>
+          <span style={{ ...badge, background: enabled ? "rgba(16,185,129,0.15)" : "#1a1a1a", color: enabled ? "#10b981" : "#444" }}>
+            {enabled ? "ON" : "OFF"}
+          </span>
+        </div>
+
+        {/* API Key */}
+        <div>
+          <label style={labelStyle}>OpenRouter API Key</label>
+          {config.hasApiKey && <p style={{ fontSize: 11, color: "#4ade80", marginBottom: 6 }}>Current: {config.apiKeyPreview}</p>}
+          <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+            placeholder={config.hasApiKey ? "Enter new key to replace..." : "sk-or-..."} style={inputStyle} />
+        </div>
+
+        {/* Model */}
+        <div>
+          <label style={labelStyle}>Model</label>
+          <select value={model} onChange={e => setModel(e.target.value)} style={inputStyle}>
+            {REC_MODELS.map(m => <option key={m.id} value={m.id}>{m.label} ({m.cost})</option>)}
+          </select>
+          {selectedModel && (
+            <p style={{ fontSize: 10, color: "#555", marginTop: 4 }}>
+              Cost: {selectedModel.cost} input tokens via OpenRouter
+            </p>
+          )}
+        </div>
+
+        {/* Temperature + Max Tokens */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Max Tokens</label>
+            <input type="number" value={maxTokens} onChange={e => setMaxTokens(+e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Temperature</label>
+            <input type="number" value={temperature} onChange={e => setTemperature(+e.target.value)} min={0} max={1} step={0.1} style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Recommendation Settings */}
+        <div style={{ borderTop: "1px solid #1a1a1a", paddingTop: 16, marginTop: 4 }}>
+          <p style={{ fontSize: 11, color: "#555", fontWeight: 700, marginBottom: 14, letterSpacing: "0.06em", textTransform: "uppercase" }}>Recommendation Settings</p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Min Activity</label>
+              <input type="number" value={minActivity} onChange={e => setMinActivity(+e.target.value)} min={1} max={50} style={inputStyle} />
+              <p style={{ fontSize: 10, color: "#333", marginTop: 3 }}>Activities needed before AI kicks in</p>
+            </div>
+            <div>
+              <label style={labelStyle}>Cache TTL (days)</label>
+              <input type="number" value={cacheTTLDays} onChange={e => setCacheTTLDays(+e.target.value)} min={1} max={30} style={inputStyle} />
+              <p style={{ fontSize: 10, color: "#333", marginTop: 3 }}>Re-compute even if no new activity</p>
+            </div>
+            <div>
+              <label style={labelStyle}>Cooldown (min)</label>
+              <input type="number" value={cooldownMinutes} onChange={e => setCooldownMinutes(+e.target.value)} min={5} max={1440} style={inputStyle} />
+              <p style={{ fontSize: 10, color: "#333", marginTop: 3 }}>Min gap between AI calls per user</p>
+            </div>
+          </div>
+        </div>
+
+        {/* A/B Test toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#0d0d0d", border: "1px solid #1a1a1a", borderRadius: 8 }}>
+          <button onClick={() => setAbTestEnabled(!abTestEnabled)}
+            style={{ width: 42, height: 24, borderRadius: 12, border: "none", cursor: "pointer", padding: 2, background: abTestEnabled ? "#3b82f6" : "#333", display: "flex", alignItems: "center", justifyContent: abTestEnabled ? "flex-end" : "flex-start", transition: "all 0.2s" }}>
+            <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff" }} />
+          </button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: "#bbb", fontWeight: 600 }}>A/B Test Mode</div>
+            <div style={{ fontSize: 11, color: "#555" }}>50% AI / 50% rule-based — compare click & plan-add rates</div>
+          </div>
+          <span style={{ ...badge, background: abTestEnabled ? "rgba(59,130,246,0.15)" : "#1a1a1a", color: abTestEnabled ? "#60a5fa" : "#444" }}>
+            {abTestEnabled ? "ON" : "OFF"}
+          </span>
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={handleSave} disabled={saving}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 7, border: "none", background: "#1d4ed8", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.6 : 1 }}>
+            {saving ? "Saving..." : saved ? "Saved!" : "Save"}
+          </button>
+          <button onClick={handleTest} disabled={testing || !config.hasApiKey}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 7, border: "1px solid #333", background: "#1a1a1a", color: "#ccc", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (testing || !config.hasApiKey) ? 0.6 : 1 }}>
+            {testing ? "Testing..." : "Test Connection"}
+          </button>
+        </div>
+
         {testResult && (
           <div style={{ padding: 10, borderRadius: 8, background: testResult.ok ? "rgba(74,222,128,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${testResult.ok ? "rgba(74,222,128,0.3)" : "rgba(239,68,68,0.3)"}` }}>
             <p style={{ fontSize: 12, color: testResult.ok ? "#4ade80" : "#ef4444" }}>{testResult.ok ? "✓" : "✗"} {testResult.msg}</p>

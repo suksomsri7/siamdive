@@ -1015,3 +1015,41 @@ enum AnalyticsEventType {
   PLAN_CONTACT
   PLAN_EMAIL_LINK
 }
+
+// ── RecommendationAiConfig ──────────────────────────────────────────────────
+// Singleton (id = "default") — AI recommendation config, separate from Ark AI
+
+model RecommendationAiConfig {
+  id                String   @id @default("default")
+  provider          String   @default("openrouter")
+  apiKeyEncrypted   String   @default("")
+  model             String   @default("deepseek/deepseek-chat-v3-0324")
+  maxTokens         Int      @default(512)
+  temperature       Float    @default(0.3)
+  minActivity       Int      @default(5)
+  cacheTTLDays      Int      @default(7)
+  cooldownMinutes   Int      @default(60)
+  abTestEnabled     Boolean  @default(false)
+  enabled           Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+}
+
+// ── RecommendationCache ─────────────────────────────────────────────────────
+// On-demand AI recommendation results per visitor/user
+
+model RecommendationCache {
+  id            String   @id @default(cuid())
+  deviceId      String?
+  userId        String?
+  boatIds       String[]
+  scheduleIds   String[]
+  reasons       String[]
+  activityCount Int      @default(0)
+  variant       String   @default("rule-based") // "ai" | "rule-based"
+  computedAt    DateTime @default(now())
+  expiresAt     DateTime
+
+  @@unique([deviceId])
+  @@unique([userId])
+  @@index([expiresAt])
+}

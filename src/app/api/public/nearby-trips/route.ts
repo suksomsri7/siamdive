@@ -49,20 +49,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json([]);
   }
 
+  if (!coast) return NextResponse.json([]);
+
   const allAreas = await prisma.serviceArea.findMany({
     include: { translations: { select: { lang: true, name: true } } },
   });
 
-  let matchingAreaIds: string[];
-
-  if (coast && COAST_PATTERNS[coast]) {
-    const pattern = COAST_PATTERNS[coast];
-    matchingAreaIds = allAreas
-      .filter((a) => a.translations.some((t) => pattern.test(t.name)))
-      .map((a) => a.id);
-  } else {
-    matchingAreaIds = allAreas.map((a) => a.id);
-  }
+  const pattern = COAST_PATTERNS[coast];
+  const matchingAreaIds = allAreas
+    .filter((a) => a.translations.some((t) => pattern.test(t.name)))
+    .map((a) => a.id);
 
   if (matchingAreaIds.length === 0) return NextResponse.json([]);
 

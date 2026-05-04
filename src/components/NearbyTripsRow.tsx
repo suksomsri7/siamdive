@@ -69,12 +69,9 @@ export default function NearbyTripsRow({
   return (
     <section className="mb-8 group/row">
       <div className="px-4 sm:px-10 mb-2">
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 14 }}>📍</span>
-          <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
-            {TITLES[lang] || TITLES.en}
-          </h2>
-        </div>
+        <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
+          {TITLES[lang] || TITLES.en}
+        </h2>
       </div>
       <div
         className="flex gap-2 overflow-x-auto row-scroll pl-4 sm:pl-10 pr-4"
