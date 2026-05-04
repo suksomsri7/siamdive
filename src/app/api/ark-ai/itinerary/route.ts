@@ -48,22 +48,68 @@ export async function GET(req: NextRequest) {
   if (mode === "popular") {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const now = new Date();
 
-    const plans = await prisma.itinerary.findMany({
-      where: {
-        viewCount: { gte: 3 },
-        createdAt: { gte: sevenDaysAgo },
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { viewCount: "desc" },
-      take: 10,
-      select: {
-        shortId: true, title: true, lang: true, areas: true,
-        durationDays: true, totalDives: true, totalTours: true,
-        budget: true, viewCount: true, createdAt: true,
-      },
+    // Read from BOTH legacy Itinerary and new UserPlan (source=ARK_AI).
+    // Phase 4 migration (prisma/scripts/migrate-itinerary-to-userplan.sql)
+    // copies Itinerary rows into UserPlan; until that runs, both tables can
+    // hold popular plans, so we union the results here.
+    const [legacyPlans, aiPlans] = await Promise.all([
+      prisma.itinerary.findMany({
+        where: {
+          viewCount: { gte: 3 },
+          createdAt: { gte: sevenDaysAgo },
+          expiresAt: { gt: now },
+        },
+        orderBy: { viewCount: "desc" },
+        take: 10,
+        select: {
+          shortId: true, title: true, lang: true, areas: true,
+          durationDays: true, totalDives: true, totalTours: true,
+          budget: true, viewCount: true, createdAt: true,
+        },
+      }),
+      prisma.userPlan.findMany({
+        where: {
+          source: "ARK_AI",
+          isPublic: true,
+          viewCount: { gte: 3 },
+          createdAt: { gte: sevenDaysAgo },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        orderBy: { viewCount: "desc" },
+        take: 10,
+        select: {
+          shortId: true, name: true, trips: true,
+          viewCount: true, createdAt: true,
+        },
+      }),
+    ]);
+
+    const fromAi = aiPlans.map(p => {
+      const meta = (p.trips as Record<string, unknown> | null) || {};
+      return {
+        shortId: p.shortId,
+        title: p.name,
+        lang: (meta.legacyLang as string) ?? "th",
+        areas: (meta.legacyAreas as string[]) ?? [],
+        durationDays: (meta.legacyDurationDays as number) ?? 1,
+        totalDives: (meta.legacyTotalDives as number) ?? 0,
+        totalTours: (meta.legacyTotalTours as number) ?? 0,
+        budget: meta.legacyBudget ?? {},
+        viewCount: p.viewCount,
+        createdAt: p.createdAt,
+      };
     });
-    return NextResponse.json(plans);
+
+    // Dedupe by shortId (migration may produce both rows during transition)
+    const seen = new Set<string>();
+    const merged = [...legacyPlans, ...fromAi]
+      .filter(p => seen.has(p.shortId) ? false : (seen.add(p.shortId), true))
+      .sort((a, b) => b.viewCount - a.viewCount)
+      .slice(0, 10);
+
+    return NextResponse.json(merged);
   }
 
   const ids = searchParams.get("ids");

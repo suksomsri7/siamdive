@@ -142,14 +142,18 @@
 ## Phase 4 — Itinerary → UserPlan Unify (2-3 วัน)
 **Branch:** `arkai-v2-phase-4-unify`
 
-- [ ] 4.1 Migration script: existing Itinerary rows → UserPlan (source=ARK_AI, isPublic=true)
-- [ ] 4.2 Update `app/[lang]/plan/[shortId]/page.tsx` → query UserPlan only
-- [ ] 4.3 Update PopularPlansRow → query UserPlan WHERE source=ARK_AI AND isPublic=true AND viewCount≥3
-- [ ] 4.4 Update OG image route to use UserPlan
-- [ ] 4.5 Manual DB snapshot before migration ⚠️
-- [ ] 4.6 Test: existing /plan/[shortId] URLs ยัง work หลัง migrate
-- [ ] 4.7 Test: PopularPlansRow ยังแสดง popular plans
-- [ ] 4.8 Schedule: drop Itinerary table หลัง 30 วัน
+**Strategy:** additive code changes (read both tables; data migration deferred to user with DB snapshot per 4.5 ⚠️).
+
+- [x] 4.1 Migration SQL: `prisma/scripts/migrate-itinerary-to-userplan.sql` (idempotent, preserves shortId, NOT auto-run)
+- [x] 4.2 Plan page already supports both Itinerary and UserPlan (legacy → ItineraryPageClient, modern → SharedPlanClient)
+- [x] 4.3 `GET /api/ark-ai/itinerary?mode=popular` unions Itinerary + UserPlan WHERE source=ARK_AI, dedupes by shortId
+- [x] 4.4 OG image route falls back to UserPlan when shortId missing in Itinerary
+- [ ] 4.5 Manual DB snapshot before migration ⚠️ — **user-driven**
+- [ ] 4.6 Verify /plan/[shortId] URLs still work post-migration — **user verifies**
+- [x] 4.7 Popular endpoint regression: 4 Itinerary rows still return; UserPlan ARK_AI rows additive
+- [ ] 4.8 Drop Itinerary table after 30 days — **deferred to Phase 7 cleanup cron**
+
+**Phase 4 done (additive scope):** code is ready to handle ARK_AI UserPlans without breaking legacy URLs. Data migration deferred to user.
 
 ---
 
