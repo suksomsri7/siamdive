@@ -10,13 +10,23 @@ export async function GET(req: NextRequest) {
     return new Response("Missing id", { status: 400 });
   }
 
+  // Read from legacy Itinerary first, fall back to UserPlan (Phase 4 unification).
+  // shortId is unique across both tables; UserPlan rows from migration carry the
+  // legacy fields under trips JSON for OG-image continuity.
   const plan = await prisma.itinerary.findUnique({ where: { shortId } });
+  const userPlan = plan
+    ? null
+    : await prisma.userPlan.findUnique({
+        where: { shortId },
+        select: { name: true, trips: true },
+      });
 
-  const title = plan?.title || "Dive Trip Plan";
-  const days = plan?.durationDays || 0;
-  const dives = plan?.totalDives || 0;
-  const tours = plan?.totalTours || 0;
-  const areas = plan?.areas || [];
+  const meta = (userPlan?.trips as Record<string, unknown> | null) || {};
+  const title = plan?.title || userPlan?.name || "Dive Trip Plan";
+  const days = plan?.durationDays || (meta.legacyDurationDays as number) || 0;
+  const dives = plan?.totalDives || (meta.legacyTotalDives as number) || 0;
+  const tours = plan?.totalTours || (meta.legacyTotalTours as number) || 0;
+  const areas = plan?.areas || ((meta.legacyAreas as string[]) ?? []);
 
   return new ImageResponse(
     (
