@@ -36,7 +36,14 @@ export type AnalyticsEventType =
   | "PLAN_SHARE"
   | "PLAN_INVITE"
   | "PLAN_CONTACT"
-  | "PLAN_EMAIL_LINK";
+  | "PLAN_EMAIL_LINK"
+  | "ARK_AI_SLOT_FILLED"
+  | "ARK_AI_SLOT_SKIPPED"
+  | "ARK_AI_PLAN_GENERATED"
+  | "ARK_AI_PLAN_SAVED"
+  | "ARK_AI_TEMPLATE_SELECTED"
+  | "ARK_AI_BUDGET_BLOCKED"
+  | "ARK_AI_PERSONALIZED";
 
 export type TrackEventInput = {
   type: AnalyticsEventType;
