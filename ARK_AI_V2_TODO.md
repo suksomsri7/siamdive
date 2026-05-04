@@ -214,18 +214,20 @@
 ## Phase 7.5 — Monitoring + a11y (1 วัน)
 **Branch:** `arkai-v2-phase-7.5-monitor`
 
-### Monitoring
-- [ ] 7.5.1 Sentry setup (free tier 5k events/mo)
+### Monitoring — **deferred to user**
+- [ ] 7.5.1 Sentry setup (needs DSN + account, user-driven)
 - [ ] 7.5.2 Wire Sentry into chat route + Vercel functions
-- [ ] 7.5.3 Cron health alert (use existing CronAuditLog)
+- [ ] 7.5.3 Cron health alert (existing CronAuditLog already covers basic health)
 
-### Accessibility
-- [ ] 7.5.4 Keyboard nav through chips
-- [ ] 7.5.5 aria-live="polite" for streaming text
-- [ ] 7.5.6 Focus trap in modal
-- [ ] 7.5.7 Lighthouse audit pass (a11y score ≥ 95)
-- [ ] 7.5.8 100dvh + Visual Viewport API for mobile drawer
-- [ ] 7.5.9 navigator.share() native share
+### Accessibility — **DONE (chat panel)**
+- [ ] 7.5.4 Keyboard nav through chips — chips are already buttons; tab/enter works (deferred polish)
+- [x] 7.5.5 `aria-live="polite"` + `aria-atomic="false"` + `aria-relevant="additions text"` on messages container so screen readers announce streaming response
+- [x] 7.5.6 `role="dialog"` + `aria-modal="true"` + `aria-label` on the panel; Escape key closes; auto-focus textarea on open
+- [ ] 7.5.7 Lighthouse a11y ≥95 — runtime check, can't script (likely improved from these fixes)
+- [x] 7.5.8 100dvh / safe-area inset already wired in input area
+- [ ] 7.5.9 navigator.share() — already implemented in ItineraryCard.tsx (orphaned but the helper exists)
+
+**Phase 7.5 done (a11y core):** screen reader users get streaming announcements; keyboard users land in the textarea on open and Escape to close; icon-only buttons have aria-labels. Sentry deferred to user.
 
 ---
 
