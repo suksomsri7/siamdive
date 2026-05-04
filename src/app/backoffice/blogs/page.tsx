@@ -120,7 +120,7 @@ function TagInput({ tags, onChange, placeholder }: { tags: string[]; onChange: (
 
 type ModelOption = { id: string; label: string; blurb: string; price: string };
 
-function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onImageGenerated?: (imgId: string, coverUrl: string, ogUrl: string) => void }) {
+function MidjourneyPrompt({ title, excerpt, savedPrompt, onPromptChange, onImageGenerated }: { title: string; excerpt: string; savedPrompt: string; onPromptChange: (p: string) => void; onImageGenerated?: (imgId: string, coverUrl: string, ogUrl: string) => void }) {
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,15 +146,18 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
 
   if (!title.trim() && !savedPrompt) return null;
 
-  // Use saved prompt from DB if available, otherwise auto-generate
   const prompt = savedPrompt || buildMjPrompt(title, excerpt);
-  const isSaved = !!savedPrompt;
+  const isEdited = !!savedPrompt;
   const currentModel = models.find((m) => m.id === selectedModel);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRegenerate = () => {
+    onPromptChange(buildMjPrompt(title, excerpt));
   };
 
   const handleGenerate = async () => {
@@ -177,15 +180,15 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <label style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Midjourney Prompt</label>
-          {isSaved
-            ? <span style={{ fontSize: 9, color: "#10b981", fontWeight: 600 }}>from AI</span>
+          {isEdited
+            ? <span style={{ fontSize: 9, color: "#10b981", fontWeight: 600 }}>saved</span>
             : <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 600 }}>auto-generated</span>
           }
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}
             title={currentModel?.blurb ?? ""}
             style={{ fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 12, border: "1px solid #222", background: "#111", color: "#a78bfa", cursor: "pointer", maxWidth: 220 }}>
@@ -198,16 +201,21 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onImageGenerated }: { t
           </button>
           <button onClick={handleCopy}
             style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: copied ? "rgba(16,185,129,0.15)" : "rgba(59,130,246,0.12)", color: copied ? "#10b981" : "#60a5fa", transition: "all 0.2s" }}>
-            {copied ? "Copied!" : "Copy Prompt"}
+            {copied ? "Copied!" : "Copy"}
+          </button>
+          <button onClick={handleRegenerate} disabled={!title.trim()}
+            title="สร้าง prompt ใหม่จาก title/excerpt"
+            style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: "rgba(245,158,11,0.12)", color: "#f59e0b", transition: "all 0.2s" }}>
+            Re-generate
           </button>
         </div>
       </div>
       {error && <p style={{ fontSize: 10, color: "#ef4444", marginBottom: 4 }}>❌ {error}</p>}
-      <div onClick={handleCopy}
-        style={{ background: "#0d0d0d", border: `1px solid ${isSaved ? "#1a2a1a" : "#1a1a1a"}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555", lineHeight: 1.6, cursor: "pointer", wordBreak: "break-word", maxHeight: 120, overflowY: "auto" }}>
-        {prompt}
-      </div>
-      <p style={{ fontSize: 10, color: "#2a2a2a", marginTop: 4 }}>คลิกเพื่อ copy → วางใน Midjourney</p>
+      <textarea value={prompt}
+        onChange={(e) => onPromptChange(e.target.value)}
+        rows={4}
+        style={{ width: "100%", background: "#0d0d0d", border: "1px solid #222", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#999", lineHeight: 1.6, wordBreak: "break-word", resize: "vertical", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }} />
+      <p style={{ fontSize: 10, color: "#2a2a2a", marginTop: 4 }}>แก้ไข prompt ได้ตรงนี้ · จะบันทึกพร้อมกับบทความ</p>
     </div>
   );
 }
@@ -675,6 +683,7 @@ export default function BlogsPage() {
 
             {/* Midjourney Prompt */}
             <MidjourneyPrompt title={form.en.title} excerpt={form.en.excerpt} savedPrompt={form.mjPrompt}
+              onPromptChange={(p) => setForm((f) => ({ ...f, mjPrompt: p }))}
               onImageGenerated={(imgId, coverUrl, ogUrl) => setForm((f) => {
                 const next = { ...f, covers: [...f.covers, coverUrl], imageIds: [...f.imageIds, imgId] };
                 // Populate OG image for every language that doesn't have one yet
