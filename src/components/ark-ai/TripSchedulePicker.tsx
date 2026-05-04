@@ -62,7 +62,6 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 export default function TripSchedulePicker({ boatId, title, slug, type, area, cover, lang, onClose, onAdded }: Props) {
   const [boat, setBoat] = useState<BoatData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
 
   const usesDatePicker = type === "DAYTRIP" || type === "SNORKELING";
   const isTh = lang === "th";
@@ -232,11 +231,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
     return true;
   });
 
-  const selSched = schedules.find(s => s.id === selectedSchedule);
-  const packages = selSched && boat ? boat.packages.filter(p =>
-    selSched.packages.some(sp => sp.packageId === p.id)
-  ) : (boat?.packages || []);
-
   const getScheduleMinPrice = (s: Schedule) => {
     const prices = s.packages.flatMap(sp => {
       const overrides = sp.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
@@ -245,15 +239,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
       return pkg ? pkg.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0) : [];
     });
     return prices.length ? Math.min(...prices) : 0;
-  };
-
-  const getPackageInfo = (pkg: Pkg) => {
-    const sp = selSched?.packages.find(p => p.packageId === pkg.id);
-    const isFull = sp?.isFull ?? false;
-    const tiers = sp?.priceTiers?.length ? sp.priceTiers : pkg.priceTiers;
-    const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
-    const minPrice = prices.length ? Math.min(...prices) : 0;
-    return { isFull, minPrice, seats: sp?.availableSeats };
   };
 
   return (
@@ -332,7 +317,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                   onChange={e => {
                     if (usesDatePicker) setFilterDate(e.target.value);
                     else setFilterMonth(e.target.value);
-                    setSelectedSchedule(null);
                   }}
                   style={{
                     background: "rgba(0,0,0,0.25)", border: "1px solid rgba(148,163,184,0.12)", borderRadius: 8,
@@ -356,82 +340,67 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto", scrollbarWidth: "thin" }}>
                   {schedules.slice(0, 20).map(s => {
-                    const isSel = selectedSchedule === s.id;
                     const allFull = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
                     const isAdded = addedScheduleIds.has(s.id);
                     const st = pick(s.translations, lang);
                     const minPrice = getScheduleMinPrice(s);
+                    const rowDisabled = isAdded || allFull;
                     return (
-                      <div
+                      <button
                         key={s.id}
+                        type="button"
+                        onClick={() => !rowDisabled && handleAddSchedule(s)}
+                        disabled={rowDisabled}
                         style={{
-                          display: "flex", alignItems: "center", gap: 0,
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 12px",
                           borderRadius: 14,
-                          border: `1px solid ${isSel ? "rgba(96,165,250,0.35)" : "rgba(148,163,184,0.08)"}`,
-                          background: isSel
-                            ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.06))"
-                            : "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(148,163,184,0.08)",
+                          background: "rgba(255,255,255,0.03)",
                           opacity: allFull ? 0.45 : 1,
+                          cursor: rowDisabled ? "default" : "pointer",
+                          textAlign: "left",
+                          minWidth: 0,
                           transition: "all 0.25s ease",
-                          boxShadow: isSel
-                            ? "0 4px 16px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
-                            : "inset 0 1px 0 rgba(255,255,255,0.03)",
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
                           backdropFilter: "blur(8px)",
                           WebkitBackdropFilter: "blur(8px)",
+                          fontFamily: "inherit",
                         }}
                       >
-                        <button
-                          onClick={() => setSelectedSchedule(isSel ? null : s.id)}
-                          style={{
-                            flex: 1,
-                            padding: "10px 12px",
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            minWidth: 0,
-                          }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 800, color: isSel ? "#93c5fd" : "rgba(255,255,255,0.88)", margin: 0, letterSpacing: "-0.01em" }}>
-                              {fmtDate(s.departureDate!)}
-                              {s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.88)", margin: 0, letterSpacing: "-0.01em" }}>
+                            {fmtDate(s.departureDate!)}
+                            {s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                          </p>
+                          {st?.title && (
+                            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {st.title}
                             </p>
-                            {st?.title && (
-                              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {st.title}
-                              </p>
-                            )}
-                            {st?.route && (
-                              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3 }}>
-                                <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                                </svg>
-                                {st.route.replace(/<[^>]+>/g, "").slice(0, 50)}
-                              </p>
-                            )}
-                          </div>
-                          <div style={{ flexShrink: 0, textAlign: "right" }}>
-                            {allFull ? (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.1)", padding: "2px 8px", borderRadius: 6 }}>FULL</span>
-                            ) : minPrice > 0 ? (
-                              <>
-                                <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>from</p>
-                                <p style={{ fontSize: 15, fontWeight: 900, color: "#93c5fd", margin: 0 }}>฿{minPrice.toLocaleString()}</p>
-                              </>
-                            ) : (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>Contact</span>
-                            )}
-                          </div>
-                        </button>
-
-                        {/* + Add to plan */}
-                        <button
-                          onClick={() => !isAdded && !allFull && handleAddSchedule(s)}
-                          disabled={isAdded || allFull}
+                          )}
+                          {st?.route && (
+                            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 3 }}>
+                              <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                              </svg>
+                              {st.route.replace(/<[^>]+>/g, "").slice(0, 50)}
+                            </p>
+                          )}
+                        </div>
+                        <div style={{ flexShrink: 0, textAlign: "right" }}>
+                          {allFull ? (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.1)", padding: "2px 8px", borderRadius: 6 }}>FULL</span>
+                          ) : minPrice > 0 ? (
+                            <>
+                              <p style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>from</p>
+                              <p style={{ fontSize: 15, fontWeight: 900, color: "#93c5fd", margin: 0 }}>฿{minPrice.toLocaleString()}</p>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>Contact</span>
+                          )}
+                        </div>
+                        <div
+                          aria-hidden
                           style={{
                             width: 32, height: 32,
                             borderRadius: "50%",
@@ -440,10 +409,8 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                               : "linear-gradient(135deg, #3b82f6, #2563eb)",
                             border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
                             color: isAdded ? "#4ade80" : "#fff",
-                            cursor: isAdded || allFull ? "default" : "pointer",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             flexShrink: 0,
-                            marginRight: 8,
                             transition: "all 0.2s ease",
                             boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
                           }}
@@ -453,8 +420,8 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                           ) : (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                           )}
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -507,66 +474,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
               );
             })()}
 
-            {/* Packages */}
-            {selSched && packages.length > 0 && (
-              <div>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>
-                  Packages · {packages.length}
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {packages.map(pkg => {
-                    const pt = pick(pkg.translations, lang);
-                    const { isFull, minPrice, seats } = getPackageInfo(pkg);
-                    return (
-                      <div key={pkg.id} style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        background: isFull ? "rgba(255,255,255,0.01)" : "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(148,163,184,0.06)",
-                        opacity: isFull ? 0.4 : 1,
-                        backdropFilter: "blur(4px)",
-                        WebkitBackdropFilter: "blur(4px)",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-                      }}>
-                        {pkg.photos[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={pkg.photos[0]} alt="" style={{ width: 38, height: 38, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.06)" }} />
-                        ) : (
-                          <div style={{ width: 38, height: 38, borderRadius: 8, background: "rgba(255,255,255,0.04)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, border: "1px solid rgba(255,255,255,0.04)" }}>
-                            📦
-                          </div>
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {pt?.title || pkg.name}
-                          </p>
-                          {pt?.excerpt && (
-                            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {pt.excerpt.replace(/<[^>]+>/g, "").slice(0, 60)}
-                            </p>
-                          )}
-                        </div>
-                        <div style={{ flexShrink: 0, textAlign: "right" }}>
-                          {isFull ? (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171", background: "rgba(248,113,113,0.1)", padding: "2px 8px", borderRadius: 6 }}>FULL</span>
-                          ) : minPrice > 0 ? (
-                            <span style={{ fontSize: 13, fontWeight: 800, color: "#93c5fd" }}>
-                              ฿{minPrice.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>Contact</span>
-                          )}
-                          {seats != null && !isFull && (
-                            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", margin: 0 }}>{seats} seats</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
