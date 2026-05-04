@@ -169,6 +169,15 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       setTimeout(() => sendRef.current?.(pending), 500);
     }
 
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+
+    // Auto-focus the input when the panel opens (a11y: keyboard users land
+    // ready to type instead of tabbing through the header).
+    setTimeout(() => inputRef.current?.focus(), 100);
+
     return () => {
       body.style.position = "";
       body.style.top = "";
@@ -177,9 +186,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       body.style.overflow = "";
       html.style.overflow = "";
       body.style.touchAction = "";
+      window.removeEventListener("keydown", onKey);
       window.scrollTo(0, scrollY);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -317,7 +327,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       `}</style>
 
       {/* Fullscreen panel */}
-      <div style={{
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={lang === "th" ? "ผู้ช่วย AI วางแผนทริปดำน้ำ" : "AI dive trip advisor"}
+        style={{
         position: "fixed", inset: 0, zIndex: 1300,
         background: "#0a0a0a", color: "#e5e5e5",
         display: "flex", flexDirection: "column",
@@ -328,8 +342,9 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         {/* Header */}
         <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
           <button onClick={onClose}
+            aria-label={lang === "th" ? "ปิดแชท" : "Close chat"}
             style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
             </svg>
           </button>
@@ -345,16 +360,24 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               setStreaming(false);
               try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
             }}
+            aria-label={lang === "th" ? "ล้างแชท" : "Clear chat"}
             title={lang === "th" ? "ล้างแชท" : "Clear chat"}
             style={{ background: "none", border: "1px solid #262626", color: "#888", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
             </svg>
           </button>
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", position: "relative" }}>
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          aria-live="polite"
+          aria-atomic="false"
+          aria-relevant="additions text"
+          aria-label={lang === "th" ? "ประวัติการสนทนา" : "Conversation history"}
+          style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", position: "relative" }}>
           {messages.length === 0 && (
             <div style={{ padding: "8px 0" }}>
               <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
@@ -430,6 +453,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || streaming}
+              aria-label={lang === "th" ? "ส่งข้อความ" : "Send message"}
               style={{
                 width: 40, height: 40, borderRadius: 10, border: "none",
                 background: input.trim() && !streaming ? "#1e40af" : "#1a1a1a",
@@ -438,7 +462,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 flexShrink: 0, transition: "background 0.15s",
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
               </svg>
             </button>
