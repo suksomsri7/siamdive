@@ -1,0 +1,260 @@
+# Ark AI v2 — Implementation Checklist
+
+**Master plan:** see `~/.claude/projects/-root/memory/project_siamdive_ark_ai_v2.md`
+**Progress tracker:** see `~/.claude/projects/-root/memory/project_siamdive_ark_ai_v2_progress.md`
+**Recovery:** `bash scripts/arkai-resume.sh`
+
+**Branch convention:** `arkai-v2-phase-{N}-{slug}`
+**Commit format:** `[arkai-v2 P{N}.{step}] description`
+
+---
+
+## Phase 0 — Setup (DONE)
+- [x] 0.1 Memory: master plan saved (`project_siamdive_ark_ai_v2.md`)
+- [x] 0.2 Memory: v1 audit snapshot (`project_siamdive_ark_ai_v1_audit.md`)
+- [x] 0.3 Memory: progress tracker (`project_siamdive_ark_ai_v2_progress.md`)
+- [x] 0.4 Repo: this TODO checklist
+- [x] 0.5 Repo: recovery script (`scripts/arkai-resume.sh`)
+- [x] 0.6 MEMORY.md index updated
+
+---
+
+## Phase 1 — Schema + Cost Guard (1-2 วัน)
+**Branch:** `arkai-v2-phase-1-cost-guard`
+
+### Schema migration (additive only)
+- [ ] 1.1 Add `Blog.category BlogCategory?` + index
+- [ ] 1.2 Add `Blog.serviceAreaIds String[] @default([])` + GIN index
+- [ ] 1.3 Add `Schedule` index `[status, departureDate, availableSeats]`
+- [ ] 1.4 Add `UserPlan` fields: `isPublic`, `publicSlug`, `viewCount`, `expiresAt`, `source`, `aiPrompt`
+- [ ] 1.5 Add `AiConfig` fields: `dailyBudgetUsd`, `costAlertEmail`, `costAlertThreshold` (`enabled` มีแล้ว)
+- [ ] 1.6 Create `AiUsageLog` table (sessionId, inputTokens, outputTokens, costUsd, model, createdAt)
+- [ ] 1.7 Create `AiPlanSession` table (deviceId, slots JSON, status, behaviorContext JSON, lastActiveAt, expiresAt)
+- [ ] 1.8 Run migration on dev → verify
+- [ ] 1.9 Test rollback (revert migration script)
+
+### Code wiring
+- [ ] 1.10 Wire `AiConfig.enabled` → master kill switch ใน `/api/ark-ai/chat/route.ts`
+- [ ] 1.11 Token tracking middleware: หลัง Claude ตอบ → INSERT `AiUsageLog`
+- [ ] 1.12 Daily budget gate: SUM(today's costUsd) ≥ dailyBudgetUsd → block + return friendly error
+- [ ] 1.13 Add cost calculator (`lib/ark-ai/cost.ts`): tokens × model price → USD
+
+### Backoffice UI
+- [ ] 1.14 Extend `/backoffice/settings/ai/page.tsx` — section "Cost Guard"
+- [ ] 1.15 Master toggle "Ark AI Enabled"
+- [ ] 1.16 Inputs: dailyBudgetUsd, costAlertEmail, costAlertThreshold
+- [ ] 1.17 Display: today's usage progress bar
+- [ ] 1.18 Display: 7-day usage mini chart
+- [ ] 1.19 Display: top spenders table (กัน abuse)
+
+### Tests
+- [ ] 1.20 Unit test: cost calculator
+- [ ] 1.21 API test: chat returns 503 when `enabled=false`
+- [ ] 1.22 API test: chat returns 429 when daily budget exceeded
+- [ ] 1.23 Integration test: AiUsageLog row created after chat
+- [ ] 1.24 Smoke test on Vercel preview
+
+**Phase 1 done:** all boxes checked + Vercel preview confirmed working
+
+---
+
+## Phase 1.5 — Behavior Integration (1-2 วัน)
+**Branch:** `arkai-v2-phase-1.5-behavior`
+
+- [ ] 1.5.1 Add 7 events to `AnalyticsEventType` enum: ARK_AI_SLOT_FILLED, ARK_AI_SLOT_SKIPPED, ARK_AI_PLAN_GENERATED, ARK_AI_PLAN_SAVED, ARK_AI_TEMPLATE_SELECTED, ARK_AI_BUDGET_BLOCKED, ARK_AI_PERSONALIZED
+- [ ] 1.5.2 Wire `buildVisitorProfile()` (existing) into chat route
+- [ ] 1.5.3 Cache profile in `AiPlanSession.behaviorContext` (TTL 1 ชม.)
+- [ ] 1.5.4 Inject profile summary into system prompt (Anthropic prompt caching)
+- [ ] 1.5.5 Bot filter check ก่อน feed AI (existing `botFilter.ts`)
+- [ ] 1.5.6 Cross-device merge logic: PlanUser.email → merge profiles ของ deviceId list
+- [ ] 1.5.7 Test: profile injects soft hints ("เห็นว่าคุณสนใจ Similan")
+- [ ] 1.5.8 Test: cold start (totalActivity < 5) → fallback generic
+- [ ] 1.5.9 Smoke test on Vercel preview
+
+---
+
+## Phase 1.7 — Error/Fallback + Hallucination Guards (1 วัน)
+**Branch:** `arkai-v2-phase-1.7-safety`
+
+### Error UX
+- [ ] 1.7.1 Claude API error → friendly message + LINE escape hatch
+- [ ] 1.7.2 Network drop / SSE disconnect → resume or retry button
+- [ ] 1.7.3 Daily budget hit → friendly "ลองพรุ่งนี้" + LINE link
+- [ ] 1.7.4 Rate limit 429 → countdown timer
+- [ ] 1.7.5 Empty/garbage AI response → fallback trip cards from `viewedAreas`
+
+### Hallucination Guards
+- [ ] 1.7.6 Update system prompt — hard rules (boat names, prices, medical, depth/cert)
+- [ ] 1.7.7 Server-side validator: regex scan response → reject if boat/site not in RAG context
+- [ ] 1.7.8 Cert/depth validator: AI ห้ามแนะนำ depth > cert allows
+- [ ] 1.7.9 Medical advice redirect: detect medical keywords → redirect to doctor
+- [ ] 1.7.10 Test: validator catches fabricated boat name
+- [ ] 1.7.11 Test: validator catches OW user → 30m site recommendation
+
+---
+
+## Phase 2 — Slot Extraction (Anthropic Tool Use, 3-5 วัน)
+**Branch:** `arkai-v2-phase-2-slots`
+
+- [ ] 2.1 Define tool schema: `update_slots(dates, headcount, region, certs[], budget, style, interests[])`
+- [ ] 2.2 Wire tool_use into chat route (parse tool calls per turn)
+- [ ] 2.3 Persist slots to `AiPlanSession.slots` (upsert)
+- [ ] 2.4 Slot validation per field (date format, region enum, cert enum)
+- [ ] 2.5 Resume logic: เปิด Ark AI ครั้งหน้า → check active session → ทักทายต่อ
+- [ ] 2.6 SlotTrackerChips component (เหนือ ChatPanel)
+- [ ] 2.7 Chip i18n bundle (8 ภาษา)
+- [ ] 2.8 Click-to-edit chip
+- [ ] 2.9 Required-3 logic: dates + headcount + region complete → unlock CTA
+- [ ] 2.10 CTA button "สร้าง plan เลย" (8 ภาษา)
+- [ ] 2.11 Track ARK_AI_SLOT_FILLED / ARK_AI_SLOT_SKIPPED events
+- [ ] 2.12 Test: free text "อยากไป Similan 5 วัน 2 คน" → slots extracted correctly
+- [ ] 2.13 Test: 8 ภาษา ทดสอบ TH/EN ละเอียด, sample CN/JP
+- [ ] 2.14 Smoke test on Vercel preview
+
+**🚦 USER CHECKPOINT REQUIRED:** Phase 2 ต้อง user test conversation จริง 5-10 ครั้ง ก่อนไป Phase 3
+
+---
+
+## Phase 3 — Auto-Build Plan + Cert/Date (3-5 วัน)
+**Branch:** `arkai-v2-phase-3-build`
+
+- [ ] 3.1 New endpoint `POST /api/ark-ai/build-plan` (slots → UserPlan)
+- [ ] 3.2 Date matching engine: ตรงวัน priority > ±3 วัน fallback
+- [ ] 3.3 Season warning: Similan May-Oct closed
+- [ ] 3.4 Cert filter: OW≤18m, AOW≤30m, no cert → snorkel only
+- [ ] 3.5 Multi-cert split day suggestion logic
+- [ ] 3.6 Gap-fill: Blog `serviceAreaIds` match boat area
+- [ ] 3.7 Land tour gap-fill: Boat type=LAND_TOUR/SNORKELING area-matched
+- [ ] 3.8 Create UserPlan with source=ARK_AI, isPublic=false, expiresAt set
+- [ ] 3.9 Preview card in chat (ItineraryCard component)
+- [ ] 3.10 "Save" button → redirect /plan/[shortId]
+- [ ] 3.11 Track ARK_AI_PLAN_GENERATED + ARK_AI_PLAN_SAVED
+- [ ] 3.12 Test: 5+ slot combinations → reasonable plans
+- [ ] 3.13 Test: cert filter blocks deep dives correctly
+- [ ] 3.14 Test: gap-fill with no matching blogs → graceful fallback
+
+**🚦 USER CHECKPOINT REQUIRED:** Phase 3 ต้อง user ดู plan ที่ AI สร้าง 3-5 ตัวอย่าง quality OK
+
+---
+
+## Phase 4 — Itinerary → UserPlan Unify (2-3 วัน)
+**Branch:** `arkai-v2-phase-4-unify`
+
+- [ ] 4.1 Migration script: existing Itinerary rows → UserPlan (source=ARK_AI, isPublic=true)
+- [ ] 4.2 Update `app/[lang]/plan/[shortId]/page.tsx` → query UserPlan only
+- [ ] 4.3 Update PopularPlansRow → query UserPlan WHERE source=ARK_AI AND isPublic=true AND viewCount≥3
+- [ ] 4.4 Update OG image route to use UserPlan
+- [ ] 4.5 Manual DB snapshot before migration ⚠️
+- [ ] 4.6 Test: existing /plan/[shortId] URLs ยัง work หลัง migrate
+- [ ] 4.7 Test: PopularPlansRow ยังแสดง popular plans
+- [ ] 4.8 Schedule: drop Itinerary table หลัง 30 วัน
+
+---
+
+## Phase 5 — Blog Tagging (1-2 วัน)
+**Branch:** `arkai-v2-phase-5-blog-tags`
+
+### Skill update
+- [ ] 5.1 Add STEP ใน `siamdive-blog-websearch/SKILL.md` — extract serviceAreaIds + category
+- [ ] 5.2 Update STEP 11 POST payload: include `category` + `serviceAreaIds`
+- [ ] 5.3 Test skill end-to-end with new payload
+
+### Backoffice tool
+- [ ] 5.4 Create `/backoffice/blogs/bulk-tag/page.tsx`
+- [ ] 5.5 List blogs WHERE category IS NULL OR serviceAreaIds = []
+- [ ] 5.6 AI suggest button (Haiku) → return suggestion
+- [ ] 5.7 Admin approve/edit → save
+- [ ] 5.8 Bulk approve all-suggestion mode
+
+### RAG enhancement
+- [ ] 5.9 Update `searchBlogs()` in `lib/ark-ai/rag.ts` — boost category + area match
+- [ ] 5.10 Test: RAG prefers area-matching blogs
+
+---
+
+## Phase 6 — Templates + Personalize (2 วัน)
+**Branch:** `arkai-v2-phase-6-templates`
+
+- [ ] 6.1 Create PlanTemplate seed (5 templates × 8 ภาษา)
+  - Couple Weekend (3 days)
+  - Family Snorkel (4-5 days)
+  - First-timer + OW Course (5-7 days)
+  - Hardcore Liveaboard (7 days)
+  - Photographer Special
+- [ ] 6.2 Template selector UI ใน Ark AI panel (first open)
+- [ ] 6.3 Click template → seed slots → AI fine-tunes
+- [ ] 6.4 Personalize order by behavior profile match score
+- [ ] 6.5 Cold start: generic order
+- [ ] 6.6 "Recommended for you" badge for top match
+- [ ] 6.7 Track ARK_AI_TEMPLATE_SELECTED
+
+---
+
+## Phase 7 — Privacy + Safety + Expiration (1-2 วัน)
+**Branch:** `arkai-v2-phase-7-privacy`
+
+### Privacy
+- [ ] 7.1 Update `/[lang]/(frontend)/privacy/page.tsx` — section AI usage
+- [ ] 7.2 Add "ใช้ AI แบบ generic" opt-out toggle
+- [ ] 7.3 PDPA/GDPR consent checkbox on email collection
+
+### Safety
+- [ ] 7.4 Safety disclaimer in plan output (DAN, no fly 18hr, ปรึกษาแพทย์)
+- [ ] 7.5 Update system prompt — show price RANGE only ("8,500-12,000 บาท")
+
+### Expiration
+- [ ] 7.6 Cron `/api/cron/cleanup-expired-plans` daily
+- [ ] 7.7 Logic: anonymous=30d, with email=1y after trip date, AI public viewCount=0=7d, viewCount≥3=90d
+- [ ] 7.8 Test cron + reseed
+
+---
+
+## Phase 7.5 — Monitoring + a11y (1 วัน)
+**Branch:** `arkai-v2-phase-7.5-monitor`
+
+### Monitoring
+- [ ] 7.5.1 Sentry setup (free tier 5k events/mo)
+- [ ] 7.5.2 Wire Sentry into chat route + Vercel functions
+- [ ] 7.5.3 Cron health alert (use existing CronAuditLog)
+
+### Accessibility
+- [ ] 7.5.4 Keyboard nav through chips
+- [ ] 7.5.5 aria-live="polite" for streaming text
+- [ ] 7.5.6 Focus trap in modal
+- [ ] 7.5.7 Lighthouse audit pass (a11y score ≥ 95)
+- [ ] 7.5.8 100dvh + Visual Viewport API for mobile drawer
+- [ ] 7.5.9 navigator.share() native share
+
+---
+
+## Phase 8 — Soft Launch (TH only, 1-2 wk monitoring)
+- [ ] 8.1 Set `AiConfig.enabled = true`
+- [ ] 8.2 Set `dailyBudgetUsd = 5`
+- [ ] 8.3 Gate: TH header lang only (or feature flag)
+- [ ] 8.4 Monitor cost, errors, slot fill rate, conversion
+- [ ] 8.5 Daily check first week
+- [ ] 8.6 Bug fixes hot path
+- [ ] 8.7 Iterate before expand
+
+**🚦 USER CHECKPOINT REQUIRED:** Phase 8 user review cost dashboard 1 week before expand
+
+---
+
+## Phase 9 — Hard Launch + Feedback Loop (post-launch)
+- [ ] 9.1 Expand to 8 languages
+- [ ] 9.2 Adjust budget ceiling based on real data
+- [ ] 9.3 CHAT_FEEDBACK UI (thumbs up/down)
+- [ ] 9.4 Backoffice funnel dashboard
+- [ ] 9.5 Auto-seed BlogTopic from top user questions
+- [ ] 9.6 Weekly admin email digest
+
+---
+
+## Phase 10 — SEO/GEO + Cultural Calendar (post-launch) 🟢
+- [ ] 10.1 JSON-LD `TouristTrip` in /plan/[slug]
+- [ ] 10.2 Sitemap dynamic include public plans (viewCount≥5)
+- [ ] 10.3 noindex default → index when threshold met
+- [ ] 10.4 llms.txt at root
+- [ ] 10.5 Plan dynamic OG image (next/og)
+- [ ] 10.6 Cultural calendar static knowledge file (Lunar NY, Golden Week, Obon, Chuseok, Christmas, Songkran)
+- [ ] 10.7 AI warning for high-demand seasons
