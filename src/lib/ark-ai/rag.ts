@@ -20,6 +20,7 @@ export type RagBoat = {
   details: string;
   cover: string | null;
   area: string;
+  areaIds: string[];
   minPrice: number;
   capacity: number | null;
   packages: RagPackage[];
@@ -53,6 +54,8 @@ export type RagBlog = {
   excerpt: string;
   cover: string | null;
   keywords: string[];
+  category: string | null;
+  serviceAreaIds: string[];
 };
 
 function stripHtml(html: string): string {
@@ -99,6 +102,7 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       details: stripHtml(t?.content || "").slice(0, 500),
       cover: b.covers[0] || null,
       area: area?.name || "",
+      areaIds: b.serviceAreas.map(sa => sa.serviceAreaId),
       minPrice: prices.length ? Math.min(...prices) : 0,
       capacity: b.capacity,
       packages: pkgs,
@@ -203,6 +207,8 @@ export async function searchBlogs(lang: Lang, limit = 10): Promise<RagBlog[]> {
       excerpt: t?.excerpt || "",
       cover: b.covers[0] || null,
       keywords: t?.keywords || [],
+      category: b.category || null,
+      serviceAreaIds: b.serviceAreaIds || [],
     };
   });
 }
@@ -270,15 +276,24 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
   }
 
   if (blogs.length) {
-    const scored = blogs.map(b => ({
-      b,
-      score: kw.length ? scoreMatch(`${b.title} ${b.excerpt} ${b.keywords.join(" ")}`, kw) : 0,
-    }));
+    // Boost blogs whose tagged service areas overlap with available boat areas.
+    // This makes area-relevant articles surface even when the user query
+    // doesn't include the area name verbatim.
+    const availableAreaIds = new Set(boats.flatMap(b => b.areaIds));
+    const scored = blogs.map(b => {
+      const kwScore = kw.length ? scoreMatch(`${b.title} ${b.excerpt} ${b.keywords.join(" ")} ${b.category || ""}`, kw) : 0;
+      const areaOverlap = b.serviceAreaIds.some(id => availableAreaIds.has(id));
+      const areaBoost = areaOverlap ? 2 : 0;
+      return { b, score: kwScore + areaBoost };
+    });
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push("## Related Blog Articles\nUse these exact values when recommending blogs:\n" + scored.map(({ b, score }) =>
-      `- ${score > 0 ? "⭐ " : ""}title: "${b.title}" | slug: "${b.slug}" | blogId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""} | excerpt: "${b.excerpt?.slice(0, 80) || ""}"${b.keywords.length ? ` | keywords: ${b.keywords.join(", ")}` : ""}`
-    ).join("\n"));
+    parts.push("## Related Blog Articles\nUse these exact values when recommending blogs. Prefer articles whose `category` or service area aligns with what the user is asking about.\n" + scored.map(({ b, score }) => {
+      const tags: string[] = [];
+      if (b.category) tags.push(`category: ${b.category}`);
+      if (b.serviceAreaIds.length) tags.push(`areaTags: ${b.serviceAreaIds.length}`);
+      return `- ${score > 0 ? "⭐ " : ""}title: "${b.title}" | slug: "${b.slug}" | blogId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""} | excerpt: "${b.excerpt?.slice(0, 80) || ""}"${b.keywords.length ? ` | keywords: ${b.keywords.join(", ")}` : ""}${tags.length ? ` | ${tags.join(" | ")}` : ""}`;
+    }).join("\n"));
   }
 
   if (kw.length) {

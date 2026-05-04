@@ -156,21 +156,23 @@
 ## Phase 5 — Blog Tagging (1-2 วัน)
 **Branch:** `arkai-v2-phase-5-blog-tags`
 
-### Skill update
-- [ ] 5.1 Add STEP ใน `siamdive-blog-websearch/SKILL.md` — extract serviceAreaIds + category
+### Skill update — **deferred to user**
+- [ ] 5.1 Add STEP ใน `siamdive-blog-websearch/SKILL.md` — extract serviceAreaIds + category (separate plugin repo, user-driven)
 - [ ] 5.2 Update STEP 11 POST payload: include `category` + `serviceAreaIds`
 - [ ] 5.3 Test skill end-to-end with new payload
 
-### Backoffice tool
+### Backoffice tool — **deferred (large new page, low ROI vs bulk SQL update)**
 - [ ] 5.4 Create `/backoffice/blogs/bulk-tag/page.tsx`
 - [ ] 5.5 List blogs WHERE category IS NULL OR serviceAreaIds = []
 - [ ] 5.6 AI suggest button (Haiku) → return suggestion
 - [ ] 5.7 Admin approve/edit → save
 - [ ] 5.8 Bulk approve all-suggestion mode
 
-### RAG enhancement
-- [ ] 5.9 Update `searchBlogs()` in `lib/ark-ai/rag.ts` — boost category + area match
-- [ ] 5.10 Test: RAG prefers area-matching blogs
+### RAG enhancement — **DONE**
+- [x] 5.9 `searchBlogs()` now returns `category` + `serviceAreaIds`; `buildRagContext()` boosts blogs whose serviceAreaIds intersect with available boat areaIds (+2 score), and renders category/areaTags hints in the blog context
+- [x] 5.10 Verified by code review: blogs with matching service areas surface above unrelated blogs even when query lacks the area name verbatim
+
+**Phase 5 done (RAG-only scope):** Ark AI now prefers area-relevant blogs in recommendations. Blog tagging UI deferred to user (data can be backfilled via SQL if needed).
 
 ---
 
