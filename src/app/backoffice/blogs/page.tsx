@@ -452,7 +452,7 @@ export default function BlogsPage() {
   useEffect(() => { loadBlogs(); }, [loadBlogs]);
 
   const filtered = blogs.filter((b) => {
-    const title = b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "";
+    const title = b.translations.find((t) => t.lang === "th")?.title ?? b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "";
     return title.toLowerCase().includes(search.toLowerCase()) &&
       (statusFilter === "ทั้งหมด" || b.status === statusFilter) &&
       (langFilter === "ทั้งหมด" || b.translations.some((t) => t.lang === langFilter));
@@ -594,7 +594,7 @@ export default function BlogsPage() {
           ) : filtered.length === 0 ? (
             <div style={{ padding: "40px 16px", textAlign: "center", color: "#2a2a2a", fontSize: 13 }}>ยังไม่มีบทความ — คลิก + เพิ่มบทความ</div>
           ) : filtered.map((b, i) => {
-            const title = b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "(ไม่มีชื่อ)";
+            const title = b.translations.find((t) => t.lang === "th")?.title ?? b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "(ไม่มีชื่อ)";
             const date = new Date(b.updatedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
             return (
               <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 80px", padding: "12px 16px", borderBottom: i < filtered.length - 1 ? "1px solid #161616" : "none", alignItems: "center", fontSize: 13 }}>

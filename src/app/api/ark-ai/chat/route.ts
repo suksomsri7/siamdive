@@ -6,8 +6,11 @@ import { decrypt } from "@/lib/ark-ai/encryption";
 import { checkRateLimit } from "@/lib/ark-ai/rate-limit";
 import { searchBoats, searchSchedules, searchBlogs, buildRagContext } from "@/lib/ark-ai/rag";
 import { buildSystemPrompt } from "@/lib/ark-ai/system-prompt";
+import { checkDailyBudget, logUsage } from "@/lib/ark-ai/cost-guard";
 
 type Msg = { role: "user" | "assistant"; content: string };
+type Usage = { inputTokens: number; outputTokens: number };
+type OnUsage = (usage: Usage) => void;
 
 async function getAiConfig() {
   const config = await prisma.aiConfig.findUnique({ where: { id: "default" } });
@@ -19,15 +22,19 @@ async function getAiConfig() {
     rateLimit: config?.rateLimit || 20,
     temperature: config?.temperature || 0.7,
     extra: config?.systemPromptExtra || "",
+    enabled: config?.enabled ?? true,
+    dailyBudgetUsd: config?.dailyBudgetUsd ?? 5,
   };
 }
 
-function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[]) {
+function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], onUsage?: OnUsage) {
   const client = new Anthropic({ apiKey: config.apiKey });
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
+      let inputTokens = 0;
+      let outputTokens = 0;
       try {
         const stream = await client.messages.stream({
           model: config.model,
@@ -39,6 +46,11 @@ function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<
         for await (const event of stream) {
           if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+          } else if (event.type === "message_start") {
+            inputTokens = event.message.usage?.input_tokens ?? 0;
+            outputTokens = event.message.usage?.output_tokens ?? 0;
+          } else if (event.type === "message_delta") {
+            outputTokens = event.usage?.output_tokens ?? outputTokens;
           }
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -47,23 +59,29 @@ function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
       } finally {
         controller.close();
+        if (onUsage && (inputTokens > 0 || outputTokens > 0)) {
+          onUsage({ inputTokens, outputTokens });
+        }
       }
     },
   });
 }
 
-function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], baseURL?: string) {
+function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], baseURL?: string, onUsage?: OnUsage) {
   const client = new OpenAI({ apiKey: config.apiKey, ...(baseURL ? { baseURL } : {}) });
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
+      let inputTokens = 0;
+      let outputTokens = 0;
       try {
         const stream = await client.chat.completions.create({
           model: config.model,
           max_tokens: config.maxTokens,
           temperature: config.temperature,
           stream: true,
+          stream_options: { include_usage: true },
           messages: [
             { role: "system", content: systemPrompt },
             ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -74,6 +92,10 @@ function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<inf
           if (text) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
           }
+          if (chunk.usage) {
+            inputTokens = chunk.usage.prompt_tokens ?? 0;
+            outputTokens = chunk.usage.completion_tokens ?? 0;
+          }
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (err: unknown) {
@@ -81,16 +103,21 @@ function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<inf
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
       } finally {
         controller.close();
+        if (onUsage && (inputTokens > 0 || outputTokens > 0)) {
+          onUsage({ inputTokens, outputTokens });
+        }
       }
     },
   });
 }
 
-function streamGoogle(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[]) {
+function streamGoogle(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], onUsage?: OnUsage) {
   const encoder = new TextEncoder();
 
   return new ReadableStream({
     async start(controller) {
+      let inputTokens = 0;
+      let outputTokens = 0;
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:streamGenerateContent?alt=sse&key=${config.apiKey}`;
         const contents = messages.map(m => ({
@@ -130,6 +157,10 @@ function streamGoogle(config: ReturnType<typeof getAiConfig> extends Promise<inf
               if (text) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
               }
+              if (data.usageMetadata) {
+                inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
+                outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+              }
             } catch {}
           }
         }
@@ -139,6 +170,9 @@ function streamGoogle(config: ReturnType<typeof getAiConfig> extends Promise<inf
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
       } finally {
         controller.close();
+        if (onUsage && (inputTokens > 0 || outputTokens > 0)) {
+          onUsage({ inputTokens, outputTokens });
+        }
       }
     },
   });
@@ -155,8 +189,32 @@ export async function POST(req: NextRequest) {
   const lang: string = body.lang || "en";
   const pageContext: string | undefined = body.pageContext;
   const recentlyViewed: string | undefined = body.recentlyViewed;
+  const sessionId: string | null = typeof body.sessionId === "string" ? body.sessionId : null;
 
   const config = await getAiConfig();
+
+  // Gate order: enabled → budget → apiKey → rate limit.
+  // Budget runs before apiKey so a budget-exhausted scenario surfaces clearly even
+  // if the API key happens to be unreadable (e.g. ENCRYPTION_KEY mismatch on preview).
+  if (!config.enabled) {
+    return Response.json(
+      { error: "Ark AI is currently unavailable. Please contact us via LINE/WhatsApp." },
+      { status: 503 },
+    );
+  }
+
+  const budget = await checkDailyBudget(config.dailyBudgetUsd);
+  if (!budget.allowed) {
+    return Response.json(
+      {
+        error: "Daily AI budget reached. Please try again tomorrow or contact us directly.",
+        usedUsd: budget.usedUsd,
+        budgetUsd: budget.budgetUsd,
+      },
+      { status: 429 },
+    );
+  }
+
   if (!config.apiKey) {
     return Response.json({ error: "AI not configured. Set API key in backoffice settings." }, { status: 503 });
   }
@@ -183,19 +241,28 @@ export async function POST(req: NextRequest) {
     extra: config.extra,
   });
 
+  const onUsage: OnUsage = (usage) => {
+    logUsage({
+      sessionId,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      model: config.model,
+    }).catch(err => console.error("[ark-ai] logUsage failed:", err));
+  };
+
   let readable: ReadableStream;
   switch (config.provider) {
     case "openai":
-      readable = streamOpenAI(config, systemPrompt, messages);
+      readable = streamOpenAI(config, systemPrompt, messages, undefined, onUsage);
       break;
     case "openrouter":
-      readable = streamOpenAI(config, systemPrompt, messages, "https://openrouter.ai/api/v1");
+      readable = streamOpenAI(config, systemPrompt, messages, "https://openrouter.ai/api/v1", onUsage);
       break;
     case "google":
-      readable = streamGoogle(config, systemPrompt, messages);
+      readable = streamGoogle(config, systemPrompt, messages, onUsage);
       break;
     default:
-      readable = streamAnthropic(config, systemPrompt, messages);
+      readable = streamAnthropic(config, systemPrompt, messages, onUsage);
   }
 
   return new Response(readable, {

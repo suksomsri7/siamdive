@@ -14,8 +14,8 @@ model Admin {
   email       String   @unique
   password    String
   name        String
-  role        String   @default("ADMIN")   // SUPER_ADMIN | ADMIN | EDITOR
-  permissions String[]                      // granular keys for EDITOR role
+  role        String   @default("ADMIN") // SUPER_ADMIN | ADMIN | EDITOR
+  permissions String[] // granular keys for EDITOR role
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -24,58 +24,63 @@ model Admin {
 // ── Blog ─────────────────────────────────────────────────────────────────────
 
 model Blog {
-  id           String            @id @default(cuid())
-  status       BlogStatus        @default(DRAFT)
-  covers       String[]                       // image URLs (cover variant) — public-facing
-  imageIds     String[]          @default([]) // BlogImage IDs in same order as covers (for re-edit/cleanup)
-  mjPrompt     String            @default("")
-  translations BlogTranslation[]
-  videos       BlogVideo[]
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id             String            @id @default(cuid())
+  status         BlogStatus        @default(DRAFT)
+  covers         String[] // image URLs (cover variant) — public-facing
+  imageIds       String[]          @default([]) // BlogImage IDs in same order as covers (for re-edit/cleanup)
+  mjPrompt       String            @default("")
+  category       BlogCategory?
+  serviceAreaIds String[]          @default([])
+  translations   BlogTranslation[]
+  videos         BlogVideo[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([category])
+  @@index([serviceAreaIds], type: Gin)
 }
 
 // Blog images with edit metadata for re-editing
 model BlogImage {
   id          String   @id @default(cuid())
-  originalUrl String   // /uploads/originals/<id>.<ext> — ภาพดั้งเดิม
-  coverUrl    String   // /uploads/processed/<id>-cover.webp — 1200x800
-  ogUrl       String   // /uploads/processed/<id>-og.jpg — 1200x630
+  originalUrl String // /uploads/originals/<id>.<ext> — ภาพดั้งเดิม
+  coverUrl    String // /uploads/processed/<id>-cover.webp — 1200x800
+  ogUrl       String // /uploads/processed/<id>-og.jpg — 1200x630
   width       Int      @default(0)
   height      Int      @default(0)
-  editJson    String   @default("{}")  // JSON: crop, watermark, text layers — สำหรับ re-edit
+  editJson    String   @default("{}") // JSON: crop, watermark, text layers — สำหรับ re-edit
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 // Singleton model — ใช้ id = "default" เสมอ มีเพียง 1 row
 model SiteBranding {
-  id                  String   @id @default("default")
-  watermarkUrl        String   @default("")  // legacy — เก็บไว้เพื่อ backward compat
-  defaultWatermarkId  String   @default("")  // ID ของ Watermark default (ใช้ครั้งแรกเมื่อเปิด editor)
-  watermarkEnabled    Boolean  @default(false)
-  watermarkOpacity    Int      @default(60)  // 0-100
-  watermarkPosition   String   @default("bottom-right")  // top-left | top-right | bottom-left | bottom-right | center
-  watermarkScale      Int      @default(15)  // % ของความกว้างภาพ (เช่น 15 = logo กว้าง 15% ของภาพ)
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default("default")
+  watermarkUrl       String   @default("") // legacy — เก็บไว้เพื่อ backward compat
+  defaultWatermarkId String   @default("") // ID ของ Watermark default (ใช้ครั้งแรกเมื่อเปิด editor)
+  watermarkEnabled   Boolean  @default(false)
+  watermarkOpacity   Int      @default(60) // 0-100
+  watermarkPosition  String   @default("bottom-right") // top-left | top-right | bottom-left | bottom-right | center
+  watermarkScale     Int      @default(15) // % ของความกว้างภาพ (เช่น 15 = logo กว้าง 15% ของภาพ)
+  updatedAt          DateTime @updatedAt
 }
 
 // Watermark images (logos) — มีได้หลายอัน
 model Watermark {
   id        String   @id @default(cuid())
-  name      String   @default("")  // ชื่อ logo เช่น "White Logo", "Black Logo"
-  url       String                 // URL ของ PNG โปร่งใส
+  name      String   @default("") // ชื่อ logo เช่น "White Logo", "Black Logo"
+  url       String // URL ของ PNG โปร่งใส
   order     Int      @default(0)
   createdAt DateTime @default(now())
 }
 
 model BlogTranslation {
-  id       String   @id @default(cuid())
-  blog     Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  blogId   String
-  lang     String
-  title    String
-  slug     String
+  id            String   @id @default(cuid())
+  blog          Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  blogId        String
+  lang          String
+  title         String
+  slug          String
   excerpt       String   @default("")
   content       String   @default("")
   keywords      String[]
@@ -131,22 +136,22 @@ model Boat {
   id           String            @id @default(cuid())
   company      Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
   companyId    String?
-  name         String            // internal boat name e.g. "MV Manta Queen 5"
+  name         String // internal boat name e.g. "MV Manta Queen 5"
   type         BoatType
   capacity     Int?
-  photos       String[]          // boat photos (interior/exterior)
-  covers       String[]          // product listing cover images
+  photos       String[] // boat photos (interior/exterior)
+  covers       String[] // product listing cover images
   status       PublishStatus     @default(DRAFT)
   featured     Boolean           @default(false)
-  translations  BoatTranslation[]
-  videos        BoatVideo[]
-  priceTiers    BoatPriceTier[]
-  schedules     Schedule[]
-  packages      Package[]
-  options       BoatOption[]
-  serviceAreas  BoatServiceArea[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  translations BoatTranslation[]
+  videos       BoatVideo[]
+  priceTiers   BoatPriceTier[]
+  schedules    Schedule[]
+  packages     Package[]
+  options      BoatOption[]
+  serviceAreas BoatServiceArea[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 }
 
 model BoatTranslation {
@@ -154,7 +159,7 @@ model BoatTranslation {
   boat     Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
   boatId   String
   lang     String
-  title    String   @default("")  // product listing title
+  title    String   @default("") // product listing title
   slug     String   @default("")
   excerpt  String   @default("")
   content  String   @default("")
@@ -173,10 +178,10 @@ model BoatVideo {
 }
 
 model BoatPriceTier {
-  id           String  @id @default(cuid())
-  boat         Boat    @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  id           String @id @default(cuid())
+  boat         Boat   @relation(fields: [boatId], references: [id], onDelete: Cascade)
   boatId       String
-  tier         String  // ADULT | CHILD | NON_DIVER | DIVER
+  tier         String // ADULT | CHILD | NON_DIVER | DIVER
   costPrice    Float?
   regularPrice Float
   salePrice    Float?
@@ -198,12 +203,14 @@ model Schedule {
   totalSeats     Int?
   availableSeats Int?
   status         ScheduleStatus        @default(OPEN)
-  season         String?               // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
+  season         String? // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
   note           String?
   itinerary      String                @default("")
   translations   ScheduleTranslation[]
   packages       SchedulePackage[]
   createdAt      DateTime              @default(now())
+
+  @@index([status, departureDate, availableSeats])
 }
 
 model SchedulePackage {
@@ -252,41 +259,41 @@ model ScheduleTranslation {
 // ── Package ───────────────────────────────────────────────────────────────────
 
 model Package {
-  id            String                 @id @default(cuid())
-  boat          Boat                   @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  id            String                @id @default(cuid())
+  boat          Boat                  @relation(fields: [boatId], references: [id], onDelete: Cascade)
   boatId        String
-  name          String                 // internal name
+  name          String // internal name
   totalSeats    Int?
-  photos        String[]               // package gallery photos (unlimited)
-  status        PublishStatus          @default(DRAFT)
+  photos        String[] // package gallery photos (unlimited)
+  status        PublishStatus         @default(DRAFT)
   translations  PackageTranslation[]
   priceTiers    PackagePriceTier[]
   seasonPeriods PackageSeasonPeriod[]
   schedules     SchedulePackage[]
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 }
 
 model PackageSeasonPeriod {
   id        String   @id @default(cuid())
   package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
   packageId String
-  season    String   // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
+  season    String // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
   startDate DateTime
   endDate   DateTime
 }
 
 model PackageTranslation {
-  id        String  @id @default(cuid())
-  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
   packageId String
   lang      String
-  title     String  @default("")
-  slug      String  @default("")
-  excerpt   String  @default("")
-  content   String  @default("")    // detail
-  itinerary String  @default("")
-  route     String  @default("")    // เส้นทาง
+  title     String   @default("")
+  slug      String   @default("")
+  excerpt   String   @default("")
+  content   String   @default("") // detail
+  itinerary String   @default("")
+  route     String   @default("") // เส้นทาง
   keywords  String[]
 
   @@unique([packageId, lang])
@@ -316,7 +323,7 @@ model PackagePriceTier {
   id           String  @id @default(cuid())
   package      Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
   packageId    String
-  tier         String  // DIVER | NON_DIVER
+  tier         String // DIVER | NON_DIVER
   costPrice    Float?
   regularPrice Float   @default(0)
   salePrice    Float?
@@ -358,7 +365,7 @@ model BoatServiceArea {
 model School {
   id           String              @id @default(cuid())
   logo         String?
-  certBody     String              // PADI | SSI | NAUI | CMAS | SDI | TDI
+  certBody     String // PADI | SSI | NAUI | CMAS | SDI | TDI
   phone        String?
   email        String?
   lineId       String?
@@ -425,9 +432,9 @@ model CourseVideo {
 }
 
 model CoursePrice {
-  id           String  @id @default(cuid())
-  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId     String  @unique
+  id           String @id @default(cuid())
+  course       Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String @unique
   costPrice    Float?
   regularPrice Float
   salePrice    Float?
@@ -437,33 +444,33 @@ model CoursePrice {
 // ── Display ───────────────────────────────────────────────────────────────────
 
 model DisplayRow {
-  id           String                   @id @default(cuid())
-  topic        String                   // internal name (backoffice only)
-  layout       String                   @default("HORIZONTAL") // FULL | VERTICAL | HORIZONTAL
-  itemType     String                   // DAYTRIP | LIVEABOARD | DIVE_RESORT | FREEDIVE | LAND_TOUR | SNORKELING | SCUBA_COURSES | FREEDIVE_COURSES | BLOG
-  order        Int                      @default(0)
-  active       Boolean                  @default(true)
-  maxItems     Int?                     // null = show all
+  id            String                  @id @default(cuid())
+  topic         String // internal name (backoffice only)
+  layout        String                  @default("HORIZONTAL") // FULL | VERTICAL | HORIZONTAL
+  itemType      String // DAYTRIP | LIVEABOARD | DIVE_RESORT | FREEDIVE | LAND_TOUR | SNORKELING | SCUBA_COURSES | FREEDIVE_COURSES | BLOG
+  order         Int                     @default(0)
+  active        Boolean                 @default(true)
+  maxItems      Int? // null = show all
   // When true (BLOG rows only): ignore curated `items` and pull the most recent
   // PUBLISHED blogs (capped at maxItems ?? 20). Useful for "latest articles" rows
   // that auto-update without admin intervention.
-  autoLatest   Boolean                  @default(false)
+  autoLatest    Boolean                 @default(false)
   // When true (BLOG rows only): shuffle a random selection of PUBLISHED blogs
   // from the newest 50 pool, capped at maxItems ?? 20. Reshuffles on every page
   // load. If both autoLatest and randomMode are true, randomMode wins.
-  randomMode   Boolean                  @default(false)
+  randomMode    Boolean                 @default(false)
   // When true (non-BLOG rows with itemType in LIVEABOARD|DAYTRIP|DIVE_RESORT|
   // LAND_TOUR): replace curated `items` with the top boats ranked by TRIP_VIEW
   // events over the last 7 days, capped at maxItems ?? 6. Only counts events
   // from bot-filtered sessions. Falls back to curated items if analytics returns
   // fewer boats than maxItems.
-  autoTrending  Boolean                  @default(false)
+  autoTrending  Boolean                 @default(false)
   serviceAreaId String?
-  serviceArea   ServiceArea?             @relation(fields: [serviceAreaId], references: [id])
+  serviceArea   ServiceArea?            @relation(fields: [serviceAreaId], references: [id])
   items         DisplayRowItem[]
-  translations DisplayRowTranslation[]
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
+  translations  DisplayRowTranslation[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
 }
 
 model DisplayRowTranslation {
@@ -471,8 +478,8 @@ model DisplayRowTranslation {
   row      DisplayRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
   rowId    String
   lang     String
-  title    String     @default("")    // heading shown on frontend
-  subtitle String     @default("")    // optional tagline, hidden if empty
+  title    String     @default("") // heading shown on frontend
+  subtitle String     @default("") // optional tagline, hidden if empty
 
   @@unique([rowId, lang])
 }
@@ -481,7 +488,7 @@ model DisplayRowItem {
   id      String     @id @default(cuid())
   row     DisplayRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
   rowId   String
-  refId   String     // schedule.id | package.id | blog.id
+  refId   String // schedule.id | package.id | blog.id
   refType String     @default("SCHEDULE") // SCHEDULE | PACKAGE | BLOG
   order   Int        @default(0)
 
@@ -491,7 +498,7 @@ model DisplayRowItem {
 // ── SiteSeo ───────────────────────────────────────────────────────────────────
 
 model SiteSeo {
-  lang          String   @id          // "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru"
+  lang          String   @id // "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru"
   title         String   @default("")
   description   String   @default("")
   keywords      String[]
@@ -506,9 +513,9 @@ model SiteSeo {
 model ApiKey {
   id          String    @id @default(cuid())
   name        String
-  keyHash     String    @unique  // SHA-256 of full key
-  keyPrefix   String             // "sk_xxxxxxxx" first 12 chars for display
-  permissions String[]           // ["boats.read", "schedules.write", ...]
+  keyHash     String    @unique // SHA-256 of full key
+  keyPrefix   String // "sk_xxxxxxxx" first 12 chars for display
+  permissions String[] // ["boats.read", "schedules.write", ...]
   active      Boolean   @default(true)
   lastUsedAt  DateTime?
   expiresAt   DateTime?
@@ -522,16 +529,16 @@ model ApiKey {
 // marks it used, and links the resulting blog id for audit.
 
 model BlogTopic {
-  id        String    @id @default(cuid())
+  id        String       @id @default(cuid())
   category  BlogCategory
   title     String // short angle/hook, not the final blog title
-  keywords  String[]  @default([])
-  note      String    @default("") // optional hint for the writer
-  used      Boolean   @default(false)
+  keywords  String[]     @default([])
+  note      String       @default("") // optional hint for the writer
+  used      Boolean      @default(false)
   usedAt    DateTime?
-  blogId    String?   // set after a blog is generated from this topic
-  order     Int       @default(0)
-  createdAt DateTime  @default(now())
+  blogId    String? // set after a blog is generated from this topic
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
 
   @@index([category, used, order])
 }
@@ -541,15 +548,15 @@ model BlogTopic {
 // kill switches, last-run timestamps, rotation counters.
 
 model CronState {
-  id                  String   @id @default("default")
-  autoPublishEnabled  Boolean  @default(false)
-  generatorEnabled    Boolean  @default(true)
+  id                  String    @id @default("default")
+  autoPublishEnabled  Boolean   @default(false)
+  generatorEnabled    Boolean   @default(true)
   lastGeneratedAt     DateTime?
   lastPublishedAt     DateTime?
-  categoryRotationIdx Int      @default(0) // rotates 0..5 each generator run
-  publishedToday      Int      @default(0)
-  publishedDate       String   @default("") // YYYY-MM-DD in BKK tz
-  updatedAt           DateTime @updatedAt
+  categoryRotationIdx Int       @default(0) // rotates 0..5 each generator run
+  publishedToday      Int       @default(0)
+  publishedDate       String    @default("") // YYYY-MM-DD in BKK tz
+  updatedAt           DateTime  @updatedAt
 }
 
 // ── CronAuditLog ──────────────────────────────────────────────────────────────
@@ -558,7 +565,7 @@ model CronState {
 
 model CronAuditLog {
   id        String   @id @default(cuid())
-  event     String   // generator.started | generator.picked | generator.completed | publisher.picked | publisher.skipped | publisher.published
+  event     String // generator.started | generator.picked | generator.completed | publisher.picked | publisher.skipped | publisher.published
   blogId    String?
   topicId   String?
   category  String?
@@ -574,22 +581,22 @@ model CronAuditLog {
 // See memory/project_siamdive_analytics.md for full design rationale.
 
 model AnalyticsSession {
-  id             String   @id                       // client-generated uuid v4
-  visitorId      String                             // stable across sessions (localStorage)
-  startedAt      DateTime @default(now())
-  lastSeenAt     DateTime @default(now())
-  eventCount     Int      @default(0)
-  pageCount      Int      @default(0)
+  id         String   @id // client-generated uuid v4
+  visitorId  String // stable across sessions (localStorage)
+  startedAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  eventCount Int      @default(0)
+  pageCount  Int      @default(0)
 
   // Geo (from Vercel headers; raw IP never stored)
-  country        String?
-  region         String?
-  city           String?
+  country String?
+  region  String?
+  city    String?
 
   // Device (parsed UA; raw UA never stored)
-  device         String?                            // mobile | tablet | desktop
-  os             String?
-  browser        String?
+  device  String? // mobile | tablet | desktop
+  os      String?
+  browser String?
 
   // First-touch (locked after first set)
   firstUtmSource   String?
@@ -601,12 +608,12 @@ model AnalyticsSession {
   firstLandingPath String?
 
   // Last-touch
-  lastUtmSource    String?
-  lastUtmMedium    String?
-  lastUtmCampaign  String?
+  lastUtmSource   String?
+  lastUtmMedium   String?
+  lastUtmCampaign String?
 
-  lang             String?
-  isBot            Boolean  @default(false)
+  lang  String?
+  isBot Boolean @default(false)
 
   events       AnalyticsEvent[]
   attributions AnalyticsAttribution[]
@@ -618,29 +625,29 @@ model AnalyticsSession {
 }
 
 model AnalyticsEvent {
-  id          BigInt              @id @default(autoincrement())
-  ts          DateTime            @default(now())
-  sessionId   String
-  visitorId   String
+  id        BigInt   @id @default(autoincrement())
+  ts        DateTime @default(now())
+  sessionId String
+  visitorId String
 
-  type        AnalyticsEventType
-  path        String                             // "/trips/aquarian-similan"
-  lang        String?
+  type AnalyticsEventType
+  path String // "/trips/aquarian-similan"
+  lang String?
 
   // Polymorphic entity reference
-  entityType  String?                            // BOAT | SCHEDULE | BLOG | TOPIC | ROW
-  entityId    String?
+  entityType String? // BOAT | SCHEDULE | BLOG | TOPIC | ROW
+  entityId   String?
 
   // Engagement
-  dwellMs     Int?
-  scrollPct   Int?
-  viewportW   Int?
-  viewportH   Int?
+  dwellMs   Int?
+  scrollPct Int?
+  viewportW Int?
+  viewportH Int?
 
   // Free-form (search query, filter values, A/B variant, etc.)
-  properties  Json?
+  properties Json?
 
-  session     AnalyticsSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([ts])
   @@index([type, ts])
@@ -650,18 +657,18 @@ model AnalyticsEvent {
 }
 
 model AnalyticsSearch {
-  id             BigInt   @id @default(autoincrement())
-  ts             DateTime @default(now())
-  sessionId      String
-  visitorId      String
-  queryRaw       String
-  queryNorm      String                          // lowercase trim no-punct
-  lang           String?
-  country        String?
-  resultsCount   Int                             // 0 = SEO opportunity
-  filters        Json?                           // {dateFrom, dateTo, boatType, ...}
-  clickedResult  String?                         // entity id that was clicked (null = no click)
-  clickedRank    Int?                            // 1-based
+  id            BigInt   @id @default(autoincrement())
+  ts            DateTime @default(now())
+  sessionId     String
+  visitorId     String
+  queryRaw      String
+  queryNorm     String // lowercase trim no-punct
+  lang          String?
+  country       String?
+  resultsCount  Int // 0 = SEO opportunity
+  filters       Json? // {dateFrom, dateTo, boatType, ...}
+  clickedResult String? // entity id that was clicked (null = no click)
+  clickedRank   Int? // 1-based
 
   @@index([ts])
   @@index([queryNorm])
@@ -670,33 +677,33 @@ model AnalyticsSearch {
 }
 
 model AnalyticsAttribution {
-  id                   BigInt              @id @default(autoincrement())
-  ts                   DateTime            @default(now())
-  sessionId            String
-  visitorId            String
+  id        BigInt   @id @default(autoincrement())
+  ts        DateTime @default(now())
+  sessionId String
+  visitorId String
 
-  intentType           AnalyticsEventType  // BOOKING_INTENT_*
-  targetType           String              // BOAT | SCHEDULE
-  targetId             String
-  targetPriceTHB       Int?
-  scheduleDate         DateTime?
+  intentType     AnalyticsEventType // BOOKING_INTENT_*
+  targetType     String // BOAT | SCHEDULE
+  targetId       String
+  targetPriceTHB Int?
+  scheduleDate   DateTime?
 
   // Snapshot (avoid join when aggregating)
-  firstUtmSource       String?
-  firstUtmMedium       String?
-  firstUtmCampaign     String?
-  firstReferrer        String?
+  firstUtmSource   String?
+  firstUtmMedium   String?
+  firstUtmCampaign String?
+  firstReferrer    String?
 
   // Marketing efficiency signals
   msFromSessionStart   Int?
   sessionsBeforeIntent Int?
 
   // Future hook: external booking confirmation
-  confirmed            Boolean             @default(false)
-  confirmedAt          DateTime?
-  confirmedValueTHB    Int?
+  confirmed         Boolean   @default(false)
+  confirmedAt       DateTime?
+  confirmedValueTHB Int?
 
-  session              AnalyticsSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([ts])
   @@index([targetType, targetId, ts])
@@ -705,20 +712,20 @@ model AnalyticsAttribution {
 }
 
 model AnalyticsDaily {
-  id             BigInt   @id @default(autoincrement())
-  date           DateTime                          // BKK date normalized to 00:00
-  entityType     String                            // BOAT | SCHEDULE | BLOG | PATH | SEARCH
-  entityId       String                            // id / path / queryNorm
-  country        String?                           // null = all-countries roll-up
-  device         String?                           // null = all-devices roll-up
+  id         BigInt   @id @default(autoincrement())
+  date       DateTime // BKK date normalized to 00:00
+  entityType String // BOAT | SCHEDULE | BLOG | PATH | SEARCH
+  entityId   String // id / path / queryNorm
+  country    String? // null = all-countries roll-up
+  device     String? // null = all-devices roll-up
 
-  views          Int      @default(0)
-  uniqueVisitors Int      @default(0)
-  uniqueSessions Int      @default(0)
+  views          Int  @default(0)
+  uniqueVisitors Int  @default(0)
+  uniqueSessions Int  @default(0)
   avgDwellMs     Int?
   avgScrollPct   Int?
-  reads          Int      @default(0)              // BLOG_READ_COMPLETE
-  intents        Int      @default(0)              // BOOKING_INTENT_*
+  reads          Int  @default(0) // BLOG_READ_COMPLETE
+  intents        Int  @default(0) // BOOKING_INTENT_*
 
   @@unique([date, entityType, entityId, country, device])
   @@index([date, entityType])
@@ -729,15 +736,51 @@ model AnalyticsDaily {
 // Singleton (id = "default") — AI chat configuration managed via backoffice
 
 model AiConfig {
-  id                String   @id @default("default")
-  provider          String   @default("anthropic")
-  apiKeyEncrypted   String   @default("")
-  model             String   @default("claude-haiku-4-5-20251001")
-  maxTokens         Int      @default(1024)
-  rateLimit         Int      @default(20)
-  temperature       Float    @default(0.7)
-  systemPromptExtra String   @default("")
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default("default")
+  provider           String   @default("anthropic")
+  apiKeyEncrypted    String   @default("")
+  model              String   @default("claude-haiku-4-5-20251001")
+  maxTokens          Int      @default(1024)
+  rateLimit          Int      @default(20)
+  temperature        Float    @default(0.7)
+  systemPromptExtra  String   @default("")
+  enabled            Boolean  @default(true)
+  dailyBudgetUsd     Float    @default(5)
+  costAlertEmail     String?
+  costAlertThreshold Int      @default(80)
+  updatedAt          DateTime @updatedAt
+}
+
+// ── AiUsageLog ──────────────────────────────────────────────────────────────
+// Per-call token + cost tracking for Ark AI cost guard
+
+model AiUsageLog {
+  id           String   @id @default(cuid())
+  sessionId    String?
+  inputTokens  Int
+  outputTokens Int
+  costUsd      Float
+  model        String
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// ── AiPlanSession ───────────────────────────────────────────────────────────
+// Slot-extraction session state per device (Ark AI v2 Phase 2)
+
+model AiPlanSession {
+  id              String   @id @default(cuid())
+  deviceId        String
+  slots           Json     @default("{}") // {dates, headcount, region, certs[], budget, style, interests[]}
+  status          String   @default("active") // active | completed | abandoned
+  behaviorContext Json? // cached buildVisitorProfile() — refresh ทุก 1 ชม.
+  lastActiveAt    DateTime @default(now())
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([deviceId])
+  @@index([expiresAt])
 }
 
 // ── PlanAiSummary ───────────────────────────────────────────────────────────
@@ -794,23 +837,29 @@ model PlanUser {
 // ── UserPlan ─────────────────────────────────────────────────────────────────
 
 model UserPlan {
-  id        String   @id @default(cuid())
-  shortId   String   @unique @default(cuid())
-  userId    String
-  user      PlanUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String   @default("My Plan")
-  coverUrl  String?
-  status    PlanStatus @default(PLANNING)
-  trips     Json     @default("[]")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String     @id @default(cuid())
+  shortId    String     @unique @default(cuid())
+  userId     String
+  user       PlanUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String     @default("My Plan")
+  coverUrl   String?
+  status     PlanStatus @default(PLANNING)
+  trips      Json       @default("[]")
+  isPublic   Boolean    @default(false)
+  publicSlug String?    @unique
+  viewCount  Int        @default(0)
+  expiresAt  DateTime?
+  source     String     @default("USER") // USER | ARK_AI | TEMPLATE
+  aiPrompt   String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
-  members    PlanMember[]
-  media      PlanMedia[]
-  checklists PlanChecklist[]
+  members      PlanMember[]
+  media        PlanMedia[]
+  checklists   PlanChecklist[]
   chatMessages PlanChat[]
-  notes      PlanNote[]
-  activities PlanActivity[]
+  notes        PlanNote[]
+  activities   PlanActivity[]
 
   @@index([userId])
   @@index([shortId])
@@ -819,15 +868,15 @@ model UserPlan {
 // ── PlanMember ───────────────────────────────────────────────────────────────
 
 model PlanMember {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   planId    String
-  plan      UserPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan      UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   email     String
   name      String?
   avatarUrl String?
-  role      PlanRole   @default(VIEWER)
+  role      PlanRole @default(VIEWER)
   certLevel String?
-  joinedAt  DateTime   @default(now())
+  joinedAt  DateTime @default(now())
 
   @@unique([planId, email])
   @@index([planId])
@@ -837,15 +886,15 @@ model PlanMember {
 // ── PlanMedia ────────────────────────────────────────────────────────────────
 
 model PlanMedia {
-  id          String    @id @default(cuid())
-  planId      String
-  plan        UserPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
-  url         String
-  thumbUrl    String?
-  type        MediaType @default(PHOTO)
-  uploadedBy  String
-  caption     String?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(cuid())
+  planId     String
+  plan       UserPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  url        String
+  thumbUrl   String?
+  type       MediaType @default(PHOTO)
+  uploadedBy String
+  caption    String?
+  createdAt  DateTime  @default(now())
 
   @@index([planId, createdAt])
 }
@@ -1020,18 +1069,18 @@ enum AnalyticsEventType {
 // Singleton (id = "default") — AI recommendation config, separate from Ark AI
 
 model RecommendationAiConfig {
-  id                String   @id @default("default")
-  provider          String   @default("openrouter")
-  apiKeyEncrypted   String   @default("")
-  model             String   @default("deepseek/deepseek-chat-v3-0324")
-  maxTokens         Int      @default(512)
-  temperature       Float    @default(0.3)
-  minActivity       Int      @default(5)
-  cacheTTLDays      Int      @default(7)
-  cooldownMinutes   Int      @default(60)
-  abTestEnabled     Boolean  @default(false)
-  enabled           Boolean  @default(false)
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default("default")
+  provider        String   @default("openrouter")
+  apiKeyEncrypted String   @default("")
+  model           String   @default("deepseek/deepseek-chat-v3-0324")
+  maxTokens       Int      @default(512)
+  temperature     Float    @default(0.3)
+  minActivity     Int      @default(5)
+  cacheTTLDays    Int      @default(7)
+  cooldownMinutes Int      @default(60)
+  abTestEnabled   Boolean  @default(false)
+  enabled         Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
 }
 
 // ── RecommendationCache ─────────────────────────────────────────────────────

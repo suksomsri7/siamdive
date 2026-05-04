@@ -48,6 +48,16 @@ type Config = {
   rateLimit: number;
   temperature: number;
   systemPromptExtra: string;
+  enabled: boolean;
+  dailyBudgetUsd: number;
+  costAlertEmail: string;
+  costAlertThreshold: number;
+};
+
+type UsageStats = {
+  today: { costUsd: number; inputTokens: number; outputTokens: number; callCount: number };
+  week: { date: string; costUsd: number }[];
+  topSpenders: { sessionId: string; callCount: number; inputTokens: number; outputTokens: number; costUsd: number }[];
 };
 
 export default function AiConfigPage() {
@@ -59,6 +69,11 @@ export default function AiConfigPage() {
   const [rateLimit, setRateLimit] = useState(20);
   const [temperature, setTemperature] = useState(0.7);
   const [extra, setExtra] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [dailyBudgetUsd, setDailyBudgetUsd] = useState(5);
+  const [costAlertEmail, setCostAlertEmail] = useState("");
+  const [costAlertThreshold, setCostAlertThreshold] = useState(80);
+  const [usage, setUsage] = useState<UsageStats | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -75,7 +90,15 @@ export default function AiConfigPage() {
         setRateLimit(c.rateLimit);
         setTemperature(c.temperature);
         setExtra(c.systemPromptExtra);
+        setEnabled(c.enabled);
+        setDailyBudgetUsd(c.dailyBudgetUsd);
+        setCostAlertEmail(c.costAlertEmail || "");
+        setCostAlertThreshold(c.costAlertThreshold);
       })
+      .catch(() => {});
+    fetch("/api/ark-ai/usage")
+      .then(r => r.json())
+      .then((u: UsageStats) => setUsage(u))
       .catch(() => {});
   }, []);
 
@@ -88,7 +111,10 @@ export default function AiConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
-    const body: Record<string, unknown> = { provider, model, maxTokens, rateLimit, temperature, systemPromptExtra: extra };
+    const body: Record<string, unknown> = {
+      provider, model, maxTokens, rateLimit, temperature, systemPromptExtra: extra,
+      enabled, dailyBudgetUsd, costAlertEmail, costAlertThreshold,
+    };
     if (apiKey) body.apiKey = apiKey;
     await fetch("/api/ark-ai/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setApiKey("");
@@ -207,6 +233,128 @@ export default function AiConfigPage() {
             placeholder="Additional instructions for Ark AI..."
             style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
           />
+        </div>
+
+        {/* ── Cost Guard ───────────────────────────────────────────── */}
+        <div style={{ borderTop: "1px solid #2a2a2a", paddingTop: 20, marginTop: 4 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 800, color: "#f5f5f5", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Cost Guard</h2>
+          <p style={{ fontSize: 11, color: "#666", marginBottom: 16 }}>Master kill switch + daily budget cap to prevent runaway AI spend.</p>
+
+          {/* Master toggle */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: enabled ? "rgba(74,222,128,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${enabled ? "rgba(74,222,128,0.25)" : "rgba(239,68,68,0.25)"}`, borderRadius: 8, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: enabled ? "#4ade80" : "#ef4444" }}>
+                {enabled ? "Ark AI is ENABLED" : "Ark AI is DISABLED"}
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                {enabled ? "Chat endpoint is live" : "All chat requests will return 503"}
+              </div>
+            </div>
+            <button
+              onClick={() => setEnabled(v => !v)}
+              style={{
+                width: 44, height: 24, borderRadius: 999, border: "none", cursor: "pointer",
+                background: enabled ? "#22c55e" : "#444", position: "relative", transition: "all 0.15s",
+              }}
+            >
+              <span style={{
+                position: "absolute", top: 2, left: enabled ? 22 : 2,
+                width: 20, height: 20, borderRadius: "50%", background: "#fff",
+                transition: "left 0.15s",
+              }} />
+            </button>
+          </div>
+
+          {/* Budget inputs */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            <div>
+              <label style={labelStyle}>Daily Budget (USD)</label>
+              <input type="number" min="0" step="0.5" value={dailyBudgetUsd}
+                onChange={e => setDailyBudgetUsd(+e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Alert Threshold (%)</label>
+              <input type="number" min="0" max="100" step="5" value={costAlertThreshold}
+                onChange={e => setCostAlertThreshold(+e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Alert Email (optional)</label>
+            <input type="email" value={costAlertEmail}
+              onChange={e => setCostAlertEmail(e.target.value)}
+              placeholder="ops@siamdive.com"
+              style={inputStyle} />
+          </div>
+
+          {/* Today usage progress bar */}
+          {usage && (() => {
+            const pct = dailyBudgetUsd > 0 ? Math.min(100, (usage.today.costUsd / dailyBudgetUsd) * 100) : 0;
+            const overThreshold = pct >= costAlertThreshold;
+            const barColor = pct >= 100 ? "#ef4444" : overThreshold ? "#f59e0b" : "#22c55e";
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Today's Usage</span>
+                  <span style={{ fontSize: 11, color: barColor, fontWeight: 700 }}>
+                    ${usage.today.costUsd.toFixed(4)} / ${dailyBudgetUsd.toFixed(2)} ({pct.toFixed(0)}%)
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden", border: "1px solid #2a2a2a" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: barColor, transition: "all 0.3s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10, color: "#555" }}>
+                  <span>{usage.today.callCount} calls</span>
+                  <span>{usage.today.inputTokens.toLocaleString()} in / {usage.today.outputTokens.toLocaleString()} out tokens</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 7-day mini chart */}
+          {usage && usage.week.length > 0 && (() => {
+            const maxCost = Math.max(...usage.week.map(w => w.costUsd), 0.0001);
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                  Last 7 Days
+                </div>
+                <div style={{ display: "flex", gap: 4, alignItems: "flex-end", height: 60 }}>
+                  {usage.week.map(w => {
+                    const h = (w.costUsd / maxCost) * 100;
+                    return (
+                      <div key={w.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{ width: "100%", height: `${Math.max(h, 2)}%`, background: "#3b82f6", borderRadius: "3px 3px 0 0", opacity: w.costUsd > 0 ? 1 : 0.2 }}
+                          title={`${w.date}: $${w.costUsd.toFixed(4)}`} />
+                        <span style={{ fontSize: 9, color: "#555" }}>{w.date.slice(5)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Top spenders */}
+          {usage && usage.topSpenders.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                Top Spenders Today
+              </div>
+              <div style={{ border: "1px solid #2a2a2a", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 60px 80px 80px", padding: "8px 12px", background: "#1a1a1a", fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+                  <span>Session</span><span style={{ textAlign: "right" }}>Calls</span><span style={{ textAlign: "right" }}>Tokens</span><span style={{ textAlign: "right" }}>Cost</span>
+                </div>
+                {usage.topSpenders.map(s => (
+                  <div key={s.sessionId} style={{ display: "grid", gridTemplateColumns: "2fr 60px 80px 80px", padding: "8px 12px", borderTop: "1px solid #2a2a2a", fontSize: 11, color: "#ccc" }}>
+                    <span style={{ fontFamily: "monospace", color: "#888" }}>{s.sessionId.slice(0, 16)}…</span>
+                    <span style={{ textAlign: "right" }}>{s.callCount}</span>
+                    <span style={{ textAlign: "right", color: "#888" }}>{(s.inputTokens + s.outputTokens).toLocaleString()}</span>
+                    <span style={{ textAlign: "right", fontWeight: 700, color: "#fbbf24" }}>${s.costUsd.toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Buttons */}
