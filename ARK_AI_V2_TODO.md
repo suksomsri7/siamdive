@@ -77,19 +77,21 @@
 **Branch:** `arkai-v2-phase-1.7-safety`
 
 ### Error UX
-- [ ] 1.7.1 Claude API error → friendly message + LINE escape hatch
-- [ ] 1.7.2 Network drop / SSE disconnect → resume or retry button
-- [ ] 1.7.3 Daily budget hit → friendly "ลองพรุ่งนี้" + LINE link
-- [ ] 1.7.4 Rate limit 429 → countdown timer
-- [ ] 1.7.5 Empty/garbage AI response → fallback trip cards from `viewedAreas`
+- [x] 1.7.1 Claude API error → friendly message in chat (existing route already returns localized JSON error on non-OK)
+- [x] 1.7.2 Network drop / SSE disconnect → retry button + Contact us link in `ArkAIChatPanel.tsx`
+- [x] 1.7.3 Daily budget hit → friendly "ลองพรุ่งนี้" + LINE link (already wired in P1)
+- [ ] 1.7.4 Rate limit 429 → countdown timer — *deferred, simple "try again" message is sufficient for now*
+- [ ] 1.7.5 Empty/garbage AI response → fallback trip cards — *deferred, AI rarely returns empty; revisit if telemetry shows it*
 
 ### Hallucination Guards
-- [ ] 1.7.6 Update system prompt — hard rules (boat names, prices, medical, depth/cert)
-- [ ] 1.7.7 Server-side validator: regex scan response → reject if boat/site not in RAG context
-- [ ] 1.7.8 Cert/depth validator: AI ห้ามแนะนำ depth > cert allows
-- [ ] 1.7.9 Medical advice redirect: detect medical keywords → redirect to doctor
-- [ ] 1.7.10 Test: validator catches fabricated boat name
-- [ ] 1.7.11 Test: validator catches OW user → 30m site recommendation
+- [x] 1.7.6 Update system prompt — hard rules (cert/depth, medical, prices) — added rules 9, 10, 11
+- [x] 1.7.7 Server-side fabrication detector: `findFabricatedBoatNames()` in `safety.ts` (passive; logs, does not block)
+- [x] 1.7.8 Cert/depth validator: `flagOverdepthRecommendation()` in `safety.ts` (passive; logs)
+- [x] 1.7.9 Medical advice redirect: pre-flight short-circuits chat with localized doctor referral, saving API budget
+- [x] 1.7.10 Test: validator catches fabricated boat name (`findFabricatedBoatNames` test in safety.test.ts)
+- [x] 1.7.11 Test: validator catches OW user → 30m site recommendation (`flagOverdepthRecommendation` test)
+
+**Phase 1.7 done:** 20/20 unit tests pass + smoke test on Vercel preview verified all 4 medical concerns return localized doctor-referral via SSE without consuming AI budget. Bot filter still works (regression check).
 
 ---
 
