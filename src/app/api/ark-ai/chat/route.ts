@@ -50,10 +50,12 @@ function streamAnthropic(
     async start(controller) {
       let inputTokens = 0;
       let outputTokens = 0;
+      let textEmitted = false;
       // Track in-flight tool_use blocks. The Anthropic stream emits tool input
       // as a sequence of input_json_delta events between content_block_start
       // (type=tool_use) and content_block_stop. We accumulate per index.
-      const toolBlocks = new Map<number, { name: string; jsonAcc: string }>();
+      const toolBlocks = new Map<number, { id: string; name: string; jsonAcc: string }>();
+      const finalizedTools: { id: string; name: string; input: unknown }[] = [];
       try {
         const stream = await client.messages.stream({
           model: config.model,
@@ -67,28 +69,32 @@ function streamAnthropic(
           if (event.type === "content_block_start") {
             const block = event.content_block;
             if (block.type === "tool_use") {
-              toolBlocks.set(event.index, { name: block.name, jsonAcc: "" });
+              toolBlocks.set(event.index, { id: block.id, name: block.name, jsonAcc: "" });
             }
           } else if (event.type === "content_block_delta") {
             if (event.delta.type === "text_delta") {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+              textEmitted = true;
             } else if (event.delta.type === "input_json_delta") {
               const t = toolBlocks.get(event.index);
               if (t) t.jsonAcc += event.delta.partial_json;
             }
           } else if (event.type === "content_block_stop") {
             const t = toolBlocks.get(event.index);
-            if (t && onToolCall) {
+            if (t) {
+              let parsed: unknown = {};
               try {
-                // Empty input_json_delta = empty object (model called tool with no args)
-                const parsed = t.jsonAcc.trim() ? JSON.parse(t.jsonAcc) : {};
+                parsed = t.jsonAcc.trim() ? JSON.parse(t.jsonAcc) : {};
+              } catch (err) {
+                console.error("[ark-ai] tool input parse failed:", err, t.jsonAcc);
+              }
+              if (onToolCall) {
                 const update = onToolCall(t.name, parsed);
                 if (update) {
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ slotUpdate: update })}\n\n`));
                 }
-              } catch (err) {
-                console.error("[ark-ai] tool input parse failed:", err, t.jsonAcc);
               }
+              finalizedTools.push({ id: t.id, name: t.name, input: parsed });
               toolBlocks.delete(event.index);
             }
           } else if (event.type === "message_start") {
@@ -98,6 +104,48 @@ function streamAnthropic(
             outputTokens = event.usage?.output_tokens ?? outputTokens;
           }
         }
+
+        // Round-trip: if model called tools but emitted no text, send tool
+        // results back so it can produce its real recommendation reply.
+        if (finalizedTools.length > 0 && !textEmitted) {
+          const continuation = await client.messages.stream({
+            model: config.model,
+            max_tokens: config.maxTokens,
+            temperature: config.temperature,
+            system: systemPrompt,
+            messages: [
+              ...messages.map(m => ({ role: m.role, content: m.content })),
+              {
+                role: "assistant" as const,
+                content: finalizedTools.map(t => ({
+                  type: "tool_use" as const,
+                  id: t.id,
+                  name: t.name,
+                  input: (t.input as Record<string, unknown>) || {},
+                })),
+              },
+              {
+                role: "user" as const,
+                content: finalizedTools.map(t => ({
+                  type: "tool_result" as const,
+                  tool_use_id: t.id,
+                  content: JSON.stringify({ ok: true }),
+                })),
+              },
+            ],
+            // No tools on continuation — already extracted what we needed.
+          });
+          for await (const event of continuation) {
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+            } else if (event.type === "message_start") {
+              inputTokens += event.message.usage?.input_tokens ?? 0;
+            } else if (event.type === "message_delta") {
+              outputTokens += event.usage?.output_tokens ?? 0;
+            }
+          }
+        }
+
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Stream error";
@@ -202,8 +250,12 @@ function streamOpenAI(
     async start(controller) {
       let inputTokens = 0;
       let outputTokens = 0;
+      let textEmitted = false;
       // Track partial tool_call arguments by index across delta chunks.
-      const pendingTools = new Map<number, { name: string; argsAcc: string }>();
+      const pendingTools = new Map<number, { id: string; name: string; argsAcc: string }>();
+      // Snapshot of finalized tool calls in order, used for the round-trip
+      // continuation so the model can produce its real text reply.
+      const finalizedTools: { id: string; name: string; arguments: string }[] = [];
       try {
         const stream = await client.chat.completions.create({
           model: config.model,
@@ -222,9 +274,10 @@ function streamOpenAI(
           const text = choice?.delta?.content;
           if (text) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+            textEmitted = true;
           }
           // Tool-call deltas: each delta carries `tool_calls[]` with an index;
-          // `function.name` arrives once on the first chunk, `function.arguments`
+          // `function.name` + `id` arrive on the first chunk, `function.arguments`
           // streams in chunks. Accumulate per-index and finalize on stop.
           const toolDeltas = choice?.delta?.tool_calls;
           if (toolDeltas) {
@@ -232,9 +285,10 @@ function streamOpenAI(
               const idx = td.index ?? 0;
               let entry = pendingTools.get(idx);
               if (!entry) {
-                entry = { name: td.function?.name || "", argsAcc: "" };
+                entry = { id: td.id || `call_${idx}`, name: td.function?.name || "", argsAcc: "" };
                 pendingTools.set(idx, entry);
               }
+              if (td.id) entry.id = td.id;
               if (td.function?.name) entry.name = td.function.name;
               if (td.function?.arguments) entry.argsAcc += td.function.arguments;
             }
@@ -250,6 +304,7 @@ function streamOpenAI(
               } catch (err) {
                 console.error("[ark-ai] OpenAI tool input parse failed:", err, entry.argsAcc);
               }
+              finalizedTools.push({ id: entry.id, name: entry.name, arguments: entry.argsAcc || "{}" });
             }
             pendingTools.clear();
           }
@@ -258,6 +313,51 @@ function streamOpenAI(
             outputTokens = chunk.usage.completion_tokens ?? 0;
           }
         }
+
+        // Round-trip: if model called tools but didn't emit text, send the
+        // tool results back so it produces its real recommendation reply.
+        // Without this, the user sees only an empty bubble (or the client
+        // fallback) when a turn was pure slot extraction.
+        if (finalizedTools.length > 0 && !textEmitted) {
+          const followUp = await client.chat.completions.create({
+            model: config.model,
+            max_tokens: config.maxTokens,
+            temperature: config.temperature,
+            stream: true,
+            stream_options: { include_usage: true },
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+              {
+                role: "assistant",
+                content: null,
+                tool_calls: finalizedTools.map(t => ({
+                  id: t.id,
+                  type: "function" as const,
+                  function: { name: t.name, arguments: t.arguments },
+                })),
+              },
+              ...finalizedTools.map(t => ({
+                role: "tool" as const,
+                tool_call_id: t.id,
+                content: JSON.stringify({ ok: true }),
+              })),
+            ],
+            // No tools on the continuation — model already called what it needed.
+          });
+          for await (const chunk of followUp) {
+            const text = chunk.choices[0]?.delta?.content;
+            if (text) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+            }
+            if (chunk.usage) {
+              // Add continuation usage to the totals so cost guard stays accurate.
+              inputTokens += chunk.usage.prompt_tokens ?? 0;
+              outputTokens += chunk.usage.completion_tokens ?? 0;
+            }
+          }
+        }
+
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Stream error";

@@ -336,19 +336,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         }
       }
 
-      // Belt-and-suspenders: if the AI emitted only tool_calls and no text
-      // (sometimes happens when user message is bare slot info), fill the
-      // assistant bubble with a localized "got it" so the UI never looks dead.
+      // Server now does a tool-result round-trip when the model emitted only
+      // tool_calls, so the empty-bubble case shouldn't reach here. As a last
+      // resort (network blip, model regresses), drop the empty placeholder
+      // instead of showing fabricated "saved" text.
       if (!accumulated.trim()) {
-        const fallback = lang === "th"
-          ? "รับทราบครับ ✅ บันทึกข้อมูลให้แล้ว — มีรายละเอียดอื่นเพิ่มไหมครับ?"
-          : "Got it ✅ I've saved that. Anything else to add?";
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: "assistant", content: fallback };
-          return updated;
-        });
-        accumulated = fallback;
+        setMessages(prev => prev.slice(0, -1));
       }
 
       trackChatMessage("assistant", accumulated.length);
