@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, usePathname } from "next/navigation";
 import ChatMessage from "./ChatMessage";
 import SuggestionChips from "./SuggestionChips";
+import SlotTrackerChips from "./SlotTrackerChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
 import {
@@ -11,8 +12,18 @@ import {
   trackChatMessage,
   trackChatFeedback,
 } from "@/lib/analytics/client";
+import type { Slots, SlotField } from "@/lib/ark-ai/slots";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+// Read browser-managed identifiers written by the analytics SDK
+// (src/lib/analytics/client.ts). We don't import the getter because the SDK
+// stores them as module-level vars without an exported accessor; localStorage
+// is the same source of truth.
+function readBrowserId(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
 
 const WELCOME_BASE: Record<string, string> = {
   th: "สวัสดีครับ! ผมเป็นผู้ช่วยหาทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **แนะนำทริป** เรือดำน้ำ, Liveaboard และ Day Trip\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n- **ตอบคำถามเรื่องดำน้ำ** ฤดูกาล, cert, จุดดำน้ำ\n\nสนใจทริปไหน กด **+** เพิ่มเข้า My Plan ได้เลย!",
@@ -132,6 +143,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [feedbackState, setFeedbackState] = useState<Record<number, boolean>>({});
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [slots, setSlots] = useState<Slots>({});
+  const [slotsComplete, setSlotsComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -143,6 +156,24 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       trackChatOpen();
       trackedOpenRef.current = true;
     }
+  }, [open]);
+
+  // Hydrate slot chips from the most-recent active session so the user can
+  // resume across refreshes. Cold-start visitors get an empty {} (no flicker).
+  useEffect(() => {
+    if (!open) return;
+    const deviceId = readBrowserId("sd_vid");
+    if (!deviceId) return;
+    let cancelled = false;
+    fetch(`/api/ark-ai/session?deviceId=${encodeURIComponent(deviceId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled || !data?.session) return;
+        setSlots(data.session.slots || {});
+        setSlotsComplete(!!data.session.complete);
+      })
+      .catch(() => { /* resume failure is silent — chips just stay empty */ });
+    return () => { cancelled = true; };
   }, [open]);
 
   useEffect(() => {
@@ -235,6 +266,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
     try {
       abortRef.current = new AbortController();
+      const deviceId = readBrowserId("sd_vid");
+      const sessionIdHdr = readBrowserId("sd_sid");
       const res = await fetch("/api/ark-ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,6 +276,9 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           lang,
           pageContext,
           recentlyViewed: recentBoatIds.length ? recentBoatIds.slice(0, 10).join(",") : undefined,
+          path: pathname,
+          deviceId,
+          sessionId: sessionIdHdr,
         }),
         signal: abortRef.current.signal,
       });
@@ -284,6 +320,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 return updated;
               });
             }
+            if (parsed.slotUpdate) {
+              setSlots(parsed.slotUpdate.slots || {});
+              setSlotsComplete(!!parsed.slotUpdate.complete);
+            }
             if (parsed.error) {
               accumulated += `\n\n*Error: ${parsed.error}*`;
               setMessages(prev => {
@@ -318,6 +358,41 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     setLastError(null);
     sendMessage(text);
   }, [lastError, streaming]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearSlot = useCallback((field: SlotField) => {
+    // Optimistic local clear; server PATCH refreshes authoritative state.
+    setSlots(prev => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setSlotsComplete(false);
+    const deviceId = readBrowserId("sd_vid");
+    if (!deviceId) return;
+    fetch("/api/ark-ai/session", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, clear: [field] }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.session) {
+          setSlots(data.session.slots || {});
+          setSlotsComplete(!!data.session.complete);
+        }
+      })
+      .catch(() => { /* keep optimistic state */ });
+  }, []);
+
+  const buildPlan = useCallback(() => {
+    // Phase 2 stub. Phase 3 will POST /api/ark-ai/build-plan and route to
+    // the resulting UserPlan. For now we surface a friendly placeholder so
+    // testers see the CTA fires and analytics records intent.
+    const msg = lang === "th"
+      ? "ระบบสร้าง plan อัตโนมัติกำลังจะมาเร็วๆ นี้ — ระหว่างนี้พิมพ์ 'แนะนำทริปให้หน่อย' เพื่อให้ AI ช่วยจัดทริปได้เลยครับ"
+      : "Auto-build plan is coming soon — for now, just ask the AI 'recommend trips for me' to get matching options.";
+    sendMessage(msg);
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   sendRef.current = sendMessage;
 
@@ -370,7 +445,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               setMessages([]);
               setFeedbackState({});
               setStreaming(false);
+              setSlots({});
+              setSlotsComplete(false);
               try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+              const deviceId = readBrowserId("sd_vid");
+              if (deviceId) {
+                fetch(`/api/ark-ai/session?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" }).catch(() => {});
+              }
             }}
             aria-label={lang === "th" ? "ล้างแชท" : "Clear chat"}
             title={lang === "th" ? "ล้างแชท" : "Clear chat"}
@@ -380,6 +461,15 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             </svg>
           </button>
         </div>
+
+        {/* Slot tracker chips (Phase 2) */}
+        <SlotTrackerChips
+          slots={slots}
+          complete={slotsComplete}
+          lang={lang}
+          onClear={clearSlot}
+          onBuild={buildPlan}
+        />
 
         {/* Messages */}
         <div

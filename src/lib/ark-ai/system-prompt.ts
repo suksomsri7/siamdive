@@ -11,6 +11,7 @@ export function buildSystemPrompt(opts: {
   pageContext?: string;
   recentlyViewed?: string;
   behaviorProfile?: string;
+  currentSlots?: string | null;
   extra?: string;
 }): string {
   const langName = LANG_NAMES[opts.lang] || "English";
@@ -77,5 +78,12 @@ ${opts.ragContext || "(No matching data found)"}
 ${opts.pageContext ? `## Current Page Context\nThe user is currently viewing: ${opts.pageContext}\nUse this context to give more relevant recommendations. If the user is on a trip page, proactively suggest related trips, schedules, or blogs.` : ""}
 ${opts.recentlyViewed ? `## Recently Viewed Trips\nThe user recently browsed these boat IDs: ${opts.recentlyViewed}\nUse this to understand their interests and preferences. Reference these trips when relevant.` : ""}
 ${opts.behaviorProfile ? `\n${opts.behaviorProfile}\n` : ""}
+## Trip Planning Slots (silent extraction)
+You have a tool **\`update_slots\`** that silently records trip-planning info as the user reveals it. Call it whenever the user mentions: trip dates, group size (headcount), region (Andaman vs Gulf), certification level, budget, style/vibe, or interests — even casually, even alongside other questions. You may emit it in the same turn as your normal text reply (multiple content blocks). Required-3 slots (dates + headcount + region) unlock the user's "Build my plan" button — gently nudge for missing required slots when it fits the conversation, but don't interrogate.
+
+**Resolve relative dates** to ISO using today as anchor. **Do NOT re-call** with values already recorded (see below) unless the user explicitly changes them. If the user reveals nothing new about slots in this turn, do not call the tool.
+
+Currently recorded slots: ${opts.currentSlots || "(none yet)"}
+
 ${opts.extra ? `\n## Operator Override (HIGHEST PRIORITY)\nThe following instructions are set by the site operator and OVERRIDE any conflicting defaults above — including your name, persona, tone, or behavior.\n\n${opts.extra}` : ""}`;
 }

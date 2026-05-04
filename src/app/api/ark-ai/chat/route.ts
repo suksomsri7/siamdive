@@ -10,10 +10,16 @@ import { checkDailyBudget, logUsage } from "@/lib/ark-ai/cost-guard";
 import { getArkAiProfile, formatProfileSummary } from "@/lib/ark-ai/profile";
 import { isBotUa } from "@/lib/analytics/botFilter";
 import { detectMedicalConcern, buildMedicalRedirect } from "@/lib/ark-ai/safety";
+import { applyToolCall, formatSlotsForPrompt, isComplete, UPDATE_SLOTS_TOOL, type Slots } from "@/lib/ark-ai/slots";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
 type OnUsage = (usage: Usage) => void;
+type SlotUpdate = { slots: Slots; changed: string[]; complete: boolean };
+// Callback invoked after the model finishes a tool_use block. Returns a
+// SlotUpdate payload to forward to the client, or null if the tool call did
+// not change anything (so we don't bloat the SSE stream).
+type OnToolCall = (name: string, input: unknown) => SlotUpdate | null;
 
 async function getAiConfig() {
   const config = await prisma.aiConfig.findUnique({ where: { id: "default" } });
@@ -30,14 +36,24 @@ async function getAiConfig() {
   };
 }
 
-function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], onUsage?: OnUsage) {
+function streamAnthropic(
+  config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never,
+  systemPrompt: string,
+  messages: Msg[],
+  opts: { onUsage?: OnUsage; tools?: Anthropic.Messages.Tool[]; onToolCall?: OnToolCall } = {},
+) {
   const client = new Anthropic({ apiKey: config.apiKey });
   const encoder = new TextEncoder();
+  const { onUsage, tools, onToolCall } = opts;
 
   return new ReadableStream({
     async start(controller) {
       let inputTokens = 0;
       let outputTokens = 0;
+      // Track in-flight tool_use blocks. The Anthropic stream emits tool input
+      // as a sequence of input_json_delta events between content_block_start
+      // (type=tool_use) and content_block_stop. We accumulate per index.
+      const toolBlocks = new Map<number, { name: string; jsonAcc: string }>();
       try {
         const stream = await client.messages.stream({
           model: config.model,
@@ -45,10 +61,36 @@ function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<
           temperature: config.temperature,
           system: systemPrompt,
           messages: messages.map(m => ({ role: m.role, content: m.content })),
+          ...(tools && tools.length ? { tools } : {}),
         });
         for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+          if (event.type === "content_block_start") {
+            const block = event.content_block;
+            if (block.type === "tool_use") {
+              toolBlocks.set(event.index, { name: block.name, jsonAcc: "" });
+            }
+          } else if (event.type === "content_block_delta") {
+            if (event.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`));
+            } else if (event.delta.type === "input_json_delta") {
+              const t = toolBlocks.get(event.index);
+              if (t) t.jsonAcc += event.delta.partial_json;
+            }
+          } else if (event.type === "content_block_stop") {
+            const t = toolBlocks.get(event.index);
+            if (t && onToolCall) {
+              try {
+                // Empty input_json_delta = empty object (model called tool with no args)
+                const parsed = t.jsonAcc.trim() ? JSON.parse(t.jsonAcc) : {};
+                const update = onToolCall(t.name, parsed);
+                if (update) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ slotUpdate: update })}\n\n`));
+                }
+              } catch (err) {
+                console.error("[ark-ai] tool input parse failed:", err, t.jsonAcc);
+              }
+              toolBlocks.delete(event.index);
+            }
           } else if (event.type === "message_start") {
             inputTokens = event.message.usage?.input_tokens ?? 0;
             outputTokens = event.message.usage?.output_tokens ?? 0;
@@ -68,6 +110,56 @@ function streamAnthropic(config: ReturnType<typeof getAiConfig> extends Promise<
       }
     },
   });
+}
+
+// Tool callback factory. Closes over the running session's slot state so each
+// successive update_slots call merges against the latest. Returns:
+//   - onToolCall: passed into streamAnthropic; mutates `current`, persists to
+//     AiPlanSession (fire-and-forget), fires ARK_AI_SLOT_FILLED, and returns
+//     the SlotUpdate payload for SSE forwarding (or null when nothing changed).
+function makeSlotHandler(opts: {
+  deviceId: string | null;
+  sessionId: string | null;
+  path: string;
+  lang: string;
+  initialSlots: Slots;
+}): { onToolCall: OnToolCall; getCurrent: () => Slots } {
+  let current: Slots = { ...opts.initialSlots };
+  const { deviceId, sessionId, path, lang } = opts;
+  return {
+    getCurrent: () => current,
+    onToolCall: (name, input) => {
+      if (name !== "update_slots") return null;
+      const { merged, changed } = applyToolCall(current, input);
+      if (!changed.length) return null;
+      current = merged;
+      if (deviceId) {
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // id = deviceId guarantees one session row per device. opaque uuid → no collision.
+        prisma.aiPlanSession
+          .upsert({
+            where: { id: deviceId },
+            create: { id: deviceId, deviceId, slots: merged as never, status: "active", lastActiveAt: now, expiresAt },
+            update: { slots: merged as never, lastActiveAt: now, expiresAt, status: "active" },
+          })
+          .catch(err => console.error("[ark-ai] AiPlanSession upsert failed:", err));
+        if (sessionId) {
+          for (const field of changed) {
+            prisma.analyticsEvent
+              .create({
+                data: {
+                  sessionId, visitorId: deviceId, type: "ARK_AI_SLOT_FILLED", path, lang,
+                  properties: { slotName: field, value: (merged as Record<string, unknown>)[field] } as never,
+                },
+              })
+              .catch(err => console.error("[ark-ai] track SLOT_FILLED failed:", err));
+          }
+        }
+      }
+      return { slots: merged, changed: changed as string[], complete: isComplete(merged) };
+    },
+  };
 }
 
 function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], baseURL?: string, onUsage?: OnUsage) {
@@ -287,6 +379,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Phase 2 — load active slot-extraction session so the model knows what's
+  // already been collected and skips redundant tool calls.
+  let initialSlots: Slots = {};
+  if (deviceId) {
+    try {
+      const sess = await prisma.aiPlanSession.findFirst({
+        where: { deviceId, status: "active", expiresAt: { gt: new Date() } },
+        orderBy: { lastActiveAt: "desc" },
+        select: { slots: true },
+      });
+      if (sess?.slots && typeof sess.slots === "object") {
+        initialSlots = sess.slots as Slots;
+      }
+    } catch (err) {
+      // Session load must never break chat — fall back to empty slots.
+      console.error("[ark-ai] AiPlanSession load failed:", err);
+    }
+  }
+
   const [boats, schedules, blogs] = await Promise.all([
     searchBoats(lang),
     searchSchedules(lang),
@@ -300,6 +411,7 @@ export async function POST(req: NextRequest) {
     pageContext,
     recentlyViewed,
     behaviorProfile,
+    currentSlots: formatSlotsForPrompt(initialSlots),
     extra: config.extra,
   });
 
@@ -321,6 +433,12 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error("[ark-ai] logUsage failed:", err));
   };
 
+  // Phase 2 — slot extraction is Anthropic-only (tool use). For other
+  // providers we'd need parallel implementations; deferred until needed.
+  const slotHandler = config.provider === "anthropic" || !config.provider
+    ? makeSlotHandler({ deviceId, sessionId, path, lang, initialSlots })
+    : null;
+
   let readable: ReadableStream;
   switch (config.provider) {
     case "openai":
@@ -333,7 +451,10 @@ export async function POST(req: NextRequest) {
       readable = streamGoogle(config, systemPrompt, messages, onUsage);
       break;
     default:
-      readable = streamAnthropic(config, systemPrompt, messages, onUsage);
+      readable = streamAnthropic(config, systemPrompt, messages, {
+        onUsage,
+        ...(slotHandler ? { tools: [UPDATE_SLOTS_TOOL as unknown as Anthropic.Messages.Tool], onToolCall: slotHandler.onToolCall } : {}),
+      });
   }
 
   return new Response(readable, {
