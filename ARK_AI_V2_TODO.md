@@ -61,15 +61,15 @@
 ## Phase 1.5 — Behavior Integration (1-2 วัน)
 **Branch:** `arkai-v2-phase-1.5-behavior`
 
-- [ ] 1.5.1 Add 7 events to `AnalyticsEventType` enum: ARK_AI_SLOT_FILLED, ARK_AI_SLOT_SKIPPED, ARK_AI_PLAN_GENERATED, ARK_AI_PLAN_SAVED, ARK_AI_TEMPLATE_SELECTED, ARK_AI_BUDGET_BLOCKED, ARK_AI_PERSONALIZED
-- [ ] 1.5.2 Wire `buildVisitorProfile()` (existing) into chat route
-- [ ] 1.5.3 Cache profile in `AiPlanSession.behaviorContext` (TTL 1 ชม.)
-- [ ] 1.5.4 Inject profile summary into system prompt (Anthropic prompt caching)
-- [ ] 1.5.5 Bot filter check ก่อน feed AI (existing `botFilter.ts`)
-- [ ] 1.5.6 Cross-device merge logic: PlanUser.email → merge profiles ของ deviceId list
-- [ ] 1.5.7 Test: profile injects soft hints ("เห็นว่าคุณสนใจ Similan")
-- [ ] 1.5.8 Test: cold start (totalActivity < 5) → fallback generic
-- [ ] 1.5.9 Smoke test on Vercel preview
+- [x] 1.5.1 Add 7 events to `AnalyticsEventType` enum + migration applied to prod + Set updated in `/api/track` + types.ts mirror
+- [x] 1.5.2 Wire `buildVisitorProfile()` into chat route (called via `getArkAiProfile` wrapper)
+- [x] 1.5.3 Cache profile in `AiPlanSession.behaviorContext` (TTL 1 ชม., 30-day expiresAt for the row)
+- [x] 1.5.4 Inject profile summary into system prompt — *Anthropic prompt caching deferred (current prod uses openrouter, can revisit when switching back to Anthropic)*
+- [x] 1.5.5 Bot filter check via `isBotUa()` at top of chat route → 403 before any DB hit
+- [x] 1.5.6 Cross-device merge: PlanUser.email → resolve sibling deviceIds → merge their profiles
+- [x] 1.5.7 Test: profile injects soft hints (unit test "warm-visitor hints" passes)
+- [x] 1.5.8 Test: cold start (totalActivity < 5) → empty summary (unit test passes)
+- [x] 1.5.9 Smoke test on Vercel preview — A. Bot 403, B. Kill 503, C. Budget 429 + ARK_AI_BUDGET_BLOCKED event tracked. End-to-end warm-profile injection deferred to prod (preview ENCRYPTION_KEY mismatch — same as P1 Step 4)
 
 ---
 
