@@ -19,9 +19,17 @@ export function encrypt(text: string): string {
 
 export function decrypt(data: string): string {
   if (!data || !data.includes(":")) return data;
-  const [ivHex, encHex, tagHex] = data.split(":");
-  const key = getKey();
-  const decipher = createDecipheriv(ALG, key, Buffer.from(ivHex, "hex"));
-  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
-  return decipher.update(Buffer.from(encHex, "hex"), undefined, "utf8") + decipher.final("utf8");
+  try {
+    const [ivHex, encHex, tagHex] = data.split(":");
+    const key = getKey();
+    const decipher = createDecipheriv(ALG, key, Buffer.from(ivHex, "hex"));
+    decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+    return decipher.update(Buffer.from(encHex, "hex"), undefined, "utf8") + decipher.final("utf8");
+  } catch (err) {
+    // Most likely cause: ENCRYPTION_KEY differs between environments (e.g. preview vs production).
+    // Return empty so callers can fall back to env var or surface a clean "not configured" error
+    // instead of crashing with 500.
+    console.warn("[ark-ai] decrypt() failed — likely ENCRYPTION_KEY mismatch:", err instanceof Error ? err.message : String(err));
+    return "";
+  }
 }
