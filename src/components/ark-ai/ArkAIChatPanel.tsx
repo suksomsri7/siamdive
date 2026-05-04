@@ -502,6 +502,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               feedbackGiven={feedbackState[i]}
               lang={lang}
               onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
+              onBuildPlan={msg.role === "assistant" ? buildPlan : undefined}
               onScheduleAdded={(info) => {
                 // After user picks a schedule from a trip card, ping the AI
                 // with a plan-completion framing so it analyzes what info is

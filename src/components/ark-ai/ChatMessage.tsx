@@ -19,6 +19,7 @@ type Props = {
   lang?: string;
   onAskClick?: (value: string) => void;
   onScheduleAdded?: (info: { boatTitle: string; scheduleDate: string; area: string; type: string }) => void;
+  onBuildPlan?: () => void;
 };
 
 type SelectedTrip = {
@@ -38,7 +39,8 @@ type ParsedPart =
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
   | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } }
   | { type: "packages"; data: { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] } }
-  | { type: "ask"; data: { prompt?: string; options: AskOption[] } };
+  | { type: "ask"; data: { prompt?: string; options: AskOption[] } }
+  | { type: "build"; data: { label?: string; summary?: string } };
 
 function extractBalancedJson(text: string, start: number): string | null {
   if (text[start] !== "{") return null;
@@ -59,7 +61,7 @@ function extractBalancedJson(text: string, start: number): string | null {
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES|ASK)\{/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES|ASK|BUILD)\{/g;
   let lastIndex = 0;
   let match;
 
@@ -75,7 +77,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(jsonStr);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages" | "ask";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages" | "ask" | "build";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
@@ -150,7 +152,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -239,6 +241,47 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
       case "packages":
         rendered.push(<PackageTable key={i} {...part.data as any} />);
         break;
+      case "build": {
+        const buildData = part.data as { label?: string; summary?: string };
+        const defaultLabel = lang === "th" ? "✨ สร้าง plan ของฉัน" : "✨ Build my plan";
+        rendered.push(
+          <div key={`build-${i}`} style={{
+            marginTop: 12, marginBottom: 4,
+            padding: 14,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, rgba(30,64,175,0.18), rgba(59,130,246,0.10))",
+            border: "1px solid rgba(59,130,246,0.4)",
+          }}>
+            {buildData.summary && (
+              <div style={{ fontSize: 13, color: "#cbd5e1", lineHeight: 1.55, marginBottom: 10 }}>
+                {buildData.summary}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => onBuildPlan?.()}
+              disabled={!onBuildPlan || isStreaming}
+              style={{
+                width: "100%",
+                padding: "11px 16px",
+                borderRadius: 10,
+                border: "none",
+                background: onBuildPlan && !isStreaming
+                  ? "linear-gradient(135deg, #1e40af, #3b82f6)"
+                  : "#1f2937",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: onBuildPlan && !isStreaming ? "pointer" : "default",
+                boxShadow: onBuildPlan && !isStreaming ? "0 4px 14px rgba(30,64,175,0.55)" : "none",
+              }}
+            >
+              {buildData.label || defaultLabel}
+            </button>
+          </div>,
+        );
+        break;
+      }
       case "ask": {
         const askData = part.data as { prompt?: string; options: AskOption[] };
         const opts = Array.isArray(askData.options) ? askData.options : [];
