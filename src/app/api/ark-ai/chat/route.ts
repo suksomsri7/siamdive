@@ -136,14 +136,26 @@ function makeSlotHandler(opts: {
       if (deviceId) {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-        // id = deviceId guarantees one session row per device. opaque uuid → no collision.
-        prisma.aiPlanSession
-          .upsert({
-            where: { id: deviceId },
-            create: { id: deviceId, deviceId, slots: merged as never, status: "active", lastActiveAt: now, expiresAt },
-            update: { slots: merged as never, lastActiveAt: now, expiresAt, status: "active" },
-          })
-          .catch(err => console.error("[ark-ai] AiPlanSession upsert failed:", err));
+        // deviceId is NOT a unique key — getArkAiProfile() (Phase 1.5) may
+        // already have created a row for behavior caching. Find-then-update
+        // mirrors that pattern so we don't fork into multiple rows per device.
+        (async () => {
+          const existing = await prisma.aiPlanSession.findFirst({
+            where: { deviceId, status: "active", expiresAt: { gt: now } },
+            orderBy: { lastActiveAt: "desc" },
+            select: { id: true },
+          });
+          if (existing) {
+            await prisma.aiPlanSession.update({
+              where: { id: existing.id },
+              data: { slots: merged as never, lastActiveAt: now, expiresAt, status: "active" },
+            });
+          } else {
+            await prisma.aiPlanSession.create({
+              data: { deviceId, slots: merged as never, status: "active", lastActiveAt: now, expiresAt },
+            });
+          }
+        })().catch(err => console.error("[ark-ai] AiPlanSession write failed:", err));
         if (sessionId) {
           for (const field of changed) {
             prisma.analyticsEvent
@@ -162,14 +174,36 @@ function makeSlotHandler(opts: {
   };
 }
 
-function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never, systemPrompt: string, messages: Msg[], baseURL?: string, onUsage?: OnUsage) {
+function streamOpenAI(
+  config: ReturnType<typeof getAiConfig> extends Promise<infer T> ? T : never,
+  systemPrompt: string,
+  messages: Msg[],
+  baseURL?: string,
+  opts: { onUsage?: OnUsage; tools?: Anthropic.Messages.Tool[]; onToolCall?: OnToolCall } = {},
+) {
   const client = new OpenAI({ apiKey: config.apiKey, ...(baseURL ? { baseURL } : {}) });
   const encoder = new TextEncoder();
+  const { onUsage, tools, onToolCall } = opts;
+
+  // OpenAI / OpenRouter use a different tool spec shape than Anthropic.
+  // Convert on the fly so callers pass one shared definition.
+  const openaiTools = tools?.map(t => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      // Anthropic's input_schema is the same JSON Schema object OpenAI calls
+      // `parameters` — pass through verbatim.
+      parameters: t.input_schema as Record<string, unknown>,
+    },
+  }));
 
   return new ReadableStream({
     async start(controller) {
       let inputTokens = 0;
       let outputTokens = 0;
+      // Track partial tool_call arguments by index across delta chunks.
+      const pendingTools = new Map<number, { name: string; argsAcc: string }>();
       try {
         const stream = await client.chat.completions.create({
           model: config.model,
@@ -181,11 +215,43 @@ function streamOpenAI(config: ReturnType<typeof getAiConfig> extends Promise<inf
             { role: "system", content: systemPrompt },
             ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
           ],
+          ...(openaiTools && openaiTools.length ? { tools: openaiTools, tool_choice: "auto" as const } : {}),
         });
         for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content;
+          const choice = chunk.choices[0];
+          const text = choice?.delta?.content;
           if (text) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+          }
+          // Tool-call deltas: each delta carries `tool_calls[]` with an index;
+          // `function.name` arrives once on the first chunk, `function.arguments`
+          // streams in chunks. Accumulate per-index and finalize on stop.
+          const toolDeltas = choice?.delta?.tool_calls;
+          if (toolDeltas) {
+            for (const td of toolDeltas) {
+              const idx = td.index ?? 0;
+              let entry = pendingTools.get(idx);
+              if (!entry) {
+                entry = { name: td.function?.name || "", argsAcc: "" };
+                pendingTools.set(idx, entry);
+              }
+              if (td.function?.name) entry.name = td.function.name;
+              if (td.function?.arguments) entry.argsAcc += td.function.arguments;
+            }
+          }
+          if (choice?.finish_reason === "tool_calls" && onToolCall) {
+            for (const entry of pendingTools.values()) {
+              try {
+                const parsed = entry.argsAcc.trim() ? JSON.parse(entry.argsAcc) : {};
+                const update = onToolCall(entry.name, parsed);
+                if (update) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ slotUpdate: update })}\n\n`));
+                }
+              } catch (err) {
+                console.error("[ark-ai] OpenAI tool input parse failed:", err, entry.argsAcc);
+              }
+            }
+            pendingTools.clear();
           }
           if (chunk.usage) {
             inputTokens = chunk.usage.prompt_tokens ?? 0;
@@ -433,28 +499,30 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error("[ark-ai] logUsage failed:", err));
   };
 
-  // Phase 2 — slot extraction is Anthropic-only (tool use). For other
-  // providers we'd need parallel implementations; deferred until needed.
-  const slotHandler = config.provider === "anthropic" || !config.provider
+  // Phase 2 — slot extraction works on Anthropic, OpenAI, and OpenRouter
+  // (Google still text-only — tool use shape would need a separate adapter).
+  const provider = config.provider || "anthropic";
+  const supportsSlots = provider === "anthropic" || provider === "openai" || provider === "openrouter";
+  const slotHandler = supportsSlots
     ? makeSlotHandler({ deviceId, sessionId, path, lang, initialSlots })
     : null;
+  const toolOpts = slotHandler
+    ? { tools: [UPDATE_SLOTS_TOOL as unknown as Anthropic.Messages.Tool], onToolCall: slotHandler.onToolCall }
+    : {};
 
   let readable: ReadableStream;
-  switch (config.provider) {
+  switch (provider) {
     case "openai":
-      readable = streamOpenAI(config, systemPrompt, messages, undefined, onUsage);
+      readable = streamOpenAI(config, systemPrompt, messages, undefined, { onUsage, ...toolOpts });
       break;
     case "openrouter":
-      readable = streamOpenAI(config, systemPrompt, messages, "https://openrouter.ai/api/v1", onUsage);
+      readable = streamOpenAI(config, systemPrompt, messages, "https://openrouter.ai/api/v1", { onUsage, ...toolOpts });
       break;
     case "google":
       readable = streamGoogle(config, systemPrompt, messages, onUsage);
       break;
     default:
-      readable = streamAnthropic(config, systemPrompt, messages, {
-        onUsage,
-        ...(slotHandler ? { tools: [UPDATE_SLOTS_TOOL as unknown as Anthropic.Messages.Tool], onToolCall: slotHandler.onToolCall } : {}),
-      });
+      readable = streamAnthropic(config, systemPrompt, messages, { onUsage, ...toolOpts });
   }
 
   return new Response(readable, {
