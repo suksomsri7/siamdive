@@ -28,6 +28,9 @@ export type PlanTrip = {
   addedAt: number;
   schedule?: PlanTripSchedule;
   note?: string;
+  // Phase 2 — when the user picks a package/cabin via $$PACKAGES$$ in chat,
+  // we record the chosen one so the build step can compute price range.
+  selectedPackage?: { name: string; minPrice: number };
 };
 
 export type UserPlan = {
@@ -357,6 +360,31 @@ export function addTripToPlan(planId: string, trip: Omit<PlanTrip, "addedAt">): 
   trackPlanTripAdd(planId, trip.title, trip.boatId);
   window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
   return true;
+}
+
+// Phase 2 — record the user's chosen package/cabin on a trip already in a
+// plan. Match by boat + scheduleId (the unit the picker wrote). Returns the
+// minPrice that was locked in so callers can echo a price range to chat.
+export function setTripSelectedPackage(
+  boatId: string,
+  scheduleId: string | undefined,
+  packageName: string,
+): { minPrice: number; planId: string } | null {
+  const plans = readPlans();
+  for (const plan of plans) {
+    const trip = plan.trips.find(t =>
+      t.boatId === boatId && (t.schedule?.scheduleId ?? "") === (scheduleId ?? ""),
+    );
+    if (!trip) continue;
+    const pkg = trip.schedule?.packages.find(p => p.name === packageName);
+    if (!pkg) continue;
+    trip.selectedPackage = { name: pkg.name, minPrice: pkg.minPrice };
+    plan.updatedAt = new Date().toISOString();
+    writePlans(plans);
+    scheduleSync();
+    return { minPrice: pkg.minPrice, planId: plan.id };
+  }
+  return null;
 }
 
 function autoSetStartDate(plan: UserPlan) {

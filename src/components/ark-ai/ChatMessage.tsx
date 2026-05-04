@@ -18,8 +18,10 @@ type Props = {
   feedbackGiven?: boolean;
   lang?: string;
   onAskClick?: (value: string) => void;
-  onScheduleAdded?: (info: { boatTitle: string; scheduleDate: string; area: string; type: string }) => void;
+  onScheduleAdded?: (info: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
   onBuildPlan?: () => void;
+  onPackageSelect?: (boatTitle: string, packageName: string) => void;
+  selectedPackages?: Record<string, string>;
 };
 
 type SelectedTrip = {
@@ -152,7 +154,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, onPackageSelect, selectedPackages }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -238,9 +240,21 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
       case "booking":
         rendered.push(<BookingButtons key={i} {...part.data as any} />);
         break;
-      case "packages":
-        rendered.push(<PackageTable key={i} {...part.data as any} />);
+      case "packages": {
+        const pkgData = part.data as { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] };
+        const selectedName = selectedPackages?.[pkgData.boatTitle];
+        rendered.push(
+          <PackageTable
+            key={i}
+            boatTitle={pkgData.boatTitle}
+            scheduleDate={pkgData.scheduleDate}
+            packages={pkgData.packages}
+            selectedName={selectedName}
+            onSelectPackage={onPackageSelect ? (title) => onPackageSelect(pkgData.boatTitle, title) : undefined}
+          />,
+        );
         break;
+      }
       case "build": {
         const buildData = part.data as { label?: string; summary?: string };
         const defaultLabel = lang === "th" ? "✨ สร้าง plan ของฉัน" : "✨ Build my plan";

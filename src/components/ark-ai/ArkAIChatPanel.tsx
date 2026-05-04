@@ -7,6 +7,7 @@ import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
+import { setTripSelectedPackage, getPlans } from "@/lib/plan-store";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -145,11 +146,26 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [lastError, setLastError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slots>({});
   const [slotsComplete, setSlotsComplete] = useState(false);
+  // boatTitle → packageName the user has clicked. Drives the "✓ Selected" badge
+  // on PackageTable and survives across renders. Persists in sessionStorage so
+  // re-opening the chat the same session keeps the visual selection.
+  const [selectedPackages, setSelectedPackages] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = sessionStorage.getItem("ark-ai-selected-packages");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const trackedOpenRef = useRef(false);
   const sendRef = useRef<(t: string) => void>(undefined);
+  // The trip the user most recently added via TripSchedulePicker. The AI's
+  // next $$PACKAGES$$ block targets THIS trip — when the user clicks a row,
+  // we use these IDs to call setTripSelectedPackage. Falls back to a
+  // boatTitle scan over plans if the marker is from an older message.
+  const lastAddedTripRef = useRef<{ boatId: string; scheduleId: string; boatTitle: string } | null>(null);
 
   useEffect(() => {
     if (open && !trackedOpenRef.current) {
@@ -181,6 +197,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       try { sessionStorage.setItem("ark-ai-messages", JSON.stringify(messages)); } catch {}
     }
   }, [messages]);
+
+  useEffect(() => {
+    try { sessionStorage.setItem("ark-ai-selected-packages", JSON.stringify(selectedPackages)); } catch {}
+  }, [selectedPackages]);
 
   useEffect(() => {
     if (!open) return;
@@ -392,6 +412,36 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       .catch(() => { /* keep optimistic state */ });
   }, []);
 
+  const handlePackageSelect = useCallback((boatTitle: string, packageName: string) => {
+    let boatId: string | undefined;
+    let scheduleId: string | undefined;
+    if (lastAddedTripRef.current?.boatTitle === boatTitle) {
+      boatId = lastAddedTripRef.current.boatId;
+      scheduleId = lastAddedTripRef.current.scheduleId;
+    } else {
+      // Older message — scan plans for any trip with this boatTitle that has a schedule.
+      const plans = getPlans();
+      for (const plan of plans) {
+        const trip = plan.trips.find(t => t.title === boatTitle && t.schedule?.scheduleId);
+        if (trip) { boatId = trip.boatId; scheduleId = trip.schedule?.scheduleId; break; }
+      }
+    }
+    if (!boatId) return;
+
+    const result = setTripSelectedPackage(boatId, scheduleId, packageName);
+    if (!result) return;
+
+    setSelectedPackages(prev => ({ ...prev, [boatTitle]: packageName }));
+
+    const priceText = result.minPrice > 0
+      ? (lang === "th" ? ` (เริ่ม ${result.minPrice.toLocaleString()} บาท/คน)` : ` (from ${result.minPrice.toLocaleString()} THB/person)`)
+      : "";
+    const text = lang === "th"
+      ? `เลือก package: ${packageName}${priceText} — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`
+      : `Selected package: ${packageName}${priceText} — what else is missing in the plan?`;
+    sendMessage(text);
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const buildPlan = useCallback(() => {
     // Phase 2 stub. Phase 3 will POST /api/ark-ai/build-plan and route to
     // the resulting UserPlan. For now we surface a friendly placeholder so
@@ -455,7 +505,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               setStreaming(false);
               setSlots({});
               setSlotsComplete(false);
+              setSelectedPackages({});
+              lastAddedTripRef.current = null;
               try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+              try { sessionStorage.removeItem("ark-ai-selected-packages"); } catch {}
               const deviceId = readBrowserId("sd_vid");
               if (deviceId) {
                 fetch(`/api/ark-ai/session?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" }).catch(() => {});
@@ -503,16 +556,19 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               lang={lang}
               onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
               onBuildPlan={msg.role === "assistant" ? buildPlan : undefined}
+              onPackageSelect={msg.role === "assistant" ? handlePackageSelect : undefined}
+              selectedPackages={selectedPackages}
               onScheduleAdded={(info) => {
                 // After user picks a schedule from a trip card, ping the AI
                 // with a plan-completion framing so it analyzes what info is
                 // still needed (cert, hotel, transfer, equipment, kids, etc.)
                 // — NOT generic packing tips. Phrasing matters: ask "what's
                 // missing for the plan?" not "what should I prepare?".
+                lastAddedTripRef.current = { boatId: info.boatId, scheduleId: info.scheduleId, boatTitle: info.boatTitle };
                 const dt = new Date(info.scheduleDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
                 const text = lang === "th"
-                  ? `เพิ่ม ${info.boatTitle} (${dt}) เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรเพื่อให้พร้อมจองครับ?`
-                  : `Added ${info.boatTitle} (${dt}) to MyPlan — what info is still missing before this plan is ready to book?`;
+                  ? `เพิ่ม ${info.boatTitle} (${dt}) เข้า MyPlan แล้ว — แนะนำ package/cabin ที่เหมาะสมให้หน่อยครับ แล้วบอกว่าใน plan ยังขาดข้อมูลอะไรอีก`
+                  : `Added ${info.boatTitle} (${dt}) to MyPlan — recommend the right package/cabin and tell me what else is missing in the plan.`;
                 sendMessage(text);
               }}
             />

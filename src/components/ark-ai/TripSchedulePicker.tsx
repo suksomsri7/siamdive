@@ -48,7 +48,7 @@ type Props = {
   cover: string | null;
   lang: string;
   onClose: () => void;
-  onAdded: (info?: { boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
+  onAdded: (info?: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
 };
 
 const pick = <T extends { lang: string }>(arr: T[], lang: string) =>
@@ -127,7 +127,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
 
   const buildAddedInfo = (trip: Omit<PlanTrip, "addedAt">) =>
     trip.schedule?.scheduleId
-      ? { boatTitle: trip.title, scheduleDate: trip.schedule.departureDate, scheduleId: trip.schedule.scheduleId, area: trip.area, type: trip.type }
+      ? { boatId: trip.boatId, boatTitle: trip.title, scheduleDate: trip.schedule.departureDate, scheduleId: trip.schedule.scheduleId, area: trip.area, type: trip.type }
       : undefined;
 
   const doAdd = (planId: string, trip: Omit<PlanTrip, "addedAt">) => {
