@@ -477,14 +477,19 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           </button>
         </div>
 
-        {/* Slot tracker chips (Phase 2) */}
-        <SlotTrackerChips
-          slots={slots}
-          complete={slotsComplete}
-          lang={lang}
-          onClear={clearSlot}
-          onBuild={buildPlan}
-        />
+        {/* Slot tracker chips — only shown when required-3 are complete (post-feedback 2026-05-04:
+            during conversation we want the AI to drive recommendations + ask follow-ups via
+            $$ASK$$ markers, not a passive summary strip). Once complete, the chip strip acts
+            as a confirmable summary above the build CTA. */}
+        {slotsComplete && (
+          <SlotTrackerChips
+            slots={slots}
+            complete={slotsComplete}
+            lang={lang}
+            onClear={clearSlot}
+            onBuild={buildPlan}
+          />
+        )}
 
         {/* Messages */}
         <div
@@ -511,6 +516,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               onFeedback={msg.role === "assistant" && !streaming ? handleFeedback : undefined}
               feedbackGiven={feedbackState[i]}
               lang={lang}
+              onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
             />
           ))}
           {lastError && !streaming && (

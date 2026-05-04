@@ -17,6 +17,7 @@ type Props = {
   onFeedback?: (msgIndex: number, positive: boolean) => void;
   feedbackGiven?: boolean;
   lang?: string;
+  onAskClick?: (value: string) => void;
 };
 
 type SelectedTrip = {
@@ -28,13 +29,15 @@ type SelectedTrip = {
   cover: string | null;
 };
 
+type AskOption = { label: string; value: string };
 type ParsedPart =
   | { type: "text"; content: string }
   | { type: "trip"; data: Record<string, unknown> }
   | { type: "blog"; data: Record<string, unknown> }
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
   | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } }
-  | { type: "packages"; data: { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] } };
+  | { type: "packages"; data: { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] } }
+  | { type: "ask"; data: { prompt?: string; options: AskOption[] } };
 
 function extractBalancedJson(text: string, start: number): string | null {
   if (text[start] !== "{") return null;
@@ -55,7 +58,7 @@ function extractBalancedJson(text: string, start: number): string | null {
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES)\{/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES|ASK)\{/g;
   let lastIndex = 0;
   let match;
 
@@ -71,7 +74,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(jsonStr);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages" | "ask";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
@@ -146,7 +149,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -232,6 +235,43 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
       case "packages":
         rendered.push(<PackageTable key={i} {...part.data as any} />);
         break;
+      case "ask": {
+        const askData = part.data as { prompt?: string; options: AskOption[] };
+        const opts = Array.isArray(askData.options) ? askData.options : [];
+        if (!opts.length) break;
+        rendered.push(
+          <div key={`ask-${i}`} style={{ marginTop: 8, marginBottom: 4 }}>
+            {askData.prompt && (
+              <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 6 }}>{askData.prompt}</div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {opts.map((o, j) => (
+                <button
+                  key={j}
+                  type="button"
+                  onClick={() => onAskClick?.(o.value || o.label)}
+                  disabled={!onAskClick || isStreaming}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: 999,
+                    border: "1px solid #1e40af",
+                    background: "rgba(30,64,175,0.18)",
+                    color: "#93c5fd",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: onAskClick && !isStreaming ? "pointer" : "default",
+                    whiteSpace: "nowrap",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>,
+        );
+        break;
+      }
       default:
         rendered.push(<div key={i}>{renderMarkdown(part.content)}</div>);
     }
