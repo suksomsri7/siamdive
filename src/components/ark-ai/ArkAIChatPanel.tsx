@@ -131,6 +131,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [streaming, setStreaming] = useState(false);
   const [feedbackState, setFeedbackState] = useState<Record<number, boolean>>({});
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -207,6 +208,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
+    setLastError(null);
     const userMsg: Msg = { role: "user", content: text.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -292,10 +294,20 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         updated[updated.length - 1] = { role: "assistant", content: "Connection error. Please try again." };
         return updated;
       });
+      setLastError(text.trim());
     } finally {
       setStreaming(false);
     }
   }, [messages, streaming, lang, pathname]);
+
+  const retry = useCallback(() => {
+    if (!lastError || streaming) return;
+    // Drop the failed assistant message + the last user message so sendMessage can re-add them
+    setMessages(prev => prev.slice(0, -2));
+    const text = lastError;
+    setLastError(null);
+    sendMessage(text);
+  }, [lastError, streaming]); // eslint-disable-line react-hooks/exhaustive-deps
 
   sendRef.current = sendMessage;
 
@@ -373,6 +385,35 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               lang={lang}
             />
           ))}
+          {lastError && !streaming && (
+            <div style={{ padding: "8px 0 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={retry}
+                style={{
+                  background: "#1e40af", border: "none", color: "#fff",
+                  padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                </svg>
+                {lang === "th" ? "ลองใหม่" : "Try again"}
+              </button>
+              <a
+                href="https://lin.ee/siamdive"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "transparent", border: "1px solid #262626", color: "#9ca3af",
+                  padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
+                }}
+              >
+                {lang === "th" ? "ติดต่อทีมงาน" : "Contact us"}
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Scroll to bottom */}

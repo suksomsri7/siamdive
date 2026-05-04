@@ -9,6 +9,7 @@ import { buildSystemPrompt } from "@/lib/ark-ai/system-prompt";
 import { checkDailyBudget, logUsage } from "@/lib/ark-ai/cost-guard";
 import { getArkAiProfile, formatProfileSummary } from "@/lib/ark-ai/profile";
 import { isBotUa } from "@/lib/analytics/botFilter";
+import { detectMedicalConcern, buildMedicalRedirect } from "@/lib/ark-ai/safety";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
@@ -200,6 +201,31 @@ export async function POST(req: NextRequest) {
   const ua = req.headers.get("user-agent");
   if (isBotUa(ua)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Pre-flight medical concern check.
+  // We cannot legally/ethically give diving medical advice. Detect known
+  // contraindications in the user's last message and short-circuit to a
+  // doctor-referral response. Saves API budget and avoids hallucinated advice.
+  const lastUserText = [...messages].reverse().find(m => m.role === "user")?.content || "";
+  const medical = detectMedicalConcern(lastUserText);
+  if (medical) {
+    const responseText = buildMedicalRedirect(medical, lang);
+    const stream = new ReadableStream({
+      start(controller) {
+        const enc = new TextEncoder();
+        controller.enqueue(enc.encode(`data: ${JSON.stringify({ text: responseText })}\n\n`));
+        controller.enqueue(enc.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   }
 
   const config = await getAiConfig();
