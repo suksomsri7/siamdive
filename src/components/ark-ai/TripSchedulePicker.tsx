@@ -48,7 +48,7 @@ type Props = {
   cover: string | null;
   lang: string;
   onClose: () => void;
-  onAdded: () => void;
+  onAdded: (info?: { boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
 };
 
 const pick = <T extends { lang: string }>(arr: T[], lang: string) =>
@@ -125,11 +125,16 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
     };
   };
 
+  const buildAddedInfo = (trip: Omit<PlanTrip, "addedAt">) =>
+    trip.schedule?.scheduleId
+      ? { boatTitle: trip.title, scheduleDate: trip.schedule.departureDate, scheduleId: trip.schedule.scheduleId, area: trip.area, type: trip.type }
+      : undefined;
+
   const doAdd = (planId: string, trip: Omit<PlanTrip, "addedAt">) => {
     const added = addTripToPlan(planId, trip);
     if (added && trip.schedule?.scheduleId) {
       setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
-      onAdded();
+      onAdded(buildAddedInfo(trip));
     }
     setPendingTrip(null);
     setTargetPlanId(null);
@@ -145,7 +150,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
       if (trip.schedule?.scheduleId) {
         setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
       }
-      onAdded();
+      onAdded(buildAddedInfo(trip));
       return;
     }
 

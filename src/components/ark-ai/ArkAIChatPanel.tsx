@@ -470,19 +470,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           </button>
         </div>
 
-        {/* Slot tracker chips — only shown when required-3 are complete (post-feedback 2026-05-04:
-            during conversation we want the AI to drive recommendations + ask follow-ups via
-            $$ASK$$ markers, not a passive summary strip). Once complete, the chip strip acts
-            as a confirmable summary above the build CTA. */}
-        {slotsComplete && (
-          <SlotTrackerChips
-            slots={slots}
-            complete={slotsComplete}
-            lang={lang}
-            onClear={clearSlot}
-            onBuild={buildPlan}
-          />
-        )}
+        {/* SlotTrackerChips intentionally NOT rendered here. Per user feedback
+            (2026-05-04 evening), slot info should be invisible during the
+            chat — the AI drives the conversation via $$TRIP$$ recommendations
+            and $$ASK$$ clickable follow-ups. The chip summary will live in
+            the Phase 3 plan/build view, not in the chat scroll. */}
 
         {/* Messages */}
         <div
@@ -510,6 +502,17 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               feedbackGiven={feedbackState[i]}
               lang={lang}
               onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
+              onScheduleAdded={(info) => {
+                // After user picks a schedule from a trip card, send a chat
+                // message back so the AI continues the conversation: confirm
+                // the choice, recommend the next missing slot, and offer
+                // clickable options. Without this the chat goes silent.
+                const dt = new Date(info.scheduleDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+                const text = lang === "th"
+                  ? `ผมเลือก ${info.boatTitle} วันที่ ${dt} แล้วครับ ต่อไปต้องเตรียมอะไรบ้าง?`
+                  : `I picked ${info.boatTitle} on ${dt} — what should I prepare next?`;
+                sendMessage(text);
+              }}
             />
           ))}
           {lastError && !streaming && (

@@ -18,6 +18,7 @@ type Props = {
   feedbackGiven?: boolean;
   lang?: string;
   onAskClick?: (value: string) => void;
+  onScheduleAdded?: (info: { boatTitle: string; scheduleDate: string; area: string; type: string }) => void;
 };
 
 type SelectedTrip = {
@@ -149,7 +150,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -204,7 +205,10 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
               {...selectedTrip}
               lang={lang}
               onClose={() => setSelectedTrip(null)}
-              onAdded={() => setTimeout(() => setSelectedTrip(null), 1200)}
+              onAdded={(info) => {
+                setTimeout(() => setSelectedTrip(null), 1200);
+                if (info) onScheduleAdded?.(info);
+              }}
             />
           );
         }
