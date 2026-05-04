@@ -194,18 +194,18 @@
 **Branch:** `arkai-v2-phase-7-privacy`
 
 ### Privacy
-- [ ] 7.1 Update `/[lang]/(frontend)/privacy/page.tsx` — section AI usage
-- [ ] 7.2 Add "ใช้ AI แบบ generic" opt-out toggle
-- [ ] 7.3 PDPA/GDPR consent checkbox on email collection
+- [x] 7.1 Privacy page now has "Ark AI Trip Advisor" section in all 8 languages — explains providers, 1-hr behavior cache, 90-day token log, no transcript on server, server-side medical interception
+- [ ] 7.2 "ใช้ AI แบบ generic" opt-out toggle — **deferred** (profile already cold-starts at activity<5, opt-out adds little)
+- [ ] 7.3 PDPA/GDPR consent on email — **deferred** (no email collection in Ark AI flow yet)
 
 ### Safety
-- [ ] 7.4 Safety disclaimer in plan output (DAN, no fly 18hr, ปรึกษาแพทย์)
-- [ ] 7.5 Update system prompt — show price RANGE only ("8,500-12,000 บาท")
+- [ ] 7.4 Safety disclaimer in plan output — **deferred** (AI no longer creates plans per system-prompt rule 8)
+- [x] 7.5 Price range rule already in system prompt rule 11 (Phase 1.7)
 
 ### Expiration
-- [ ] 7.6 Cron `/api/cron/cleanup-expired-plans` daily
-- [ ] 7.7 Logic: anonymous=30d, with email=1y after trip date, AI public viewCount=0=7d, viewCount≥3=90d
-- [ ] 7.8 Test cron + reseed
+- [x] 7.6 Cron `/api/cron/cleanup-ai-data` (daily, X-Cron-Secret protected)
+- [x] 7.7 Retention: AiUsageLog 90d, AiPlanSession past expiresAt, ARK_AI_* AnalyticsEvent 90d, anon ARK_AI UserPlan (viewCount=0) 7d, stale public (viewCount<3) 30d
+- [ ] 7.8 Live cron test on prod — runs after merge + Vercel cron config (user-driven)
 
 ---
 
