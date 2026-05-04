@@ -23,6 +23,10 @@ export async function GET(req: NextRequest) {
     rateLimit: config.rateLimit,
     temperature: config.temperature,
     systemPromptExtra: config.systemPromptExtra,
+    enabled: config.enabled,
+    dailyBudgetUsd: config.dailyBudgetUsd,
+    costAlertEmail: config.costAlertEmail || "",
+    costAlertThreshold: config.costAlertThreshold,
   });
 }
 
@@ -40,6 +44,10 @@ export async function PUT(req: NextRequest) {
   if (body.rateLimit !== undefined) data.rateLimit = Number(body.rateLimit);
   if (body.temperature !== undefined) data.temperature = Number(body.temperature);
   if (body.systemPromptExtra !== undefined) data.systemPromptExtra = body.systemPromptExtra;
+  if (body.enabled !== undefined) data.enabled = !!body.enabled;
+  if (body.dailyBudgetUsd !== undefined) data.dailyBudgetUsd = Number(body.dailyBudgetUsd);
+  if (body.costAlertEmail !== undefined) data.costAlertEmail = body.costAlertEmail || null;
+  if (body.costAlertThreshold !== undefined) data.costAlertThreshold = Number(body.costAlertThreshold);
 
   const config = await prisma.aiConfig.upsert({
     where: { id: "default" },
