@@ -52,7 +52,7 @@
 - [ ] 1.21 API test: chat returns 503 when `enabled=false` — **deferred**, no test infra in repo. Verified manually via Vercel smoke (1.24)
 - [ ] 1.22 API test: chat returns 429 when daily budget exceeded — **deferred**, same reason. Verify via 1.24
 - [ ] 1.23 Integration test: AiUsageLog row created after chat — **deferred**, same reason. Verify via 1.24 (check Supabase table after a chat)
-- [ ] 1.24 Smoke test on Vercel preview (run after push triggers deploy)
+- [x] 1.24 Smoke test on Vercel preview Step 2+3 + production Step 4 — all 4 steps PASS (verified via curl + DB inspection 2026-05-04)
 
 **Phase 1 done:** all boxes checked + Vercel preview confirmed working
 
