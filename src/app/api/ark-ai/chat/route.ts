@@ -7,6 +7,8 @@ import { checkRateLimit } from "@/lib/ark-ai/rate-limit";
 import { searchBoats, searchSchedules, searchBlogs, buildRagContext } from "@/lib/ark-ai/rag";
 import { buildSystemPrompt } from "@/lib/ark-ai/system-prompt";
 import { checkDailyBudget, logUsage } from "@/lib/ark-ai/cost-guard";
+import { getArkAiProfile, formatProfileSummary } from "@/lib/ark-ai/profile";
+import { isBotUa } from "@/lib/analytics/botFilter";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
@@ -190,6 +192,15 @@ export async function POST(req: NextRequest) {
   const pageContext: string | undefined = body.pageContext;
   const recentlyViewed: string | undefined = body.recentlyViewed;
   const sessionId: string | null = typeof body.sessionId === "string" ? body.sessionId : null;
+  const deviceId: string | null = typeof body.deviceId === "string" ? body.deviceId : null;
+  const path: string = typeof body.path === "string" ? body.path : "/";
+
+  // Bot filter — block automated traffic before it consumes any budget.
+  // Real users have legitimate UAs; bots/crawlers/headless are filtered out.
+  const ua = req.headers.get("user-agent");
+  if (isBotUa(ua)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const config = await getAiConfig();
 
@@ -205,6 +216,15 @@ export async function POST(req: NextRequest) {
 
   const budget = await checkDailyBudget(config.dailyBudgetUsd);
   if (!budget.allowed) {
+    // Record analytics event so we can alert on repeated budget hits.
+    if (sessionId && deviceId) {
+      prisma.analyticsEvent.create({
+        data: {
+          sessionId, visitorId: deviceId, type: "ARK_AI_BUDGET_BLOCKED", path, lang,
+          properties: { usedUsd: budget.usedUsd, budgetUsd: budget.budgetUsd } as never,
+        },
+      }).catch(err => console.error("[ark-ai] track BUDGET_BLOCKED failed:", err));
+    }
     return Response.json(
       {
         error: "Daily AI budget reached. Please try again tomorrow or contact us directly.",
@@ -226,6 +246,21 @@ export async function POST(req: NextRequest) {
 
   const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content || "";
 
+  // Behavior profile (cached, cross-device merged via email).
+  // Only injected for warm visitors (totalActivity ≥ 5) — cold start gets generic responses.
+  let behaviorProfile = "";
+  let personalized = false;
+  if (deviceId) {
+    try {
+      const profile = await getArkAiProfile(deviceId);
+      behaviorProfile = await formatProfileSummary(profile, lang);
+      personalized = behaviorProfile.length > 0;
+    } catch (err) {
+      // Profile build failure must never break chat — fall back to generic.
+      console.error("[ark-ai] profile build failed:", err);
+    }
+  }
+
   const [boats, schedules, blogs] = await Promise.all([
     searchBoats(lang),
     searchSchedules(lang),
@@ -238,8 +273,18 @@ export async function POST(req: NextRequest) {
     ragContext,
     pageContext,
     recentlyViewed,
+    behaviorProfile,
     extra: config.extra,
   });
+
+  // Track ARK_AI_PERSONALIZED when we actually injected a profile boost (fire-and-forget).
+  if (personalized && sessionId && deviceId) {
+    prisma.analyticsEvent.create({
+      data: {
+        sessionId, visitorId: deviceId, type: "ARK_AI_PERSONALIZED", path, lang,
+      },
+    }).catch(err => console.error("[ark-ai] track PERSONALIZED failed:", err));
+  }
 
   const onUsage: OnUsage = (usage) => {
     logUsage({

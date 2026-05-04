@@ -10,6 +10,7 @@ export function buildSystemPrompt(opts: {
   ragContext: string;
   pageContext?: string;
   recentlyViewed?: string;
+  behaviorProfile?: string;
   extra?: string;
 }): string {
   const langName = LANG_NAMES[opts.lang] || "English";
@@ -71,5 +72,6 @@ ${opts.ragContext || "(No matching data found)"}
 
 ${opts.pageContext ? `## Current Page Context\nThe user is currently viewing: ${opts.pageContext}\nUse this context to give more relevant recommendations. If the user is on a trip page, proactively suggest related trips, schedules, or blogs.` : ""}
 ${opts.recentlyViewed ? `## Recently Viewed Trips\nThe user recently browsed these boat IDs: ${opts.recentlyViewed}\nUse this to understand their interests and preferences. Reference these trips when relevant.` : ""}
+${opts.behaviorProfile ? `\n${opts.behaviorProfile}\n` : ""}
 ${opts.extra ? `\n## Operator Override (HIGHEST PRIORITY)\nThe following instructions are set by the site operator and OVERRIDE any conflicting defaults above — including your name, persona, tone, or behavior.\n\n${opts.extra}` : ""}`;
 }

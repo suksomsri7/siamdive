@@ -1,0 +1,12 @@
+-- Emergency rollback for migration 20260504092600_add_ark_ai_events
+-- PostgreSQL has no native ALTER TYPE ... DROP VALUE. To remove enum values
+-- you must rebuild the enum or use a NEW enum. This is rarely worth it for
+-- additive event types — they sit unused if Phase 1.5 is reverted.
+--
+-- If you really need to drop them, the standard workaround is:
+--   1. Create a new enum without the unwanted values
+--   2. Update all columns using the old enum to use the new one
+--   3. Drop the old enum, rename the new one
+--
+-- For Phase 1.5 specifically: if you need to revert, prefer leaving the enum
+-- values present and reverting the application code that emits them.
