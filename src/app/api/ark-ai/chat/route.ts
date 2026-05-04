@@ -193,15 +193,14 @@ export async function POST(req: NextRequest) {
 
   const config = await getAiConfig();
 
+  // Gate order: enabled → budget → apiKey → rate limit.
+  // Budget runs before apiKey so a budget-exhausted scenario surfaces clearly even
+  // if the API key happens to be unreadable (e.g. ENCRYPTION_KEY mismatch on preview).
   if (!config.enabled) {
     return Response.json(
       { error: "Ark AI is currently unavailable. Please contact us via LINE/WhatsApp." },
       { status: 503 },
     );
-  }
-
-  if (!config.apiKey) {
-    return Response.json({ error: "AI not configured. Set API key in backoffice settings." }, { status: 503 });
   }
 
   const budget = await checkDailyBudget(config.dailyBudgetUsd);
@@ -214,6 +213,10 @@ export async function POST(req: NextRequest) {
       },
       { status: 429 },
     );
+  }
+
+  if (!config.apiKey) {
+    return Response.json({ error: "AI not configured. Set API key in backoffice settings." }, { status: 503 });
   }
 
   const { allowed } = checkRateLimit(ip, config.rateLimit);
