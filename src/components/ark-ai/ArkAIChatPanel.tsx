@@ -336,6 +336,21 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         }
       }
 
+      // Belt-and-suspenders: if the AI emitted only tool_calls and no text
+      // (sometimes happens when user message is bare slot info), fill the
+      // assistant bubble with a localized "got it" so the UI never looks dead.
+      if (!accumulated.trim()) {
+        const fallback = lang === "th"
+          ? "รับทราบครับ ✅ บันทึกข้อมูลให้แล้ว — มีรายละเอียดอื่นเพิ่มไหมครับ?"
+          : "Got it ✅ I've saved that. Anything else to add?";
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: fallback };
+          return updated;
+        });
+        accumulated = fallback;
+      }
+
       trackChatMessage("assistant", accumulated.length);
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") return;
