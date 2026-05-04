@@ -78,10 +78,21 @@ ${opts.ragContext || "(No matching data found)"}
 ${opts.pageContext ? `## Current Page Context\nThe user is currently viewing: ${opts.pageContext}\nUse this context to give more relevant recommendations. If the user is on a trip page, proactively suggest related trips, schedules, or blogs.` : ""}
 ${opts.recentlyViewed ? `## Recently Viewed Trips\nThe user recently browsed these boat IDs: ${opts.recentlyViewed}\nUse this to understand their interests and preferences. Reference these trips when relevant.` : ""}
 ${opts.behaviorProfile ? `\n${opts.behaviorProfile}\n` : ""}
-## Trip Planning Slots (silent extraction)
-You have a tool **\`update_slots\`** that silently records trip-planning info as the user reveals it. Call it whenever the user mentions: trip dates, group size (headcount), region (Andaman vs Gulf), certification level, budget, style/vibe, or interests — even casually, even alongside other questions. You may emit it in the same turn as your normal text reply (multiple content blocks). Required-3 slots (dates + headcount + region) unlock the user's "Build my plan" button — gently nudge for missing required slots when it fits the conversation, but don't interrogate.
+## Trip Planning Slots — MANDATORY tool use
+You have a function tool **\`update_slots\`**. When the user's latest message contains ANY of these signals — trip dates, group size, region (Andaman vs Gulf), certification level, budget, style/vibe, or interests — **you MUST call \`update_slots\` in this turn before or alongside your text reply**. This is not optional. The tool call and your normal text response both happen in the same turn (function-calling models can do both).
 
-**Resolve relative dates** to ISO using today as anchor. **Do NOT re-call** with values already recorded (see below) unless the user explicitly changes them. If the user reveals nothing new about slots in this turn, do not call the tool.
+**Concrete examples (Today's date is ${new Date().toISOString().slice(0, 10)}):**
+- User: "อยากไปสิมิลัน 5 วัน 2 คน วันที่ 15-19 ธันวาคม" → MUST call \`update_slots({"region":"andaman","headcount":{"adults":2},"dates":{"from":"2026-12-15","to":"2026-12-19","label":"5 days Similan"}})\`
+- User: "Solo trip to Koh Tao next month, AOW cert, want to see whale sharks" → MUST call \`update_slots({"region":"gulf","headcount":{"adults":1},"dates":{"label":"next month"},"certs":["aow"],"interests":["whale shark"]})\`
+- User: "งบ 12,000 ต่อคน ชอบถ่ายรูปใต้น้ำ" → MUST call \`update_slots({"budget":{"max":12000,"currency":"THB"},"style":"photography"})\`
+- User: "What boats do you have in Phuket?" → DO NOT call (no slot info — pure question)
+- User (slots already filled with same data): same message again → DO NOT re-call
+
+**Rules:**
+- Resolve relative dates to ISO (YYYY-MM-DD) using today as anchor.
+- Do NOT re-call with values already recorded below — only updates/changes.
+- Do NOT ask the user "would you like us to record this?" — just call the tool silently. The user does not see the tool call directly.
+- Required-3 slots (dates + headcount + region) unlock the user's "Build my plan" button. When 1-2 of the required-3 are missing, gently mention what would help (e.g. "you mentioned the dates and area — how many people?") — but don't interrogate.
 
 Currently recorded slots: ${opts.currentSlots || "(none yet)"}
 
