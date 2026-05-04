@@ -503,14 +503,15 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               lang={lang}
               onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
               onScheduleAdded={(info) => {
-                // After user picks a schedule from a trip card, send a chat
-                // message back so the AI continues the conversation: confirm
-                // the choice, recommend the next missing slot, and offer
-                // clickable options. Without this the chat goes silent.
+                // After user picks a schedule from a trip card, ping the AI
+                // with a plan-completion framing so it analyzes what info is
+                // still needed (cert, hotel, transfer, equipment, kids, etc.)
+                // — NOT generic packing tips. Phrasing matters: ask "what's
+                // missing for the plan?" not "what should I prepare?".
                 const dt = new Date(info.scheduleDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
                 const text = lang === "th"
-                  ? `ผมเลือก ${info.boatTitle} วันที่ ${dt} แล้วครับ ต่อไปต้องเตรียมอะไรบ้าง?`
-                  : `I picked ${info.boatTitle} on ${dt} — what should I prepare next?`;
+                  ? `เพิ่ม ${info.boatTitle} (${dt}) เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรเพื่อให้พร้อมจองครับ?`
+                  : `Added ${info.boatTitle} (${dt}) to MyPlan — what info is still missing before this plan is ready to book?`;
                 sendMessage(text);
               }}
             />
