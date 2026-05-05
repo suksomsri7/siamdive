@@ -369,16 +369,25 @@ export function setTripSelectedPackage(
   boatId: string,
   scheduleId: string | undefined,
   packageName: string,
+  qty: number = 1,
 ): { minPrice: number; planId: string } | null {
   const plans = readPlans();
   for (const plan of plans) {
     const trip = plan.trips.find(t =>
       t.boatId === boatId && (t.schedule?.scheduleId ?? "") === (scheduleId ?? ""),
     );
-    if (!trip) continue;
-    const pkg = trip.schedule?.packages.find(p => p.name === packageName);
+    if (!trip || !trip.schedule) continue;
+    const pkg = trip.schedule.packages.find(p => p.name === packageName);
     if (!pkg) continue;
     trip.selectedPackage = { name: pkg.name, minPrice: pkg.minPrice };
+    // Replace the available-package roster with just the chosen one,
+    // priced at the user's headcount. The picker initially copies the
+    // full schedule package list so the plan can show "what's offered",
+    // but once the user clicks a specific package in chat the plan
+    // should reflect THEIR choice — not the catalog. If they want to
+    // mix packages later, the plan UI exposes "Add Package".
+    const safeQty = Math.max(1, Math.floor(qty));
+    trip.schedule.packages = [{ name: pkg.name, minPrice: pkg.minPrice, qty: safeQty }];
     plan.updatedAt = new Date().toISOString();
     writePlans(plans);
     scheduleSync();

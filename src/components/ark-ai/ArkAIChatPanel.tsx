@@ -145,6 +145,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slots>({});
+  // Stable read access for memoized callbacks like handlePackageSelect
+  // that don't want to re-bind on every slot change. We keep the ref in
+  // sync inside an effect below so reads are always fresh.
+  const slotsRef = useRef<Slots>({});
   const [slotsComplete, setSlotsComplete] = useState(false);
   // boatTitle → packageName the user has clicked. Drives the "✓ Selected" badge
   // on PackageTable and survives across renders. Persists in sessionStorage so
@@ -202,6 +206,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       try { sessionStorage.setItem("ark-ai-messages", JSON.stringify(messages)); } catch {}
     }
   }, [messages]);
+
+  // Mirror slots into the ref so memoized callbacks (handlePackageSelect)
+  // can read current headcount without retaking dependencies.
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
 
   useEffect(() => {
     try { sessionStorage.setItem("ark-ai-selected-packages", JSON.stringify(selectedPackages)); } catch {}
@@ -470,11 +480,19 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
     let priceText = "";
     if (boatId) {
-      const result = setTripSelectedPackage(boatId, scheduleId, packageName);
+      // Use the latest extracted headcount as the pkg qty so the plan
+      // shows "DSD × 2" right away when the slot extractor caught two
+      // adults — the user shouldn't have to bump qty manually after.
+      // Read through slotsRef (always current) instead of the closed-over
+      // `slots` which would be stale in this memoized callback.
+      const adults = slotsRef.current.headcount?.adults || 0;
+      const kids = slotsRef.current.headcount?.kids || 0;
+      const qty = Math.max(1, adults + kids);
+      const result = setTripSelectedPackage(boatId, scheduleId, packageName, qty);
       if (result && result.minPrice > 0) {
         priceText = lang === "th"
-          ? ` (เริ่ม ${result.minPrice.toLocaleString()} บาท/คน)`
-          : ` (from ${result.minPrice.toLocaleString()} THB/person)`;
+          ? ` (เริ่ม ${result.minPrice.toLocaleString()} บาท/คน × ${qty})`
+          : ` (from ${result.minPrice.toLocaleString()} THB/person × ${qty})`;
       }
     }
 
