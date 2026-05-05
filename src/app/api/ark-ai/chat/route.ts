@@ -574,11 +574,17 @@ export async function POST(req: NextRequest) {
   // first turn the persisted slots are still empty when we build RAG. Fall
   // back to a regex hint over the user's last message so first-turn
   // recommendations already respect the date intent.
+  //
+  // ALSO override the persisted slot when the user's NEW turn names a
+  // different date — otherwise turn 1 "ภูเก็ต 23 พ.ค." sticks and turn 2
+  // "เดือนหน้า มิย" still narrows by the old May 23 window. Latest typed
+  // intent wins; the slot-extraction tool call later in this stream can
+  // refine if the regex was too greedy.
   const SCHEDULE_WINDOW_DAYS = 3;
   let effectiveSlots: Slots = initialSlots;
-  if (!effectiveSlots.dates?.from) {
-    const hint = extractDateHint(lastUserMsg);
-    if (hint) effectiveSlots = { ...effectiveSlots, dates: hint };
+  const dateHint = extractDateHint(lastUserMsg);
+  if (dateHint) {
+    effectiveSlots = { ...effectiveSlots, dates: dateHint };
   }
   let scheduleFromDate: Date | undefined;
   let scheduleToDate: Date | undefined;
