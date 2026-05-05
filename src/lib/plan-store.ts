@@ -33,12 +33,29 @@ export type PlanTrip = {
   selectedPackage?: { name: string; minPrice: number };
 };
 
+// Sprint 1: lightweight logistics held client-side. The /api/plans sync
+// payload doesn't carry these fields yet (server schema unchanged), so
+// edits persist in localStorage only — that's fine for placeholder UX.
+export type PlanLogistics = {
+  /** "yes" = boat picks up at hotel; "no" = self-transport to pier; undefined = unanswered */
+  pickup?: "yes" | "no";
+  /** Hotel name + district, free text. Only meaningful when pickup === "yes" */
+  hotelName?: string;
+  /** "yes" = SiamDive arranges airport ↔ hotel/pier transfer; relevant for liveaboard/resort guests flying in */
+  airportTransfer?: "yes" | "no";
+  /** Renting from boat — comma-joined display string, e.g. "mask, fins, wetsuit" */
+  equipmentRental?: string;
+  /** Diet, kids equipment, photographer rig, allergies — free text */
+  specialNeeds?: string;
+};
+
 export type UserPlan = {
   id: string;
   name: string;
   coverUrl?: string | null;
   startDate: string | null;
   trips: PlanTrip[];
+  logistics?: PlanLogistics;
   createdAt: string;
   updatedAt: string;
 };
@@ -465,6 +482,22 @@ export function updateTripPackages(planId: string, tripIndex: number, packages: 
   const plan = plans.find((p) => p.id === planId);
   if (!plan || !plan.trips[tripIndex]?.schedule) return;
   plan.trips[tripIndex].schedule!.packages = packages;
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+}
+
+export function updatePlanLogistics(planId: string, patch: Partial<PlanLogistics>) {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan) return;
+  const next: PlanLogistics = { ...(plan.logistics || {}), ...patch };
+  // Drop empty strings so the block doesn't think a field is "filled".
+  for (const k of Object.keys(next) as (keyof PlanLogistics)[]) {
+    const v = next[k];
+    if (typeof v === "string" && v.trim() === "") delete next[k];
+  }
+  plan.logistics = next;
   plan.updatedAt = new Date().toISOString();
   writePlans(plans);
   scheduleSync();

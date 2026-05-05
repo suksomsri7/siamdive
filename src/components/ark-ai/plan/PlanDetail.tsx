@@ -1,19 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { renamePlan, removeTripByIndex, getPlans, updatePlanCoverUrl, type PlanTrip } from "@/lib/plan-store";
+import { renamePlan, removeTripByIndex, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
 import PlanMembers from "./PlanMembers";
 import EmailGateModal from "./EmailGateModal";
 import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
+import LogisticsBlock from "./LogisticsBlock";
+import PlanBookBar from "./PlanBookBar";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 
 type PlanData = {
   id: string; shortId: string; name: string; coverUrl: string | null;
   status: string; trips: PlanTrip[]; role: string;
+  logistics?: PlanLogistics;
   owner: { email: string | null; name: string | null };
   members: { id: string; email: string; name: string | null; role: string; certLevel: string | null }[];
   media: { id: string; url: string; thumbUrl: string | null; type: string; uploadedBy: string; caption: string | null; createdAt: string }[];
@@ -72,6 +75,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           coverUrl: local.coverUrl ?? null,
           status: "PLANNING",
           trips: local.trips,
+          logistics: local.logistics,
           role: "OWNER",
           owner: { email: getSavedEmail(), name: null },
           members: [], media: [], checklists: [], chatCount: 0,
@@ -79,9 +83,13 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       }
     } else {
       // Server responded — but localStorage is the source of truth for
-      // very recent edits, so prefer its trip list when present.
+      // very recent edits, so prefer its trip list + logistics when present.
+      // (Server schema doesn't carry `logistics` yet — Sprint 1 keeps it client-only.)
       const local = getPlans().find((p) => p.id === planId);
-      if (local) data.trips = local.trips;
+      if (local) {
+        data.trips = local.trips;
+        if (local.logistics) data.logistics = local.logistics;
+      }
     }
 
     if (data) {
@@ -97,7 +105,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       const localPlans = getPlans();
       const local = localPlans.find((p) => p.id === planId);
       if (local && plan) {
-        setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
+        setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[], logistics: local.logistics } : prev);
       }
     };
     window.addEventListener("myplan-change", handler);
@@ -330,21 +338,20 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 ) : (
                   <div>
+                    <LogisticsBlock
+                      planId={planId}
+                      trips={trips}
+                      logistics={plan.logistics}
+                      lang={lang}
+                      canEdit={canEdit}
+                      onChange={(next) => setPlan((prev) => prev ? { ...prev, logistics: next } : prev)}
+                    />
                     <PlanTimeline
                       planId={planId}
                       trips={trips}
                       lang={lang}
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
-                      onContactClick={(msg) => {
-                        const extra = `\nPlan: ${plan.shortId}` + (plan.owner.email ? `\nEmail: ${plan.owner.email}` : "");
-                        setContactMessage(msg + extra);
-                        if (plan.owner.email) {
-                          setShowChannelSheet(true);
-                        } else {
-                          setEmailGateAction("contact");
-                        }
-                      }}
                       onAddPackage={(slug, departureDate) => {
                         const t = trips.find((tr) => tr.slug === slug);
                         onClose();
@@ -363,8 +370,26 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
               <PlanChecklistTab planId={planId} deviceId={deviceId} lang={lang} checklists={plan.checklists} members={plan.members} canEdit={canEdit} onRefresh={fetchPlan} />
             )}
           </div>
-          <div style={{ height: 72 }} />
+          <div style={{ height: 96 }} />
         </div>
+
+        {tab === "itinerary" && trips.length > 0 && (
+          <PlanBookBar
+            trips={trips}
+            logistics={plan.logistics}
+            planShortId={plan.shortId}
+            ownerEmail={plan.owner.email}
+            lang={lang}
+            onContact={(msg) => {
+              setContactMessage(msg);
+              if (plan.owner.email) {
+                setShowChannelSheet(true);
+              } else {
+                setEmailGateAction("contact");
+              }
+            }}
+          />
+        )}
 
         </>
       )}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
+import { groupTripsByDay, type DayBucket } from "@/lib/ark-ai/day-grouping";
+import { parseItinerary } from "@/lib/ark-ai/itinerary-parser";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -35,12 +37,6 @@ const LOCALE_MAP: Record<string, string> = {
 const fmtDate = (iso: string, lang: string) =>
   new Date(iso).toLocaleDateString(LOCALE_MAP[lang] || "en-US", { day: "numeric", month: "short", year: "2-digit" });
 
-const fmtDateParts = (iso: string, lang: string) => {
-  const d = new Date(iso);
-  const locale = LOCALE_MAP[lang] || "en-US";
-  return { day: d.getDate().toString(), month: d.toLocaleDateString(locale, { month: "short" }) };
-};
-
 function generateDayDates(departure: string, returnDate: string | null): string[] {
   const start = new Date(departure);
   const end = returnDate ? new Date(returnDate) : start;
@@ -52,38 +48,42 @@ function generateDayDates(departure: string, returnDate: string | null): string[
   });
 }
 
-export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage, onContactClick }: Props) {
+const LOCALE_LONG: Record<string, string> = LOCALE_MAP;
+
+const fmtDayHeader = (iso: string, lang: string) =>
+  new Date(iso + "T00:00:00").toLocaleDateString(LOCALE_LONG[lang] || "en-US", {
+    weekday: "short", day: "numeric", month: "short",
+  });
+
+export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage }: Props) {
   const isTh = lang === "th";
 
-  const scheduled = trips
-    .map((t, idx) => ({ trip: t, originalIdx: idx }))
-    .filter(({ trip }) => trip.schedule?.departureDate)
-    .sort((a, b) => a.trip.schedule!.departureDate.localeCompare(b.trip.schedule!.departureDate));
+  // Day-grouped buckets — anchored on the longest LIVEABOARD/RESORT, with
+  // pre-trips landing on Day 0 / Day -1 etc. Liveaboard continuation days
+  // (no separate departure) appear as soft markers under the anchor card.
+  const buckets: DayBucket[] = useMemo(() => groupTripsByDay(trips), [trips]);
+
+  // Anchor liveaboard's parsed itinerary, keyed by 0-based day offset (Day 1 = idx 0).
+  const anchorItinerary = useMemo(() => {
+    const anchor = trips.find(t => (t.type === "LIVEABOARD" || t.type === "DIVE_RESORT") && t.schedule?.itinerary);
+    if (!anchor?.schedule?.itinerary) return [];
+    return parseItinerary(anchor.schedule.itinerary);
+  }, [trips]);
 
   const unscheduled = trips
     .map((t, idx) => ({ trip: t, originalIdx: idx }))
     .filter(({ trip }) => !trip.schedule?.departureDate);
 
-  const totalBudget = trips.reduce((sum, t) => {
-    if (!t.schedule?.packages?.length) return sum;
-    return sum + t.schedule.packages.reduce((s, p) => s + (p.minPrice > 0 ? p.minPrice * (p.qty || 1) : 0), 0);
-  }, 0);
-
-  const hasOverlap = (idx: number) => {
-    const trip = scheduled[idx]?.trip;
-    if (!trip?.schedule?.departureDate) return false;
-    const dep = trip.schedule.departureDate;
-    const ret = trip.schedule.returnDate || dep;
-    for (let i = 0; i < scheduled.length; i++) {
-      if (i === idx) continue;
-      const other = scheduled[i].trip;
-      if (!other.schedule?.departureDate) continue;
-      const oDep = other.schedule.departureDate;
-      const oRet = other.schedule.returnDate || oDep;
-      if (dep <= oRet && ret >= oDep) return true;
+  // Per-day overlap detection — flag the day if more than one different
+  // trip departs on it (rare but possible if user adds a daytrip mid-liveaboard).
+  const overlapDays = useMemo(() => {
+    const set = new Set<number>();
+    for (const b of buckets) {
+      const distinctTrips = new Set(b.trips.map(s => s.trip.boatId));
+      if (distinctTrips.size > 1) set.add(b.day);
     }
-    return false;
-  };
+    return set;
+  }, [buckets]);
 
   if (trips.length === 0) return null;
 
@@ -95,77 +95,20 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
           50% { transform: scale(1.25); opacity: 0.7; }
         }
       `}</style>
-      {totalBudget > 0 && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "12px 14px", borderRadius: 12,
-          background: "#111",
-          border: "1px solid #1a1a1a",
-          marginBottom: 16,
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: "#161616",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14,
-          }}>
-            💰
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>
-              {isTh ? "งบประมาณโดยประมาณ" : "Estimated Budget"}
-            </p>
-            <p style={{ fontSize: 18, fontWeight: 800, color: "#e5e5e5", margin: 0 }}>
-              ฿{totalBudget.toLocaleString()}
-            </p>
-          </div>
-          <button
-            onClick={() => {
-              const lines = trips.map(t => {
-                const dep = t.schedule?.departureDate?.slice(0, 10) || "";
-                return `- ${t.title}${dep ? ` (${dep})` : ""}`;
-              });
-              const msg = `Hi, I'd like to book:\n${lines.join("\n")}\nEstimated budget: ฿${totalBudget.toLocaleString()}`;
-              if (onContactClick) {
-                onContactClick(msg);
-              } else {
-                window.open(`https://line.me/R/oaMessage/@siamdive/?${encodeURIComponent(msg)}`, "_blank");
-              }
-            }}
-            style={{
-              padding: "8px 14px", borderRadius: 8,
-              background: "#1e40af", border: "none",
-              color: "#fff", fontSize: 12, fontWeight: 700,
-              cursor: "pointer", flexShrink: 0,
-              display: "flex", alignItems: "center", gap: 5,
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>
-            {isTh ? "ติดต่อสอบถาม" : "Contact"}
-          </button>
-        </div>
-      )}
 
-      {scheduled.length > 0 && (
-        <div style={{ position: "relative" }}>
-          <div style={{
-            position: "absolute", left: 15, top: 20, bottom: 20,
-            width: 1, background: "#222",
-            borderRadius: 1,
-          }} />
-          {scheduled.map(({ trip, originalIdx }, i) => (
-            <TripSection
-              key={`${trip.boatId}-${trip.schedule!.scheduleId}-${originalIdx}`}
-              trip={trip}
-              originalIdx={originalIdx}
+      {buckets.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {buckets.map((bucket, bIdx) => (
+            <DayBucketRow
+              key={`day-${bucket.day}`}
+              bucket={bucket}
+              anchorItineraryDay={anchorItinerary[bucket.day - 1]}
+              overlap={overlapDays.has(bucket.day)}
+              isLast={bIdx === buckets.length - 1}
               planId={planId}
               lang={lang}
               canEdit={canEdit}
-              overlap={hasOverlap(i)}
-              isLast={i === scheduled.length - 1}
-              onRemoved={onTripRemoved}
+              onTripRemoved={onTripRemoved}
               onAddPackage={onAddPackage}
             />
           ))}
@@ -173,7 +116,7 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
       )}
 
       {unscheduled.length > 0 && (
-        <div style={{ marginTop: scheduled.length > 0 ? 20 : 0 }}>
+        <div style={{ marginTop: buckets.length > 0 ? 20 : 0 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
             {isTh ? "ยังไม่กำหนดวัน" : "Unscheduled"}
           </p>
@@ -191,6 +134,173 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Day bucket row ───────────────────────────────────────────────────────────
+function DayBucketRow({
+  bucket, anchorItineraryDay, overlap, isLast, planId, lang, canEdit, onTripRemoved, onAddPackage,
+}: {
+  bucket: DayBucket;
+  anchorItineraryDay: { heading: string; bodyHtml: string } | undefined;
+  overlap: boolean;
+  isLast: boolean;
+  planId: string;
+  lang: string;
+  canEdit: boolean;
+  onTripRemoved?: () => void;
+  onAddPackage?: (slug: string, departureDate?: string) => void;
+}) {
+  const isTh = lang === "th";
+  const [showItinerary, setShowItinerary] = useState(false);
+
+  // Show the operator's itinerary heading next to the day pill if we have one
+  // for this day AND the day belongs to the liveaboard span.
+  const itineraryHeading = bucket.isLiveaboardContinuation || bucket.trips.length > 0
+    ? anchorItineraryDay?.heading
+    : undefined;
+
+  return (
+    <div>
+      {/* Day header band */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "6px 0 8px",
+        borderBottom: bucket.trips.length > 0 || bucket.isLiveaboardContinuation
+          ? "1px solid #1a1a1a" : "1px dashed #1a1a1a",
+        marginBottom: 10,
+      }}>
+        <div style={{
+          minWidth: 56, height: 28, borderRadius: 8, padding: "0 10px",
+          background: bucket.day === 1 ? "#1e3a8a" : bucket.day < 1 ? "#1f1f1f" : "#161616",
+          border: bucket.day === 1 ? "1px solid #1e40af" : "1px solid #2a2a2a",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 12, fontWeight: 800,
+          color: bucket.day === 1 ? "#fff" : bucket.day < 1 ? "#888" : "#e5e5e5",
+          flexShrink: 0,
+        }}>
+          {bucket.day < 1 ? `Day ${bucket.day}` : `Day ${bucket.day}`}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#bbb", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {fmtDayHeader(bucket.date, lang)}
+            {itineraryHeading && (
+              <span style={{ color: "#666", fontWeight: 500 }}> · {itineraryHeading}</span>
+            )}
+          </p>
+          {bucket.day < 1 && (
+            <p style={{ fontSize: 10, color: "#555", margin: "1px 0 0", fontWeight: 600 }}>
+              {isTh ? "ก่อนทริปหลัก" : "Before main trip"}
+            </p>
+          )}
+        </div>
+        {overlap && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "conflictPulse 1.5s ease-in-out infinite", flexShrink: 0 }}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        )}
+      </div>
+
+      {/* Day body */}
+      {bucket.trips.length === 0 && bucket.isLiveaboardContinuation && (
+        <ContinuationCard
+          itineraryDay={anchorItineraryDay}
+          showItinerary={showItinerary}
+          onToggle={() => setShowItinerary(s => !s)}
+          lang={lang}
+        />
+      )}
+
+      {bucket.trips.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {bucket.trips.map(({ trip, originalIdx }) => (
+            <TripSection
+              key={`${trip.boatId}-${trip.schedule!.scheduleId}-${originalIdx}`}
+              trip={trip}
+              originalIdx={originalIdx}
+              planId={planId}
+              lang={lang}
+              canEdit={canEdit}
+              overlap={overlap}
+              isLast={isLast}
+              onRemoved={onTripRemoved}
+              onAddPackage={onAddPackage}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Liveaboard continuation card (day spans the anchor but no new departure) ─
+function ContinuationCard({
+  itineraryDay, showItinerary, onToggle, lang,
+}: {
+  itineraryDay: { heading: string; bodyHtml: string } | undefined;
+  showItinerary: boolean;
+  onToggle: () => void;
+  lang: string;
+}) {
+  const isTh = lang === "th";
+  const hasBody = !!itineraryDay?.bodyHtml;
+
+  return (
+    <div style={{
+      borderRadius: 10,
+      background: "#0d0d0d",
+      border: "1px dashed #222",
+      padding: hasBody ? 0 : "10px 14px",
+      color: "#666",
+      fontSize: 12,
+      fontWeight: 500,
+    }}>
+      {!hasBody ? (
+        <span>{isTh ? "อยู่บนเรือต่อเนื่อง" : "Liveaboard continues"}</span>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onToggle}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "10px 14px",
+              background: "transparent",
+              border: "none",
+              color: "#888",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "inherit",
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            {showItinerary
+              ? (isTh ? "ซ่อนกิจกรรม" : "Hide activities")
+              : (isTh ? "กิจกรรมประจำวัน" : "Day activities")}
+          </button>
+          {showItinerary && (
+            <div style={{ padding: "0 14px 12px" }}>
+              <style>{`
+                .day-itin { font-size: 13px; color: #aaa; line-height: 1.65; }
+                .day-itin p { margin: 0 0 8px; }
+                .day-itin strong, .day-itin b { color: #ddd; font-weight: 700; }
+                .day-itin a { color: #60a5fa; text-decoration: underline; }
+              `}</style>
+              <div className="day-itin" dangerouslySetInnerHTML={{ __html: itineraryDay!.bodyHtml }} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -269,9 +379,9 @@ function PackageRow({ pkg, index, canEdit, onChange, onRemove }: {
 }
 
 // ── Trip section (scheduled) ─────────────────────────────────────────────────
-function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, isLast, onRemoved, onAddPackage }: {
+function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemoved, onAddPackage }: {
   trip: PlanTrip; originalIdx: number; planId: string; lang: string; canEdit: boolean;
-  overlap: boolean; isLast: boolean; onRemoved?: () => void; onAddPackage?: (slug: string) => void;
+  overlap: boolean; isLast: boolean; onRemoved?: () => void; onAddPackage?: (slug: string, departureDate?: string) => void;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteValue, setNoteValue] = useState(trip.note || "");
@@ -281,8 +391,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, isLast
   const [detailLoading, setDetailLoading] = useState(false);
   const isTh = lang === "th";
   const sched = trip.schedule!;
-  const depParts = fmtDateParts(sched.departureDate, lang);
-  const retParts = sched.returnDate ? fmtDateParts(sched.returnDate, lang) : null;
   const dayDates = generateDayDates(sched.departureDate, sched.returnDate);
   const isMultiDay = dayDates.length > 1;
   const isLiveaboard = trip.type === "LIVEABOARD" || trip.type === "DIVE_RESORT";
@@ -356,46 +464,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, isLast
   const label = (key: string) => SECTION_LABEL[key]?.[lang] || SECTION_LABEL[key]?.en || key;
 
   return (
-    <div style={{ paddingBottom: isLast ? 0 : 16 }}>
-      {/* Main trip card */}
-      <div style={{ display: "flex", gap: 10, position: "relative" }}>
-        {/* Date badge column */}
-        <div style={{ width: 32, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1 }}>
-          <div style={{
-            width: 32, height: 38, borderRadius: 8,
-            background: overlap ? "rgba(239,68,68,0.1)" : "#1a1a1a",
-            border: overlap ? "1px solid rgba(239,68,68,0.25)" : "1px solid #222",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: overlap ? "#ef4444" : "#e5e5e5", lineHeight: 1 }}>
-              {depParts.day}
-            </span>
-            <span style={{ fontSize: 8, fontWeight: 600, color: overlap ? "#ef4444" : "#666", textTransform: "uppercase" }}>
-              {depParts.month}
-            </span>
-          </div>
-          {retParts && (
-            <>
-              <div style={{ width: 1, height: 4, background: "#222" }} />
-              <div style={{
-                width: 28, height: 28, borderRadius: 6,
-                background: "#161616", border: "1px solid #222",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#888", lineHeight: 1 }}>{retParts.day}</span>
-                <span style={{ fontSize: 6, fontWeight: 600, color: "#555", textTransform: "uppercase" }}>{retParts.month}</span>
-              </div>
-            </>
-          )}
-          {overlap && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 3, animation: "conflictPulse 1.5s ease-in-out infinite" }}>
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          )}
-        </div>
-
-        <div style={{ flex: 1, background: "#111", border: "1px solid #1a1a1a", borderRadius: 12, overflow: "hidden" }}>
+    <div>
+      {/* Main trip card — date column dropped; the day-bucket header above this card carries the date. */}
+      <div style={{ position: "relative" }}>
+        <div style={{
+          background: "#111",
+          border: overlap ? "1px solid rgba(239,68,68,0.35)" : "1px solid #1a1a1a",
+          borderRadius: 12, overflow: "hidden",
+        }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 12 }}>
             {trip.cover ? (
