@@ -281,6 +281,30 @@ export function extractDateHint(text: string, now: Date = new Date()): DateHint 
     return monthRange(year, month, `เดือน${thBareAbbr[1]} ${year}`);
   }
 
+  // Dotless bare TH abbreviation — "เดือนมิย" / "ในพค" / "เดือนพย."
+  // Users routinely strip BOTH dots when the month follows "เดือน"/"ใน",
+  // and the strict dotted pattern above misses them. Require an "เดือน"
+  // or "ใน" prefix so we don't false-match Thai names ("มิยา") or random
+  // 2-letter clusters; negative lookahead blocks mid-word matches.
+  const TH_DOTLESS_TO_DOTTED: Record<string, string> = {
+    "มค": "ม.ค.", "กพ": "ก.พ.", "มีค": "มี.ค.", "เมย": "เม.ย.",
+    "พค": "พ.ค.", "มิย": "มิ.ย.", "กค": "ก.ค.", "สค": "ส.ค.",
+    "กย": "ก.ย.", "ตค": "ต.ค.", "พย": "พ.ย.", "ธค": "ธ.ค.",
+  };
+  const thBareAbbrDotless = text.match(
+    /(?:เดือน|ใน)\s*(มีค|เมย|มค|กพ|พค|มิย|กค|สค|กย|ตค|พย|ธค)(?![฀-๿])\.?\s*(\d{4})?/
+  );
+  if (thBareAbbrDotless) {
+    const dotted = TH_DOTLESS_TO_DOTTED[thBareAbbrDotless[1]];
+    const month = TH_MONTHS[dotted];
+    if (month) {
+      let year = thBareAbbrDotless[2] ? +thBareAbbrDotless[2] : todayY;
+      if (year > 2400) year -= 543;
+      if (!thBareAbbrDotless[2] && month < todayM) year = todayY + 1;
+      return monthRange(year, month, `เดือน${dotted} ${year}`);
+    }
+  }
+
   const enBare = lower.match(/\b(?:in\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})?\b/);
   if (enBare) {
     const month = EN_MONTHS[enBare[1]];
