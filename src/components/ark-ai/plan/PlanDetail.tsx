@@ -10,6 +10,7 @@ import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
+import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 
@@ -321,6 +322,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           </div>
 
           {tabsBar}
+
+          {/* Sprint 3 B5 — auto-improve notifications */}
+          <PlanNotificationsBanner planId={plan.id} lang={lang} />
 
           {/* Tab content */}
           <div style={{ padding: "16px" }}>

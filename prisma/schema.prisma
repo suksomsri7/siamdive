@@ -854,12 +854,13 @@ model UserPlan {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  members      PlanMember[]
-  media        PlanMedia[]
-  checklists   PlanChecklist[]
-  chatMessages PlanChat[]
-  notes        PlanNote[]
-  activities   PlanActivity[]
+  members       PlanMember[]
+  media         PlanMedia[]
+  checklists    PlanChecklist[]
+  chatMessages  PlanChat[]
+  notes         PlanNote[]
+  activities    PlanActivity[]
+  notifications PlanNotification[]
 
   @@index([userId])
   @@index([shortId])
@@ -958,6 +959,36 @@ model PlanActivity {
   createdAt  DateTime @default(now())
 
   @@index([planId, createdAt])
+}
+
+// ── PlanNotification ─────────────────────────────────────────────────────────
+// Sprint 3 B5 — auto-improve cron writes here when it spots a state change
+// worth surfacing to a PLANNING plan: a chosen schedule is near full, a new
+// blog matching the plan's area was published, or a price drop was detected.
+// The plan detail view reads active (dismissedAt IS NULL) rows on load.
+
+model PlanNotification {
+  id          String               @id @default(cuid())
+  planId      String
+  plan        UserPlan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  type        PlanNotificationType
+  title       String
+  body        String
+  payload     Json?
+  scheduleId  String?
+  blogId      String?
+  dismissedAt DateTime?
+  createdAt   DateTime             @default(now())
+
+  @@index([planId, dismissedAt])
+  @@index([createdAt])
+}
+
+enum PlanNotificationType {
+  NEAR_FULL
+  NEW_BLOG
+  PRICE_DROP
+  DATE_REMINDER
 }
 
 enum PlanStatus {

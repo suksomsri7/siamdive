@@ -5,6 +5,8 @@ import { useParams, usePathname } from "next/navigation";
 import ChatMessage from "./ChatMessage";
 import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
+import TemplatePicker from "./TemplatePicker";
+import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
 import { addTrip, addTripToPlan, createPlan, getPlans, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
@@ -13,6 +15,7 @@ import {
   trackChatOpen,
   trackChatMessage,
   trackChatFeedback,
+  track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
 
@@ -665,6 +668,32 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           {messages.length === 0 && (
             <div style={{ padding: "8px 0" }}>
               <ChatMessage role="assistant" content={buildWelcome(lang, pathname)} msgIndex={-1} />
+              {Object.keys(slots).length === 0 && (
+                <TemplatePicker lang={lang} onPick={(t) => {
+                  // Sprint 3 B10 — pre-fill slots on the server BEFORE
+                  // sending the primer, so the very first chat turn sees
+                  // them in effectiveSlots → category-aware RAG narrowing.
+                  const deviceId = readBrowserId("sd_vid");
+                  if (deviceId) {
+                    fetch("/api/ark-ai/session", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ deviceId, set: t.slots }),
+                    })
+                      .then(r => r.ok ? r.json() : null)
+                      .then(data => {
+                        if (data?.session) {
+                          setSlots(data.session.slots || {});
+                          setSlotsComplete(!!data.session.complete);
+                        }
+                      })
+                      .catch(() => {});
+                  }
+                  // Track the click for cohort analysis (already in enum).
+                  track("ARK_AI_TEMPLATE_SELECTED", { properties: { templateId: t.id } });
+                  sendMessage(templatePrimer(t, lang));
+                }} />
+              )}
               <SuggestionChips lang={lang} onSelect={sendMessage} pathname={pathname} />
             </div>
           )}

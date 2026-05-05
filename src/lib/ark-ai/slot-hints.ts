@@ -8,7 +8,7 @@
 // Conservative by design: only return a value when the user wrote something
 // unambiguous. False positives are worse than misses (the LLM cleans up).
 
-import type { Headcount, Region } from "./slots";
+import type { Companions, Headcount, Region } from "./slots";
 
 // ── Headcount ────────────────────────────────────────────────────────────────
 // Captures the most common phrasings the AI has historically missed when
@@ -123,4 +123,59 @@ export function extractRegionHint(msg: string): Region | null {
   if (isAnd) return "andaman";
   if (isGulf) return "gulf";
   return null;
+}
+
+// ── Companions (non-divers tagging along) — Sprint 3 B2 ─────────────────────
+// "ไปกับแม่ที่ไม่ดำน้ำ", "spouse doesn't dive", "พ่อแม่ไม่ดำ พาไปเที่ยวบก".
+// LLM extracts these well most of the time but on first turn it's too late
+// for downstream RAG / system-prompt injection. Keep conservative — only fire
+// on phrases that explicitly call out non-diving members.
+export function extractCompanionsHint(msg: string): Companions | null {
+  if (!msg) return null;
+  const m = msg;
+  const lower = m.toLowerCase();
+
+  // English: "spouse doesn't dive" / "wife doesn't scuba" / "mom isn't diving"
+  // / "kids are too young to dive" / "non-diver(s) coming with us"
+  const enNoDive = lower.match(
+    /\b(?:my\s+)?(spouse|wife|husband|partner|mom|mum|mother|dad|father|parents?|kids?|child|children|son|daughter|friend|girlfriend|boyfriend)\b[^.!?\n]{0,40}\b(?:doesn['’]t|don['’]t|isn['’]t|won['’]t|can['’]t|cannot|not?)\s+(?:dive|diving|scuba)/,
+  );
+  const enNonDiverWord = lower.match(/\b(non[- ]?divers?)\b/);
+  const enTooYoung = lower.match(/\b(kids?|child(?:ren)?|son|daughter)\b[^.!?\n]{0,30}\btoo\s+young\b/);
+  // English ride-along: "mom is just coming for the boat ride", "wife is
+  // tagging along", "they'll just come along", "just here for the boat".
+  const enRideAlong = lower.match(
+    /\b(spouse|wife|husband|partner|mom|mum|mother|dad|father|parents?|kids?|child|children|son|daughter|friend|girlfriend|boyfriend|they)\b[^.!?\n]{0,40}\b(just\s+(?:coming|comes|come)|coming\s+along|tag(?:ging)?\s+along|ride[- ]?along|along\s+for\s+the\s+(?:boat|ride))/,
+  );
+  // Thai: "แม่ไม่ดำ", "แฟนไม่ดำน้ำ", "พ่อแม่ไม่ดำ", "ลูกยังเล็ก ไม่ดำ"
+  const thNoDive = m.match(
+    /(แม่|พ่อ|พ่อแม่|แฟน|สามี|ภรรยา|เมีย|ลูก|พี่|น้อง|เพื่อน)[^\n.!?]{0,40}(ไม่ดำ|ไม่อยากดำ|ดำไม่ได้|ดำไม่เป็น)/,
+  );
+  // Numeric Thai: "2 คนไม่ดำ" / "3 คนไม่ดำน้ำ" / "1 คนดำไม่เป็น"
+  const thNumNonDiver = m.match(/(\d{1,2})\s*คน\s*(ไม่ดำ|ดำไม่|ไม่อยากดำ)/);
+  const thRideAlong = m.match(/(พ่อแม่|แม่|พ่อ|แฟน|ลูก|ภรรยา)[^\n.!?]{0,30}(พาไปเที่ยว|มาเที่ยวด้วย|นั่งเรือเฉยๆ|นั่งเรือ|รอบนเรือ|รอที่ฝั่ง|ขอแค่)/);
+
+  if (!enNoDive && !enNonDiverWord && !enTooYoung && !enRideAlong && !thNoDive && !thNumNonDiver && !thRideAlong) {
+    return null;
+  }
+
+  // Best-effort count. Default to 1 (most common — one parent / one spouse).
+  // Phrases that imply more than one: "พ่อแม่ไม่ดำ" → 2, "parents don't dive" → 2,
+  // "kids" plural → 2 (conservative). Explicit numerics override.
+  let nonDivers = 1;
+  if (/พ่อแม่|parents/i.test(m)) nonDivers = 2;
+  if (/(kids|children|ลูกๆ|น้องๆ)/i.test(m)) nonDivers = Math.max(nonDivers, 2);
+  if (thNumNonDiver) nonDivers = parseInt(thNumNonDiver[1], 10) || nonDivers;
+  const explicit = m.match(/(\d{1,2})\s*(?:people|ppl|pax|persons?)\s*(?:don['’]?t\s*dive|non[- ]?divers?)/i);
+  if (explicit) nonDivers = parseInt(explicit[1], 10) || nonDivers;
+
+  // Activity heuristic — same message often hints at the parallel programme.
+  let activity: Companions["activity"] | undefined;
+  if (/snorkel|ดำผิวน้ำ|สนอร์เกิล|ผิวน้ำ/i.test(m)) activity = "snorkel";
+  else if (/land\s*tour|ทัวร์บก|เที่ยวบก|ดูตัวเมือง|เที่ยวเกาะ|sightsee|sightseeing/i.test(m)) activity = "land_tour";
+  else if (/นั่งเรือ|รอบนเรือ|รอที่ฝั่ง|พักผ่อน|just\s+(?:come|coming|here)|coming\s+along|tag(?:ging)?\s+along|ride[- ]?along|along\s+for\s+the\s+(?:boat|ride)|boat\s+ride|relax/i.test(m)) activity = "relax";
+
+  const out: Companions = { nonDivers };
+  if (activity) out.activity = activity;
+  return out;
 }

@@ -80,10 +80,16 @@ export function buildPlanName(slots: Slots, lang: string): string {
     both: { th: "ไทย", en: "Thailand" },
   };
   const r = slots.region ? regionLabel[slots.region] : null;
+  // Sprint 3 B2 — annotate the plan name when the group is mixed so the
+  // user can tell at a glance that a parallel programme is expected.
+  const nonDivers = slots.companions?.nonDivers ?? 0;
+  const mixSuffix = nonDivers > 0
+    ? (lang === "th" ? ` (มี ${nonDivers} คนไม่ดำ)` : ` (+${nonDivers} non-diver${nonDivers === 1 ? "" : "s"})`)
+    : "";
   if (lang === "th") {
-    return `แผนทริป${r?.th || ""} ${dateText} ${partyText}`.replace(/\s+/g, " ").trim();
+    return `แผนทริป${r?.th || ""} ${dateText} ${partyText}${mixSuffix}`.replace(/\s+/g, " ").trim();
   }
-  return `${r?.en || "Dive"} trip — ${dateText}, ${partyText}`.replace(/\s+/g, " ").trim();
+  return `${r?.en || "Dive"} trip — ${dateText}, ${partyText}${mixSuffix}`.replace(/\s+/g, " ").trim();
 }
 
 // Snorkel-only filter: keep schedules that have at least one NON_DIVER tier

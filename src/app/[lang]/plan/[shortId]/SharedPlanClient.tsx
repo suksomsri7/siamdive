@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
+import PlanNotificationsBanner from "@/components/ark-ai/plan/PlanNotificationsBanner";
 import type { PlanTrip } from "@/lib/plan-store";
 
 type Trip = {
@@ -81,6 +82,11 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
               <p style={{ fontSize: 10, color: "#666" }}>{s.label}</p>
             </div>
           ))}
+        </div>
+
+        {/* Sprint 3 B5 — auto-improve banners */}
+        <div style={{ marginBottom: 12, marginLeft: -16, marginRight: -16 }}>
+          <PlanNotificationsBanner planId={plan.shortId} lang={currentLang} />
         </div>
 
         {/* Trips timeline */}

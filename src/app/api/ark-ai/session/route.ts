@@ -32,22 +32,48 @@ export async function GET(req: NextRequest) {
 // Clear individual slot fields when the user taps the ✕ on a chip. Without
 // server-side clear the AI keeps seeing the stale value in the system prompt
 // and won't re-extract from new messages.
+//
+// Sprint 3 B10 — also accepts `set: Slots` to bulk-merge slot values when the
+// user picks a starter-pack template. We persist before the next chat send so
+// the chat route's slot read sees the template defaults on turn 1.
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const deviceId: string | undefined = body?.deviceId;
   const clearFields: string[] = Array.isArray(body?.clear) ? body.clear : [];
-  if (!deviceId || !clearFields.length) {
-    return Response.json({ error: "deviceId + clear[] required" }, { status: 400 });
+  const setSlots: Partial<Slots> | null = body?.set && typeof body.set === "object" ? body.set as Partial<Slots> : null;
+  if (!deviceId || (!clearFields.length && !setSlots)) {
+    return Response.json({ error: "deviceId + (clear[] or set) required" }, { status: 400 });
   }
-  const session = await prisma.aiPlanSession.findFirst({
-    where: { deviceId, status: "active", expiresAt: { gt: new Date() } },
+
+  const now = new Date();
+  // Touch-or-create. Templates may fire BEFORE any chat turn has been sent
+  // (which is what creates the session), so a missing session is a normal
+  // case here — upsert by (deviceId, active).
+  let session = await prisma.aiPlanSession.findFirst({
+    where: { deviceId, status: "active", expiresAt: { gt: now } },
     orderBy: { lastActiveAt: "desc" },
   });
-  if (!session) return Response.json({ session: null });
+  if (!session) {
+    if (!setSlots) return Response.json({ session: null });
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    session = await prisma.aiPlanSession.create({
+      data: { deviceId, slots: {} as never, status: "active", lastActiveAt: now, expiresAt },
+    });
+  }
+
   const slots = (session.slots && typeof session.slots === "object" ? session.slots : {}) as Record<string, unknown>;
   let changed = false;
   for (const f of clearFields) {
     if (f in slots) { delete slots[f]; changed = true; }
+  }
+  if (setSlots) {
+    for (const [k, v] of Object.entries(setSlots)) {
+      if (v == null) continue;
+      if (JSON.stringify(slots[k]) !== JSON.stringify(v)) {
+        slots[k] = v as unknown;
+        changed = true;
+      }
+    }
   }
   if (!changed) {
     return Response.json({ session: { id: session.id, slots, complete: isComplete(slots as Slots) } });

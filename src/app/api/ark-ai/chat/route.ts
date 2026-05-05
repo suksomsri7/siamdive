@@ -12,7 +12,7 @@ import { isBotUa } from "@/lib/analytics/botFilter";
 import { detectMedicalConcern, buildMedicalRedirect } from "@/lib/ark-ai/safety";
 import { applyToolCall, formatSlotsForPrompt, isComplete, UPDATE_SLOTS_TOOL, type Slots } from "@/lib/ark-ai/slots";
 import { extractDateHint } from "@/lib/ark-ai/date-hint";
-import { extractHeadcountHint, extractRegionHint } from "@/lib/ark-ai/slot-hints";
+import { extractCompanionsHint, extractHeadcountHint, extractRegionHint } from "@/lib/ark-ai/slot-hints";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
@@ -598,6 +598,10 @@ export async function POST(req: NextRequest) {
   if (!effectiveSlots.region) {
     const regionHint = extractRegionHint(lastUserMsg);
     if (regionHint) effectiveSlots = { ...effectiveSlots, region: regionHint };
+  }
+  if (!effectiveSlots.companions) {
+    const companionsHint = extractCompanionsHint(lastUserMsg);
+    if (companionsHint) effectiveSlots = { ...effectiveSlots, companions: companionsHint };
   }
   let scheduleFromDate: Date | undefined;
   let scheduleToDate: Date | undefined;

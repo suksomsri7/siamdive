@@ -178,6 +178,38 @@ export async function POST(req: NextRequest) {
     topPicks.push(cand);
   }
 
+  // Sprint 3 B2 — Group-aware companion pick. If the slot includes
+  // non-divers with an explicit programme, look for a parallel schedule
+  // (snorkel daytrip / land tour) on the same primary date as the chosen
+  // dive trip. Append it AFTER the divers' pick(s) so the plan shows both
+  // legs of the day. Stays at most 1 companion pick — we don't want to
+  // bloat the plan with mirror options.
+  const companions = slots.companions;
+  if (companions && companions.nonDivers > 0 && topPicks.length > 0 && companions.activity && companions.activity !== "relax") {
+    const primaryDate = topPicks[0].s.departureDate?.toISOString().slice(0, 10);
+    const wantedTypes = companions.activity === "snorkel"
+      ? new Set(["SNORKELING", "DAYTRIP"])
+      : new Set<string>(["LAND_TOUR"]);
+    const companionCand = ranked.find(({ s }) => {
+      if (topPicks.some(p => p.s.id === s.id)) return false;
+      if (!wantedTypes.has(s.boat.type)) return false;
+      const sd = s.departureDate?.toISOString().slice(0, 10);
+      // Same day as the primary dive trip — companions are travelling
+      // together so dates must align.
+      if (!primaryDate || sd !== primaryDate) return false;
+      // Snorkel companion needs a snorkel-friendly package.
+      if (companions.activity === "snorkel") {
+        return s.packages.some(sp => {
+          const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
+          const title = pickByLang(sp.package.translations, lang)?.title || sp.package.name;
+          return packageIsSnorkelFriendly(tiers, title);
+        });
+      }
+      return true;
+    });
+    if (companionCand) topPicks.push(companionCand);
+  }
+
   const trips = topPicks.map(({ s }) => {
     const bt = pickByLang(s.boat.translations, lang);
     const areaTrans = s.boat.serviceAreas[0]?.serviceArea

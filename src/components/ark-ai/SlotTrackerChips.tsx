@@ -13,6 +13,8 @@ const LABELS: Record<string, Record<SlotField | "build" | "tapToClear" | "missin
     headcount: "จำนวนคน",
     region: "ฝั่ง",
     certs: "ใบ cert",
+    categories: "ประเภททริป",
+    companions: "เพื่อนร่วมทาง",
     budget: "งบ",
     style: "สไตล์",
     interests: "สิ่งที่อยากเจอ",
@@ -25,6 +27,8 @@ const LABELS: Record<string, Record<SlotField | "build" | "tapToClear" | "missin
     headcount: "Travelers",
     region: "Region",
     certs: "Cert",
+    categories: "Trip type",
+    companions: "Companions",
     budget: "Budget",
     style: "Style",
     interests: "Interests",
@@ -33,27 +37,27 @@ const LABELS: Record<string, Record<SlotField | "build" | "tapToClear" | "missin
     missing: "missing",
   },
   cn: {
-    dates: "日期", headcount: "人数", region: "海域", certs: "证书", budget: "预算", style: "风格", interests: "兴趣",
+    dates: "日期", headcount: "人数", region: "海域", certs: "证书", categories: "类型", companions: "同行者", budget: "预算", style: "风格", interests: "兴趣",
     build: "生成行程", tapToClear: "点击清除", missing: "未填",
   },
   ja: {
-    dates: "日程", headcount: "人数", region: "エリア", certs: "資格", budget: "予算", style: "スタイル", interests: "興味",
+    dates: "日程", headcount: "人数", region: "エリア", certs: "資格", categories: "種別", companions: "同行者", budget: "予算", style: "スタイル", interests: "興味",
     build: "プランを作成", tapToClear: "タップで消去", missing: "未入力",
   },
   ko: {
-    dates: "날짜", headcount: "인원", region: "지역", certs: "자격증", budget: "예산", style: "스타일", interests: "관심사",
+    dates: "날짜", headcount: "인원", region: "지역", certs: "자격증", categories: "유형", companions: "동행자", budget: "예산", style: "스타일", interests: "관심사",
     build: "플랜 만들기", tapToClear: "탭하여 삭제", missing: "미입력",
   },
   de: {
-    dates: "Datum", headcount: "Personen", region: "Region", certs: "Brevet", budget: "Budget", style: "Stil", interests: "Interessen",
+    dates: "Datum", headcount: "Personen", region: "Region", certs: "Brevet", categories: "Trip-Typ", companions: "Begleiter", budget: "Budget", style: "Stil", interests: "Interessen",
     build: "Plan erstellen", tapToClear: "Zum Löschen tippen", missing: "fehlt",
   },
   fr: {
-    dates: "Dates", headcount: "Voyageurs", region: "Région", certs: "Certif.", budget: "Budget", style: "Style", interests: "Intérêts",
+    dates: "Dates", headcount: "Voyageurs", region: "Région", certs: "Certif.", categories: "Type", companions: "Accomp.", budget: "Budget", style: "Style", interests: "Intérêts",
     build: "Créer mon plan", tapToClear: "Toucher pour effacer", missing: "manquant",
   },
   ru: {
-    dates: "Даты", headcount: "Путешественники", region: "Регион", certs: "Серт.", budget: "Бюджет", style: "Стиль", interests: "Интересы",
+    dates: "Даты", headcount: "Путешественники", region: "Регион", certs: "Серт.", categories: "Тип", companions: "Спутники", budget: "Бюджет", style: "Стиль", interests: "Интересы",
     build: "Создать план", tapToClear: "Нажмите чтобы очистить", missing: "не указано",
   },
 };

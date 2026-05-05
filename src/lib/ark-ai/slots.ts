@@ -12,6 +12,16 @@ export type TripCategory = "liveaboard" | "daytrip" | "snorkeling" | "land_tour"
 export type Dates = { from: string; to?: string; label?: string };
 export type Headcount = { adults: number; kids?: number };
 export type Budget = { min?: number; max?: number; currency?: string };
+/** Sprint 3 B2 — Group-aware planning. Some travellers come with non-diving
+ *  companions (parent who hates the water, spouse with ear issues, kid too
+ *  young to certify). Capturing this lets the planner split the group: divers
+ *  on the dive boat, companions on a parallel snorkel/land tour or just
+ *  shore-day with shared transport. nonDivers is a count; activity is the
+ *  preferred parallel programme. */
+export type Companions = {
+  nonDivers: number;
+  activity?: "snorkel" | "land_tour" | "relax";
+};
 
 export type Slots = {
   dates?: Dates;
@@ -25,6 +35,7 @@ export type Slots = {
   budget?: Budget;
   style?: Style;
   interests?: string[];
+  companions?: Companions;
 };
 
 export type SlotField = keyof Slots;
@@ -46,6 +57,8 @@ const REGIONS: Region[] = ["andaman", "gulf", "both"];
 const CERTS: CertLevel[] = ["none", "ow", "aow", "rescue+"];
 const STYLES: Style[] = ["relaxed", "intense", "family", "photography", "training"];
 const TRIP_CATEGORIES: TripCategory[] = ["liveaboard", "daytrip", "snorkeling", "land_tour"];
+const COMPANION_ACTIVITIES = ["snorkel", "land_tour", "relax"] as const;
+type CompanionActivity = (typeof COMPANION_ACTIVITIES)[number];
 
 function cleanString(v: unknown): string | undefined {
   if (typeof v !== "string") return undefined;
@@ -172,6 +185,26 @@ export function applyToolCall(
     }
   }
 
+  // companions — non-diving travellers who tag along. nonDivers is a count
+  // (0 acts as "explicitly cleared", but we only persist a value if user
+  // mentioned it; absence != 0 in the wider UX). activity is one of three
+  // canonical options.
+  if (raw.companions && typeof raw.companions === "object") {
+    const c = raw.companions as Record<string, unknown>;
+    const nonDivers = asNonNegInt(c.nonDivers);
+    if (nonDivers !== undefined) {
+      const next: Companions = { nonDivers };
+      if (typeof c.activity === "string") {
+        const a = c.activity.trim().toLowerCase().replace(/\s/g, "_") as CompanionActivity;
+        if ((COMPANION_ACTIVITIES as readonly string[]).includes(a)) next.activity = a;
+      }
+      if (JSON.stringify(merged.companions) !== JSON.stringify(next)) {
+        merged.companions = next;
+        changed.push("companions");
+      }
+    }
+  }
+
   // interests
   if (Array.isArray(raw.interests)) {
     const next = Array.from(new Set(
@@ -219,6 +252,15 @@ User says: "ผม OW แฟน AOW" → {"certs":["ow","aow"]}
 User says: "ไม่มีใบ" / "no cert" / "uncertified" → {"certs":["none"]}
 User says: "Discover Scuba" / "DSD" / "first time diving" → {"certs":["none"]}
 User says: "snorkel only" / "ดำผิวน้ำ" → {"certs":["none"]}
+
+# Companions few-shot — non-diving travellers tagging along (Sprint 3 B2):
+User says: "ไปกับแม่ที่ไม่ดำน้ำ" → {"companions":{"nonDivers":1,"activity":"snorkel"}}
+User says: "ผมดำคนเดียว แฟนไม่ดำ ขอแค่นั่งเรือ" → {"companions":{"nonDivers":1,"activity":"relax"}}
+User says: "พ่อแม่ไม่ดำ พาไปเที่ยวเฉยๆ" → {"companions":{"nonDivers":2,"activity":"land_tour"}}
+User says: "spouse doesn't dive, wants to snorkel" → {"companions":{"nonDivers":1,"activity":"snorkel"}}
+User says: "my mom is just coming for the boat ride" → {"companions":{"nonDivers":1,"activity":"relax"}}
+User says: "kids are too young to dive — they'll snorkel" → {"companions":{"nonDivers":<count>,"activity":"snorkel"}}
+NOTE: companions is SEPARATE from headcount.kids. headcount counts EVERYONE in the booking (paying seats); companions tracks how many of those travellers are NOT diving. So "พวกเรา 4 คน 2 คนดำ 2 คนไม่ดำ" → {"headcount":{"adults":4},"companions":{"nonDivers":2}}.
 
 # Date few-shot (resolve relative phrases to ISO using today as anchor):
 User says: "เดือนหน้า" → if today is 2026-05-05, dates.from="2026-06-01", label="เดือนหน้า"
@@ -280,6 +322,19 @@ User says: "this weekend" → next Sat–Sun ISO
         items: { type: "string" },
         description: "Marine life or features the user wants (e.g. 'whale shark', 'wreck', 'macro', 'manta', 'reef'). Lowercase, deduplicated, max 8.",
       },
+      companions: {
+        type: "object",
+        description: "Non-diving travellers who join the booking but don't dive. Set whenever the user signals that part of the group won't be in the water (parent who hates diving, spouse with ear issues, kid too young to certify). Separate from headcount — headcount counts every traveller, companions counts how many aren't diving.",
+        properties: {
+          nonDivers: { type: "integer", description: "Number of people in the group who will NOT be diving." },
+          activity: {
+            type: "string",
+            enum: ["snorkel", "land_tour", "relax"],
+            description: "What the non-divers will do. snorkel = parallel snorkelling on the boat. land_tour = parallel land programme (Big Buddha / Old Town / island hopping by speedboat). relax = riding along on the boat / lounging on shore — no active programme.",
+          },
+        },
+        required: ["nonDivers"],
+      },
     },
   },
 } as const;
@@ -309,5 +364,9 @@ export function formatSlotsForPrompt(slots: Slots | null | undefined): string | 
   }
   if (slots.style) parts.push(`style=${slots.style}`);
   if (slots.interests?.length) parts.push(`interests=[${slots.interests.join(",")}]`);
+  if (slots.companions?.nonDivers != null) {
+    const c = slots.companions;
+    parts.push(`companions=${c.nonDivers} non-divers${c.activity ? ` (${c.activity})` : ""}`);
+  }
   return parts.join("; ");
 }
