@@ -15,7 +15,14 @@ export type PlanTripSchedule = {
   itinerary: string;
   excerpt?: string;
   content?: string;
+  /** What renders in the plan card: typically [first] until the user
+   *  picks a different package via chat $$PACKAGES$$. Mutated by
+   *  setTripSelectedPackage. */
   packages: { name: string; minPrice: number; qty?: number }[];
+  /** Full roster snapshot from when the trip was added — used as a
+   *  lookup source when the user picks a package not currently in
+   *  `packages`. Don't mutate; treat as read-only after creation. */
+  availablePackages?: { name: string; minPrice: number }[];
 };
 
 export type PlanTrip = {
@@ -394,15 +401,16 @@ export function setTripSelectedPackage(
       t.boatId === boatId && (t.schedule?.scheduleId ?? "") === (scheduleId ?? ""),
     );
     if (!trip || !trip.schedule) continue;
-    const pkg = trip.schedule.packages.find(p => p.name === packageName);
+    // Look the chosen package up in the full roster first, then in the
+    // currently displayed list. Without availablePackages we used to lose
+    // every option except the first one, so a user clicking "Master" when
+    // the displayed package was "Deluxe" silently no-op'd and the plan
+    // stayed wrong.
+    const pkg =
+      trip.schedule.availablePackages?.find(p => p.name === packageName) ||
+      trip.schedule.packages.find(p => p.name === packageName);
     if (!pkg) continue;
     trip.selectedPackage = { name: pkg.name, minPrice: pkg.minPrice };
-    // Replace the available-package roster with just the chosen one,
-    // priced at the user's headcount. The picker initially copies the
-    // full schedule package list so the plan can show "what's offered",
-    // but once the user clicks a specific package in chat the plan
-    // should reflect THEIR choice — not the catalog. If they want to
-    // mix packages later, the plan UI exposes "Add Package".
     const safeQty = Math.max(1, Math.floor(qty));
     trip.schedule.packages = [{ name: pkg.name, minPrice: pkg.minPrice, qty: safeQty }];
     plan.updatedAt = new Date().toISOString();

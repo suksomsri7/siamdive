@@ -132,6 +132,9 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
     // first). Showing all packages on the plan card confuses users who
     // already think "selecting the schedule = selecting the trip". They
     // can swap or add more via the plan UI's "Add Package" / chat picker.
+    // We still keep the full roster on `availablePackages` so a chat
+    // $$PACKAGES$$ click can swap to any of them — without that lookup
+    // source the user would be stuck on whatever was first.
     const pkgInfo = allPkgInfo.length > 0 ? [allPkgInfo[0]] : [];
 
     return {
@@ -146,6 +149,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
         excerpt: st?.excerpt || "",
         content: st?.content || "",
         packages: pkgInfo,
+        availablePackages: allPkgInfo,
       },
     };
   };

@@ -203,7 +203,10 @@ export async function POST(req: NextRequest) {
     // Default to the first package only — same UX rule as TripSchedulePicker.
     // The auto-built plan shouldn't dump 5 packages on the user's first view;
     // they already trusted us to pick the trip, give them a sane default and
-    // let them swap via plan UI if needed.
+    // let them swap via plan UI if needed. The full roster lives on
+    // availablePackages so a $$PACKAGES$$ click in chat can swap to any
+    // option (without it the swap silently no-ops because the chosen name
+    // isn't in the truncated `packages` array).
     const pkgs = allPkgs.length > 0 ? [allPkgs[0]] : [];
     return {
       boatId: s.boat.id,
@@ -226,6 +229,7 @@ export async function POST(req: NextRequest) {
         // schedule.itinerary is empty for all prod daytrips.
         content: st?.content || "",
         packages: pkgs,
+        availablePackages: allPkgs,
       },
     };
   });
