@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
-import { groupTripsByDay, type DayBucket } from "@/lib/ark-ai/day-grouping";
 import { parseItinerary } from "@/lib/ark-ai/itinerary-parser";
 import TripIncludedBlock from "./TripIncludedBlock";
 
@@ -59,32 +58,47 @@ const fmtDayHeader = (iso: string, lang: string) =>
 export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage }: Props) {
   const isTh = lang === "th";
 
-  // Day-grouped buckets — anchored on the longest LIVEABOARD/RESORT, with
-  // pre-trips landing on Day 0 / Day -1 etc. Liveaboard continuation days
-  // (no separate departure) appear as soft markers under the anchor card.
-  const buckets: DayBucket[] = useMemo(() => groupTripsByDay(trips), [trips]);
-
-  // Anchor liveaboard's parsed itinerary, keyed by 0-based day offset (Day 1 = idx 0).
-  const anchorItinerary = useMemo(() => {
-    const anchor = trips.find(t => (t.type === "LIVEABOARD" || t.type === "DIVE_RESORT") && t.schedule?.itinerary);
-    if (!anchor?.schedule?.itinerary) return [];
-    return parseItinerary(anchor.schedule.itinerary);
+  // Trip-first rendering — one card per trip in chronological order. The
+  // earlier "Day 1 / Day 2 / ..." outer-bucket structure proved confusing for
+  // liveaboards (a 4-day cruise rendered as one anchor + 3 dashed continuation
+  // cards, with the actual trip card buried under "Day 1"). Each TripSection
+  // now owns its own day-by-day timeline internally:
+  //  - LIVEABOARD/DIVE_RESORT → Day 1..N sub-timeline of the parsed itinerary
+  //    sits inside the trip card
+  //  - DAYTRIP/SNORKEL/etc → hour-by-hour Schedule section inside the card
+  const sortedScheduled = useMemo(() => {
+    return trips
+      .map((t, idx) => ({ trip: t, originalIdx: idx }))
+      .filter(({ trip }) => !!trip.schedule?.departureDate)
+      .sort((a, b) =>
+        a.trip.schedule!.departureDate.localeCompare(b.trip.schedule!.departureDate),
+      );
   }, [trips]);
 
   const unscheduled = trips
     .map((t, idx) => ({ trip: t, originalIdx: idx }))
     .filter(({ trip }) => !trip.schedule?.departureDate);
 
-  // Per-day overlap detection — flag the day if more than one different
-  // trip departs on it (rare but possible if user adds a daytrip mid-liveaboard).
-  const overlapDays = useMemo(() => {
-    const set = new Set<number>();
-    for (const b of buckets) {
-      const distinctTrips = new Set(b.trips.map(s => s.trip.boatId));
-      if (distinctTrips.size > 1) set.add(b.day);
+  // Detect calendar overlap between trips so we can warn the user when two
+  // trips would happen the same day. Compares date ranges (departure→return
+  // for liveaboard, single date for daytrip).
+  const overlappingTripIdx = useMemo(() => {
+    const flagged = new Set<number>();
+    const ranges = sortedScheduled.map(({ trip, originalIdx }) => {
+      const dep = (trip.schedule!.departureDate || "").slice(0, 10);
+      const ret = (trip.schedule!.returnDate || dep).slice(0, 10);
+      return { originalIdx, from: dep, to: ret };
+    });
+    for (let i = 0; i < ranges.length; i++) {
+      for (let j = i + 1; j < ranges.length; j++) {
+        if (ranges[i].from <= ranges[j].to && ranges[j].from <= ranges[i].to) {
+          flagged.add(ranges[i].originalIdx);
+          flagged.add(ranges[j].originalIdx);
+        }
+      }
     }
-    return set;
-  }, [buckets]);
+    return flagged;
+  }, [sortedScheduled]);
 
   if (trips.length === 0) return null;
 
@@ -97,19 +111,19 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
         }
       `}</style>
 
-      {buckets.length > 0 && (
+      {sortedScheduled.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {buckets.map((bucket, bIdx) => (
-            <DayBucketRow
-              key={`day-${bucket.day}`}
-              bucket={bucket}
-              anchorItineraryDay={anchorItinerary[bucket.day - 1]}
-              overlap={overlapDays.has(bucket.day)}
-              isLast={bIdx === buckets.length - 1}
+          {sortedScheduled.map(({ trip, originalIdx }, idx) => (
+            <TripSection
+              key={`${trip.boatId}-${trip.schedule!.scheduleId}-${originalIdx}`}
+              trip={trip}
+              originalIdx={originalIdx}
               planId={planId}
               lang={lang}
               canEdit={canEdit}
-              onTripRemoved={onTripRemoved}
+              overlap={overlappingTripIdx.has(originalIdx)}
+              isLast={idx === sortedScheduled.length - 1}
+              onRemoved={onTripRemoved}
               onAddPackage={onAddPackage}
             />
           ))}
@@ -117,7 +131,7 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
       )}
 
       {unscheduled.length > 0 && (
-        <div style={{ marginTop: buckets.length > 0 ? 20 : 0 }}>
+        <div style={{ marginTop: sortedScheduled.length > 0 ? 20 : 0 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
             {isTh ? "ยังไม่กำหนดวัน" : "Unscheduled"}
           </p>
@@ -135,173 +149,6 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
             ))}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-// ── Day bucket row ───────────────────────────────────────────────────────────
-function DayBucketRow({
-  bucket, anchorItineraryDay, overlap, isLast, planId, lang, canEdit, onTripRemoved, onAddPackage,
-}: {
-  bucket: DayBucket;
-  anchorItineraryDay: { heading: string; bodyHtml: string } | undefined;
-  overlap: boolean;
-  isLast: boolean;
-  planId: string;
-  lang: string;
-  canEdit: boolean;
-  onTripRemoved?: () => void;
-  onAddPackage?: (slug: string, departureDate?: string) => void;
-}) {
-  const isTh = lang === "th";
-  const [showItinerary, setShowItinerary] = useState(false);
-
-  // Show the operator's itinerary heading next to the day pill if we have one
-  // for this day AND the day belongs to the liveaboard span.
-  const itineraryHeading = bucket.isLiveaboardContinuation || bucket.trips.length > 0
-    ? anchorItineraryDay?.heading
-    : undefined;
-
-  return (
-    <div>
-      {/* Day header band */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: "6px 0 8px",
-        borderBottom: bucket.trips.length > 0 || bucket.isLiveaboardContinuation
-          ? "1px solid #1a1a1a" : "1px dashed #1a1a1a",
-        marginBottom: 10,
-      }}>
-        <div style={{
-          minWidth: 56, height: 28, borderRadius: 8, padding: "0 10px",
-          background: bucket.day === 1 ? "#1e3a8a" : bucket.day < 1 ? "#1f1f1f" : "#161616",
-          border: bucket.day === 1 ? "1px solid #1e40af" : "1px solid #2a2a2a",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12, fontWeight: 800,
-          color: bucket.day === 1 ? "#fff" : bucket.day < 1 ? "#888" : "#e5e5e5",
-          flexShrink: 0,
-        }}>
-          {bucket.day < 1 ? `Day ${bucket.day}` : `Day ${bucket.day}`}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: "#bbb", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {fmtDayHeader(bucket.date, lang)}
-            {itineraryHeading && (
-              <span style={{ color: "#666", fontWeight: 500 }}> · {itineraryHeading}</span>
-            )}
-          </p>
-          {bucket.day < 1 && (
-            <p style={{ fontSize: 10, color: "#555", margin: "1px 0 0", fontWeight: 600 }}>
-              {isTh ? "ก่อนทริปหลัก" : "Before main trip"}
-            </p>
-          )}
-        </div>
-        {overlap && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "conflictPulse 1.5s ease-in-out infinite", flexShrink: 0 }}>
-            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        )}
-      </div>
-
-      {/* Day body */}
-      {bucket.trips.length === 0 && bucket.isLiveaboardContinuation && (
-        <ContinuationCard
-          itineraryDay={anchorItineraryDay}
-          showItinerary={showItinerary}
-          onToggle={() => setShowItinerary(s => !s)}
-          lang={lang}
-        />
-      )}
-
-      {bucket.trips.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {bucket.trips.map(({ trip, originalIdx }) => (
-            <TripSection
-              key={`${trip.boatId}-${trip.schedule!.scheduleId}-${originalIdx}`}
-              trip={trip}
-              originalIdx={originalIdx}
-              planId={planId}
-              lang={lang}
-              canEdit={canEdit}
-              overlap={overlap}
-              isLast={isLast}
-              onRemoved={onTripRemoved}
-              onAddPackage={onAddPackage}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Liveaboard continuation card (day spans the anchor but no new departure) ─
-function ContinuationCard({
-  itineraryDay, showItinerary, onToggle, lang,
-}: {
-  itineraryDay: { heading: string; bodyHtml: string } | undefined;
-  showItinerary: boolean;
-  onToggle: () => void;
-  lang: string;
-}) {
-  const isTh = lang === "th";
-  const hasBody = !!itineraryDay?.bodyHtml;
-
-  return (
-    <div style={{
-      borderRadius: 10,
-      background: "#0d0d0d",
-      border: "1px dashed #222",
-      padding: hasBody ? 0 : "10px 14px",
-      color: "#666",
-      fontSize: 12,
-      fontWeight: 500,
-    }}>
-      {!hasBody ? (
-        <span>{isTh ? "อยู่บนเรือต่อเนื่อง" : "Liveaboard continues"}</span>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={onToggle}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              padding: "10px 14px",
-              background: "transparent",
-              border: "none",
-              color: "#888",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontFamily: "inherit",
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-            {showItinerary
-              ? (isTh ? "ซ่อนกิจกรรม" : "Hide activities")
-              : (isTh ? "กิจกรรมประจำวัน" : "Day activities")}
-          </button>
-          {showItinerary && (
-            <div style={{ padding: "0 14px 12px" }}>
-              <style>{`
-                .day-itin { font-size: 13px; color: #aaa; line-height: 1.65; }
-                .day-itin p { margin: 0 0 8px; }
-                .day-itin strong, .day-itin b { color: #ddd; font-weight: 700; }
-                .day-itin a { color: #60a5fa; text-decoration: underline; }
-              `}</style>
-              <div className="day-itin" dangerouslySetInnerHTML={{ __html: itineraryDay!.bodyHtml }} />
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -397,15 +244,18 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
   const isMultiDay = dayDates.length > 1;
   const isLiveaboard = trip.type === "LIVEABOARD" || trip.type === "DIVE_RESORT";
 
-  // Parse the operator's hour-by-hour itinerary so DAYTRIP/SNORKELING/FREEDIVE/
-  // LAND_TOUR cards can show "08:00 pickup → 10:30 dive 1 → 12:00 lunch ..."
-  // inline. Liveaboard/Resort cards skip this — their multi-day itinerary is
-  // already sliced across the day-bucket continuation cards above, so showing
-  // the full thing here would duplicate.
-  const itineraryDays = useMemo(
-    () => (!isLiveaboard ? parseItinerary(sched.itinerary) : []),
-    [sched.itinerary, isLiveaboard],
-  );
+  // Parse the operator's itinerary into day blocks. The same parser handles:
+  //  - DAYTRIP/SNORKEL/FREEDIVE: hour-by-hour timeline inside a single day
+  //    (e.g. "08:00 pickup → 10:30 dive 1 → 12:00 lunch")
+  //  - LIVEABOARD/RESORT: day-by-day cruise timeline (e.g. "Day 1 — Boarding /
+  //    Day 2 — Bon Island / ...") — operator writes one <h3> block per day
+  // For multi-day trips we ALSO compute a per-block date stamp (departureDate
+  // + index) so the user sees "Day 2 · 11 มิ.ย." not just "Day 2".
+  const itineraryDays = useMemo(() => parseItinerary(sched.itinerary), [sched.itinerary]);
+  const itineraryDayDates = useMemo(() => {
+    if (!isMultiDay) return [];
+    return itineraryDays.map((_, i) => dayDates[i] || dayDates[dayDates.length - 1]);
+  }, [itineraryDays, dayDates, isMultiDay]);
 
   const pkgKey = trip.schedule!.packages.map(p => p.name).join(",");
   useState(() => { /* init only */ });
@@ -544,32 +394,37 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
             </div>
           )}
 
-          {/* Hour-by-hour itinerary for non-liveaboard trips (operator-written) */}
+          {/* Itinerary timeline — day-by-day for liveaboards, hour-by-hour for daytrips */}
           {itineraryDays.length > 0 && (
             <div style={{ borderTop: "1px solid #1a1a1a" }}>
               <button
                 type="button"
                 onClick={() => setShowItinerary(s => !s)}
                 style={{
-                  width: "100%", padding: "8px 12px",
-                  background: "transparent", border: "none",
-                  color: "#888", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  width: "100%", padding: "10px 12px",
+                  background: showItinerary ? "rgba(30,58,138,0.12)" : "transparent",
+                  border: "none",
+                  color: showItinerary ? "#dbeafe" : "#a3a3a3",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 6,
                   fontFamily: "inherit",
+                  transition: "background 0.2s, color 0.2s",
                 }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                   style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
                 <span>
                   {showItinerary
-                    ? (isTh ? "ซ่อนกำหนดการ" : "Hide schedule")
-                    : (isTh ? `กำหนดการ (${itineraryDays.length} ช่วง)` : `Schedule (${itineraryDays.length} stops)`)}
+                    ? (isTh ? "ซ่อนกำหนดการ" : "Hide itinerary")
+                    : (isMultiDay
+                        ? (isTh ? `กำหนดการรายวัน (${itineraryDays.length} วัน)` : `Day-by-day itinerary (${itineraryDays.length} days)`)
+                        : (isTh ? `กำหนดการ (${itineraryDays.length} ช่วง)` : `Schedule (${itineraryDays.length} stops)`))}
                 </span>
               </button>
               {showItinerary && (
-                <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
                   <style>{`
                     .trip-itin-body { font-size: 13px; color: #b5b5b5; line-height: 1.65; }
                     .trip-itin-body p { margin: 0 0 6px; }
@@ -579,21 +434,56 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
                     .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
                     .trip-itin-body li { margin-bottom: 3px; }
                   `}</style>
-                  {itineraryDays.map((d, i) => (
-                    <div key={i} style={{
-                      borderLeft: "2px solid #1e3a8a",
-                      paddingLeft: 10,
-                    }}>
-                      {d.heading && (
-                        <p style={{ fontSize: 12, fontWeight: 800, color: "#dbeafe", margin: "0 0 4px" }}>
-                          {d.heading}
-                        </p>
-                      )}
-                      {d.bodyHtml && (
-                        <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
-                      )}
-                    </div>
-                  ))}
+                  {itineraryDays.map((d, i) => {
+                    const dayDate = itineraryDayDates[i];
+                    return (
+                      <div key={i} style={{
+                        position: "relative",
+                        paddingLeft: 22,
+                      }}>
+                        {/* Timeline dot + connector for multi-day */}
+                        <div style={{
+                          position: "absolute", left: 0, top: 4,
+                          width: 16, height: 16, borderRadius: "50%",
+                          background: isMultiDay ? "#1e3a8a" : "#3b82f6",
+                          border: "2px solid #060606",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 9, fontWeight: 900, color: "#dbeafe",
+                          zIndex: 2,
+                        }}>
+                          {isMultiDay ? i + 1 : ""}
+                        </div>
+                        {/* Vertical connector to next day */}
+                        {i < itineraryDays.length - 1 && (
+                          <div style={{
+                            position: "absolute", left: 7, top: 22, bottom: -12,
+                            width: 2, background: "#1e3a8a", opacity: 0.5,
+                            zIndex: 1,
+                          }} />
+                        )}
+                        {/* Day label */}
+                        {isMultiDay ? (
+                          <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            {isTh ? `วันที่ ${i + 1}` : `Day ${i + 1}`}
+                            {dayDate && <span style={{ color: "#666", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
+                          </p>
+                        ) : null}
+                        {d.heading && (
+                          <p style={{
+                            fontSize: isMultiDay ? 13 : 12,
+                            fontWeight: 800,
+                            color: isMultiDay ? "#e5e5e5" : "#dbeafe",
+                            margin: "0 0 4px",
+                          }}>
+                            {d.heading}
+                          </p>
+                        )}
+                        {d.bodyHtml && (
+                          <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
