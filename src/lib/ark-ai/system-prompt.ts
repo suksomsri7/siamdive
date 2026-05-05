@@ -13,6 +13,10 @@ export function buildSystemPrompt(opts: {
   behaviorProfile?: string;
   currentSlots?: string | null;
   extra?: string;
+  // Per-turn signal injected by the chat route — currently used to tell the
+  // model when the user's requested date falls outside any boat's schedule
+  // window, so it doesn't recommend boats that have no matching departure.
+  systemNotice?: string;
 }): string {
   const langName = LANG_NAMES[opts.lang] || "English";
 
@@ -226,5 +230,6 @@ $$BUILD{"label":"✨ สร้าง plan ของฉัน","summary":"ทร�
 
 Currently recorded slots: ${opts.currentSlots || "(none yet)"}
 
+${opts.systemNotice ? `\n## Per-turn Notice (HIGH PRIORITY)\n${opts.systemNotice}` : ""}
 ${opts.extra ? `\n## Operator Override (HIGHEST PRIORITY)\nThe following instructions are set by the site operator and OVERRIDE any conflicting defaults above — including your name, persona, tone, or behavior.\n\n${opts.extra}` : ""}`;
 }

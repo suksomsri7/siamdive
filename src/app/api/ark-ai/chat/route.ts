@@ -586,20 +586,35 @@ export async function POST(req: NextRequest) {
     searchBlogs(lang, 20),
   ]);
 
-  // If we narrowed the schedule window, restrict the boat list to only boats
-  // that have at least one schedule in the window. Otherwise the AI still
-  // sees the full catalog and may recommend a boat with no matching trip.
+  // If we narrowed the schedule window, hard-restrict the boat list to only
+  // boats with a schedule in that window — no fallback to the full catalog,
+  // because the catalog includes boats whose next departure is months away
+  // and the AI would happily pitch them as if they ran on the user's date.
+  let noTripsInWindow = false;
+  let nearbyAlternatives: typeof boatsAll = [];
+  if (scheduleFromDate) {
+    const matching = new Set(schedules.map(s => s.boatId));
+    const filtered = boatsAll.filter(b => matching.has(b.id));
+    if (filtered.length === 0) {
+      noTripsInWindow = true;
+      // Pull a wider ±14 day net so the AI can suggest alternative dates
+      // without inventing them.
+      const WIDE_DAYS = 14;
+      const wideFrom = new Date(scheduleFromDate.getTime() - (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
+      const wideTo = new Date(scheduleToDate!.getTime() + (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
+      const wideSchedules = await searchSchedules(lang, { fromDate: wideFrom, toDate: wideTo });
+      const wideMatching = new Set(wideSchedules.map(s => s.boatId));
+      nearbyAlternatives = boatsAll.filter(b => wideMatching.has(b.id));
+    }
+  }
   const boats = scheduleFromDate
-    ? (() => {
-        const matching = new Set(schedules.map(s => s.boatId));
-        const filtered = boatsAll.filter(b => matching.has(b.id));
-        // Keep at least the unfiltered list when nothing matches, so the AI
-        // can still propose alternatives instead of going silent.
-        return filtered.length ? filtered : boatsAll;
-      })()
+    ? (noTripsInWindow ? nearbyAlternatives : boatsAll.filter(b => new Set(schedules.map(s => s.boatId)).has(b.id)))
     : boatsAll;
 
   const ragContext = buildRagContext(boats, schedules, blogs, lastUserMsg);
+  const systemNotice = noTripsInWindow && initialSlots.dates?.from
+    ? `The user requested **${initialSlots.dates.label || initialSlots.dates.from}** but **no boats currently run a schedule within ±${SCHEDULE_WINDOW_DAYS} days of that date**. Tell the user honestly that no trips run on the requested date, then suggest the closest available departures from the Live Data list (widened to ±14 days). Do NOT pretend a boat departs on the requested date when its actual next schedule is days off.`
+    : undefined;
   const systemPrompt = buildSystemPrompt({
     lang,
     ragContext,
@@ -608,6 +623,7 @@ export async function POST(req: NextRequest) {
     behaviorProfile,
     currentSlots: formatSlotsForPrompt(initialSlots),
     extra: config.extra,
+    systemNotice,
   });
 
   // Track ARK_AI_PERSONALIZED when we actually injected a profile boost (fire-and-forget).
