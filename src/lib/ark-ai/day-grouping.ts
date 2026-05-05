@@ -34,13 +34,21 @@ export type DayBucket = {
 
 type Indexed = { trip: PlanTrip; originalIdx: number };
 
+// Plan-store schedules sometimes store departureDate as a full ISO datetime
+// ("2026-05-15T00:00:00.000Z") instead of a YYYY-MM-DD string — both shapes
+// are present in prod data. Normalize to date-only so the math below stays
+// correct regardless of which shape was persisted.
+function toDateOnly(s: string): string {
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 function daysBetween(a: string, b: string): number {
-  const ms = Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z");
+  const ms = Date.parse(toDateOnly(b) + "T00:00:00Z") - Date.parse(toDateOnly(a) + "T00:00:00Z");
   return Math.round(ms / 86_400_000);
 }
 
 function addDays(iso: string, n: number): string {
-  const d = new Date(iso + "T00:00:00Z");
+  const d = new Date(toDateOnly(iso) + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
@@ -110,7 +118,7 @@ export function groupTripsByDay(trips: PlanTrip[]): DayBucket[] {
     const isContinuation = anchorIsLiveaboard
       && day >= 2
       && day <= anchorSpan
-      && !list.some(s => s.trip.schedule!.departureDate === date);
+      && !list.some(s => toDateOnly(s.trip.schedule!.departureDate) === date);
     return {
       label: `Day ${day}`,
       day,
