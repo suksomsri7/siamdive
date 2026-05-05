@@ -591,30 +591,45 @@ export async function POST(req: NextRequest) {
   // because the catalog includes boats whose next departure is months away
   // and the AI would happily pitch them as if they ran on the user's date.
   let noTripsInWindow = false;
-  let nearbyAlternatives: typeof boatsAll = [];
+  let widenedBoats: typeof boatsAll = [];
+  let widenedSchedules: typeof schedules = [];
   if (scheduleFromDate) {
     const matching = new Set(schedules.map(s => s.boatId));
     const filtered = boatsAll.filter(b => matching.has(b.id));
     if (filtered.length === 0) {
       noTripsInWindow = true;
       // Pull a wider ±14 day net so the AI can suggest alternative dates
-      // without inventing them.
+      // (with their real departure dates) without inventing them.
       const WIDE_DAYS = 14;
       const wideFrom = new Date(scheduleFromDate.getTime() - (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
       const wideTo = new Date(scheduleToDate!.getTime() + (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
-      const wideSchedules = await searchSchedules(lang, { fromDate: wideFrom, toDate: wideTo });
-      const wideMatching = new Set(wideSchedules.map(s => s.boatId));
-      nearbyAlternatives = boatsAll.filter(b => wideMatching.has(b.id));
+      widenedSchedules = await searchSchedules(lang, { fromDate: wideFrom, toDate: wideTo });
+      const wideMatching = new Set(widenedSchedules.map(s => s.boatId));
+      widenedBoats = boatsAll.filter(b => wideMatching.has(b.id));
     }
   }
   const boats = scheduleFromDate
-    ? (noTripsInWindow ? nearbyAlternatives : boatsAll.filter(b => new Set(schedules.map(s => s.boatId)).has(b.id)))
+    ? (noTripsInWindow ? widenedBoats : boatsAll.filter(b => new Set(schedules.map(s => s.boatId)).has(b.id)))
     : boatsAll;
+  // When we widened, the schedules list passed to RAG must reflect the
+  // widened set so the AI can quote real alternative dates.
+  const ragSchedules = noTripsInWindow ? widenedSchedules : schedules;
 
-  const ragContext = buildRagContext(boats, schedules, blogs, lastUserMsg);
-  const systemNotice = noTripsInWindow && initialSlots.dates?.from
-    ? `The user requested **${initialSlots.dates.label || initialSlots.dates.from}** but **no boats currently run a schedule within ±${SCHEDULE_WINDOW_DAYS} days of that date**. Tell the user honestly that no trips run on the requested date, then suggest the closest available departures from the Live Data list (widened to ±14 days). Do NOT pretend a boat departs on the requested date when its actual next schedule is days off.`
-    : undefined;
+  let ragContext = buildRagContext(boats, ragSchedules, blogs, lastUserMsg);
+  if (noTripsInWindow && initialSlots.dates?.from) {
+    const reqLabel = initialSlots.dates.label || initialSlots.dates.from;
+    // Prepend a strict alert ABOVE the Live Data so the model can't ignore
+    // it. The Live Data section then contains the ±14d alternatives, with
+    // their actual schedule dates the model must quote (not fabricate).
+    ragContext =
+      `## ⚠️ Date Availability Alert (READ FIRST)\n` +
+      `The user asked for **${reqLabel}** but NO boats run within ±${SCHEDULE_WINDOW_DAYS} days of that date.\n` +
+      `The trip + schedule list below has been widened to ±14 days as **alternatives**. Do NOT claim any boat departs on ${reqLabel}. Instead:\n` +
+      `1. Open with: "ขออภัย วันที่ ${reqLabel} ไม่มีทริปที่ภูมิภาคนี้ครับ" (or equivalent in user's language).\n` +
+      `2. Recommend 2–3 boats from the alternatives list, **always quoting the real schedule departureDate from the Schedules section** (not the user's requested date).\n` +
+      `3. Ask if the user wants to shift dates to one of the available departures.\n\n` +
+      ragContext;
+  }
   const systemPrompt = buildSystemPrompt({
     lang,
     ragContext,
@@ -623,7 +638,6 @@ export async function POST(req: NextRequest) {
     behaviorProfile,
     currentSlots: formatSlotsForPrompt(initialSlots),
     extra: config.extra,
-    systemNotice,
   });
 
   // Track ARK_AI_PERSONALIZED when we actually injected a profile boost (fire-and-forget).
