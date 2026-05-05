@@ -7,7 +7,7 @@ import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
-import { setTripSelectedPackage, getPlans, upsertServerPlan, type UserPlan } from "@/lib/plan-store";
+import { setTripSelectedPackage, getPlans, getActivePlan, upsertServerPlan, type UserPlan } from "@/lib/plan-store";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -481,7 +481,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     const text = lang === "th"
       ? `เลือก package: ${packageName}${priceText} — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`
       : `Selected package: ${packageName}${priceText} — what else is missing in the plan?`;
-    sendMessage(text);
+    // Route through sendRef.current so we always invoke the LATEST
+    // sendMessage closure. Calling the captured sendMessage from this
+    // memoized callback used a stale `messages` array and wiped prior
+    // chat history on every package click.
+    sendRef.current?.(text);
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildPlan = useCallback(() => {
@@ -489,10 +493,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     if (!deviceId) return;
     const sessionIdHdr = readBrowserId("sd_sid");
 
-    // Snappier UX: close chat + open MyPlan in "building" mode IMMEDIATELY
-    // so the user sees progress, then run build-plan in the background.
-    // Resolution dispatches myplan-build-done / myplan-build-error which
-    // MyPlanScreen listens for to swap into PlanDetail or BuildErrorState.
+    // Fast path — user already curated trips through the chat picker.
+    // Their plan IS in localStorage with the exact schedule + package
+    // they picked. Skip the server auto-build entirely (which would race
+    // the debounced sync, ignore their selection, and replace it with
+    // top-N picks). Open the plan detail straight away.
+    const curated = getActivePlan() || getPlans().find(p => p.trips.length > 0);
+    if (curated && curated.trips.length > 0) {
+      onClose();
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId: curated.id } }));
+      }, 80);
+      return;
+    }
+
+    // Slow path — no manual picks yet, ask the server to auto-build.
+    // Open MyPlan in "building" mode so the user sees progress while we
+    // wait for /api/ark-ai/build-plan to resolve.
     onClose();
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));

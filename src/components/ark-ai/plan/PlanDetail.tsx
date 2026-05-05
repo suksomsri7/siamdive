@@ -52,16 +52,42 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const isTh = lang === "th";
 
   const fetchPlan = useCallback(async () => {
+    let data: PlanData | null = null;
     try {
       const res = await fetch(`/api/plans/${planId}?deviceId=${encodeURIComponent(deviceId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const local = getPlans().find((p) => p.id === planId);
-        if (local) data.trips = local.trips;
-        setPlan(data);
-        setNameValue(data.name);
-      }
+      if (res.ok) data = await res.json();
     } catch {}
+
+    // Fallback: server 404 / network error / sync still pending. Build a
+    // synthetic plan view from the local store so the user isn't stuck on
+    // a blank loader after creating a plan via the chat picker. Edit /
+    // delete continue to work because they already operate on localStorage.
+    if (!data) {
+      const local = getPlans().find((p) => p.id === planId);
+      if (local) {
+        data = {
+          id: local.id,
+          shortId: local.id,
+          name: local.name,
+          coverUrl: local.coverUrl ?? null,
+          status: "PLANNING",
+          trips: local.trips,
+          role: "OWNER",
+          owner: { email: getSavedEmail(), name: null },
+          members: [], media: [], checklists: [], chatCount: 0,
+        };
+      }
+    } else {
+      // Server responded — but localStorage is the source of truth for
+      // very recent edits, so prefer its trip list when present.
+      const local = getPlans().find((p) => p.id === planId);
+      if (local) data.trips = local.trips;
+    }
+
+    if (data) {
+      setPlan(data);
+      setNameValue(data.name);
+    }
   }, [planId, deviceId]);
 
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
