@@ -615,20 +615,37 @@ export async function POST(req: NextRequest) {
   // widened set so the AI can quote real alternative dates.
   const ragSchedules = noTripsInWindow ? widenedSchedules : schedules;
 
-  let ragContext = buildRagContext(boats, ragSchedules, blogs, lastUserMsg);
+  let ragContext: string;
   if (noTripsInWindow && initialSlots.dates?.from) {
     const reqLabel = initialSlots.dates.label || initialSlots.dates.from;
-    // Prepend a strict alert ABOVE the Live Data so the model can't ignore
-    // it. The Live Data section then contains the ±14d alternatives, with
-    // their actual schedule dates the model must quote (not fabricate).
+    // Don't even hand the model a "## Available Trips/Boats" section in this
+    // case. Show only an alternatives list grouped by boat with real
+    // departure dates so the model can't pitch a $$TRIP$$ card as if it ran
+    // on the user's date. The model is told (in the alert + Output Rules)
+    // to NOT emit $$TRIP$$ here — text-only with alt dates.
+    const altBoats = boats.slice(0, 6);
+    const altLines = altBoats.map(b => {
+      const datesForBoat = ragSchedules
+        .filter(s => s.boatId === b.id && s.status === "OPEN")
+        .map(s => s.departureDate)
+        .filter(Boolean)
+        .slice(0, 5)
+        .join(", ");
+      return `- ${b.title} (${b.area}) — boatSlug: "${b.slug}" — available departures: ${datesForBoat || "(check direct)"}`;
+    }).join("\n");
+
     ragContext =
-      `## ⚠️ Date Availability Alert (READ FIRST)\n` +
+      `## ⚠️ DATE UNAVAILABLE — STRICT MODE (READ FIRST, OVERRIDES RULE 7)\n` +
       `The user asked for **${reqLabel}** but NO boats run within ±${SCHEDULE_WINDOW_DAYS} days of that date.\n` +
-      `The trip + schedule list below has been widened to ±14 days as **alternatives**. Do NOT claim any boat departs on ${reqLabel}. Instead:\n` +
-      `1. Open with: "ขออภัย วันที่ ${reqLabel} ไม่มีทริปที่ภูมิภาคนี้ครับ" (or equivalent in user's language).\n` +
-      `2. Recommend 2–3 boats from the alternatives list, **always quoting the real schedule departureDate from the Schedules section** (not the user's requested date).\n` +
-      `3. Ask if the user wants to shift dates to one of the available departures.\n\n` +
-      ragContext;
+      `**RULE 7 ($$TRIP$$ cards) IS SUSPENDED for this turn.** Do NOT emit any $$TRIP$$ marker.\n` +
+      `Instead, reply in plain text only:\n` +
+      `1. First sentence: apologize that ${reqLabel} has no trips in the requested region.\n` +
+      `2. List the closest 2–4 alternative DEPARTURE DATES from the table below as bullet points (boat name + the real date — do NOT use ${reqLabel}).\n` +
+      `3. End with: "อยากเลื่อนวันมาเป็นวันไหนดีครับ?" (or the same question in the user's language).\n` +
+      `Do NOT say "มีทริปวันที่ ${reqLabel}" / "there are trips on ${reqLabel}". Do NOT emit $$ASK$$ buttons.\n\n` +
+      `## Alternative Departures (NEAR the requested date — NOT ON it)\n${altLines || "(no alternatives within ±14 days)"}\n`;
+  } else {
+    ragContext = buildRagContext(boats, ragSchedules, blogs, lastUserMsg);
   }
   const systemPrompt = buildSystemPrompt({
     lang,
