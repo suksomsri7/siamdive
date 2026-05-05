@@ -160,16 +160,35 @@ export function extractDateHint(text: string, now: Date = new Date()): DateHint 
     if (d) return { from: d };
   }
 
-  // 3. Thai abbreviation: "23 พ.ค." / "23 พ.ค. 2026"
-  const thAbbr = text.match(/(\d{1,2})\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)\s*(\d{4})?/);
+  // 3. Thai abbreviation: "23 พ.ค." / "23 พ.ค. 2026" / "23 พค" / "23พค."
+  // Real users skip the dots constantly. Accept optional dot after each
+  // consonant, optional spaces. We canonicalize by stripping non-letters
+  // before lookup. Word boundary matters less in Thai — anchor on the
+  // digit + optional space + 1-3 Thai consonants from the month set.
+  const thAbbrLetters = "มคกพมีคเมยพคมิยกคสคกยตคพยธค"; // letters that appear in TH abbr months
+  const thAbbrRe = new RegExp(
+    `(?:วันที่\\s*)?(\\d{1,2})\\s*(ม\\.?\\s*ค\\.?|ก\\.?\\s*พ\\.?|มี\\.?\\s*ค\\.?|เม\\.?\\s*ย\\.?|พ\\.?\\s*ค\\.?|มิ\\.?\\s*ย\\.?|ก\\.?\\s*ค\\.?|ส\\.?\\s*ค\\.?|ก\\.?\\s*ย\\.?|ต\\.?\\s*ค\\.?|พ\\.?\\s*ย\\.?|ธ\\.?\\s*ค\\.?)\\s*(\\d{4})?`
+  );
+  void thAbbrLetters;
+  const thAbbr = text.match(thAbbrRe);
   if (thAbbr) {
     const day = +thAbbr[1];
-    const month = TH_MONTHS[thAbbr[2]];
-    let year = thAbbr[3] ? +thAbbr[3] : pickYear(now, month, day);
-    // Normalize Buddhist-Era years (e.g. 2569) to Gregorian.
-    if (year > 2400) year -= 543;
-    const d = isoFrom(year, month, day);
-    if (d) return { from: d, label: `${day} ${thAbbr[2]} ${year}` };
+    // Canonicalize the month token by stripping dots + whitespace, then
+    // re-inserting dots so it matches our TH_MONTHS keys ("พ.ค.").
+    const stripped = thAbbr[2].replace(/[\s.]/g, "");
+    const canonical = stripped.length === 2
+      ? `${stripped[0]}.${stripped[1]}.`
+      : stripped.length === 3
+        ? `${stripped[0]}${stripped[1]}.${stripped[2]}.` // มีค → มี.ค., เมย → เม.ย.
+        : stripped;
+    const month = TH_MONTHS[canonical];
+    if (month) {
+      let year = thAbbr[3] ? +thAbbr[3] : pickYear(now, month, day);
+      // Normalize Buddhist-Era years (e.g. 2569) to Gregorian.
+      if (year > 2400) year -= 543;
+      const d = isoFrom(year, month, day);
+      if (d) return { from: d, label: `${day} ${canonical} ${year}` };
+    }
   }
 
   // 4. Thai full month name

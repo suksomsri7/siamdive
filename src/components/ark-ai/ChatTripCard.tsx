@@ -50,7 +50,9 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (inPlan) return;
+    // Don't bail when inPlan — the boat may already have one schedule in the
+    // plan, but the user may want to add a different date. The picker dedupes
+    // per-scheduleId, so opening it again is safe and shows the existing add.
     if (onSelectTrip) {
       onSelectTrip({ boatId, title, slug, type, area, cover: imgSrc });
     }
@@ -97,31 +99,46 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
       {/* Add to plan button — prominent */}
       <button
         onClick={handleAdd}
-        disabled={inPlan}
+        title={inPlan ? "เพิ่มวันอื่น" : "เพิ่มเข้าทริป"}
         style={{
           position: "absolute", top: 4, right: 4,
           width: 28, height: 28,
           borderRadius: "50%",
-          border: inPlan ? "2px solid rgba(74,222,128,0.6)" : "2px solid rgba(255,255,255,0.5)",
-          cursor: inPlan ? "default" : "pointer",
-          background: inPlan ? "rgba(74,222,128,0.85)" : "rgba(59,130,246,0.85)",
+          border: "2px solid rgba(255,255,255,0.5)",
+          cursor: "pointer",
+          background: "rgba(59,130,246,0.85)",
           backdropFilter: "blur(4px)",
           color: "#fff",
           fontSize: 16,
           fontWeight: 700,
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "transform 0.15s, background 0.15s",
-          boxShadow: inPlan ? "none" : "0 2px 8px rgba(59,130,246,0.4)",
+          boxShadow: "0 2px 8px rgba(59,130,246,0.4)",
         }}
-        onMouseEnter={e => { if (!inPlan) e.currentTarget.style.transform = "scale(1.15)"; }}
+        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.15)"; }}
         onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
       >
-        {inPlan ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        )}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
+
+      {/* Subtle "already in plan" dot — visible status without blocking
+          the add button. Sits under the + so it can't be confused with
+          the action target. */}
+      {inPlan && (
+        <div
+          aria-label="already in plan"
+          style={{
+            position: "absolute", top: 36, right: 8,
+            width: 14, height: 14, borderRadius: "50%",
+            background: "rgba(74,222,128,0.95)",
+            border: "1.5px solid rgba(255,255,255,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+          }}
+        >
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      )}
 
       {/* Bottom info */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 8px 10px" }}>
