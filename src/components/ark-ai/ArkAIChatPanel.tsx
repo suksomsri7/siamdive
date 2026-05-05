@@ -461,16 +461,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         if (trip) { boatId = trip.boatId; scheduleId = trip.schedule?.scheduleId; break; }
       }
     }
-    if (!boatId) return;
 
-    const result = setTripSelectedPackage(boatId, scheduleId, packageName);
-    if (!result) return;
-
+    // Always reflect the choice in the UI + ping the AI, even when the
+    // user hasn't added a schedule for this boat yet. The previous
+    // `if (!boatId) return` made the click silently fail when the AI
+    // surfaced $$PACKAGES$$ before the user had picked a schedule.
     setSelectedPackages(prev => ({ ...prev, [boatTitle]: packageName }));
 
-    const priceText = result.minPrice > 0
-      ? (lang === "th" ? ` (เริ่ม ${result.minPrice.toLocaleString()} บาท/คน)` : ` (from ${result.minPrice.toLocaleString()} THB/person)`)
-      : "";
+    let priceText = "";
+    if (boatId) {
+      const result = setTripSelectedPackage(boatId, scheduleId, packageName);
+      if (result && result.minPrice > 0) {
+        priceText = lang === "th"
+          ? ` (เริ่ม ${result.minPrice.toLocaleString()} บาท/คน)`
+          : ` (from ${result.minPrice.toLocaleString()} THB/person)`;
+      }
+    }
+
     const text = lang === "th"
       ? `เลือก package: ${packageName}${priceText} — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`
       : `Selected package: ${packageName}${priceText} — what else is missing in the plan?`;
