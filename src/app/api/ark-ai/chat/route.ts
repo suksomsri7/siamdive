@@ -601,11 +601,16 @@ export async function POST(req: NextRequest) {
   // boats with a schedule in that window — no fallback to the full catalog,
   // because the catalog includes boats whose next departure is months away
   // and the AI would happily pitch them as if they ran on the user's date.
+  // Only OPEN schedules count as "available" — searchSchedules returns
+  // both OPEN and FULL (so the AI can warn about full dates), but we
+  // shouldn't recommend a boat whose only matching departure is already
+  // sold out.
+  const isBookable = (s: typeof schedules[number]) => s.status === "OPEN";
   let noTripsInWindow = false;
   let widenedBoats: typeof boatsAll = [];
   let widenedSchedules: typeof schedules = [];
   if (scheduleFromDate) {
-    const matching = new Set(schedules.map(s => s.boatId));
+    const matching = new Set(schedules.filter(isBookable).map(s => s.boatId));
     const filtered = boatsAll.filter(b => matching.has(b.id));
     if (filtered.length === 0) {
       noTripsInWindow = true;
@@ -615,12 +620,12 @@ export async function POST(req: NextRequest) {
       const wideFrom = new Date(scheduleFromDate.getTime() - (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
       const wideTo = new Date(scheduleToDate!.getTime() + (WIDE_DAYS - SCHEDULE_WINDOW_DAYS) * 86_400_000);
       widenedSchedules = await searchSchedules(lang, { fromDate: wideFrom, toDate: wideTo });
-      const wideMatching = new Set(widenedSchedules.map(s => s.boatId));
+      const wideMatching = new Set(widenedSchedules.filter(isBookable).map(s => s.boatId));
       widenedBoats = boatsAll.filter(b => wideMatching.has(b.id));
     }
   }
   const boats = scheduleFromDate
-    ? (noTripsInWindow ? widenedBoats : boatsAll.filter(b => new Set(schedules.map(s => s.boatId)).has(b.id)))
+    ? (noTripsInWindow ? widenedBoats : boatsAll.filter(b => new Set(schedules.filter(isBookable).map(s => s.boatId)).has(b.id)))
     : boatsAll;
   // When we widened, the schedules list passed to RAG must reflect the
   // widened set so the AI can quote real alternative dates.
