@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary } from "@/lib/ark-ai/itinerary-parser";
-import TripIncludedBlock from "./TripIncludedBlock";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -81,23 +80,30 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
 
   // Detect calendar overlap between trips so we can warn the user when two
   // trips would happen the same day. Compares date ranges (departure→return
-  // for liveaboard, single date for daytrip).
-  const overlappingTripIdx = useMemo(() => {
-    const flagged = new Set<number>();
-    const ranges = sortedScheduled.map(({ trip, originalIdx }) => {
-      const dep = (trip.schedule!.departureDate || "").slice(0, 10);
-      const ret = (trip.schedule!.returnDate || dep).slice(0, 10);
-      return { originalIdx, from: dep, to: ret };
-    });
+  // for liveaboard, single date for daytrip). Returns a map of trip-idx →
+  // names of the OTHER trips it conflicts with, so the inline warning can
+  // say exactly "ชนกับ <ชื่อทริป> (<ช่วงวัน>)".
+  const conflictsByTripIdx = useMemo(() => {
+    const conflicts = new Map<number, { title: string; from: string; to: string }[]>();
+    const ranges = sortedScheduled.map(({ trip, originalIdx }) => ({
+      originalIdx,
+      title: trip.title,
+      from: (trip.schedule!.departureDate || "").slice(0, 10),
+      to: (trip.schedule!.returnDate || trip.schedule!.departureDate || "").slice(0, 10),
+    }));
     for (let i = 0; i < ranges.length; i++) {
       for (let j = i + 1; j < ranges.length; j++) {
         if (ranges[i].from <= ranges[j].to && ranges[j].from <= ranges[i].to) {
-          flagged.add(ranges[i].originalIdx);
-          flagged.add(ranges[j].originalIdx);
+          const li = conflicts.get(ranges[i].originalIdx) || [];
+          li.push({ title: ranges[j].title, from: ranges[j].from, to: ranges[j].to });
+          conflicts.set(ranges[i].originalIdx, li);
+          const lj = conflicts.get(ranges[j].originalIdx) || [];
+          lj.push({ title: ranges[i].title, from: ranges[i].from, to: ranges[i].to });
+          conflicts.set(ranges[j].originalIdx, lj);
         }
       }
     }
-    return flagged;
+    return conflicts;
   }, [sortedScheduled]);
 
   if (trips.length === 0) return null;
@@ -121,7 +127,8 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
               planId={planId}
               lang={lang}
               canEdit={canEdit}
-              overlap={overlappingTripIdx.has(originalIdx)}
+              overlap={conflictsByTripIdx.has(originalIdx)}
+              conflicts={conflictsByTripIdx.get(originalIdx)}
               isLast={idx === sortedScheduled.length - 1}
               onRemoved={onTripRemoved}
               onAddPackage={onAddPackage}
@@ -227,15 +234,20 @@ function PackageRow({ pkg, index, canEdit, onChange, onRemove }: {
 }
 
 // ── Trip section (scheduled) ─────────────────────────────────────────────────
-function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemoved, onAddPackage }: {
+function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, conflicts, onRemoved, onAddPackage }: {
   trip: PlanTrip; originalIdx: number; planId: string; lang: string; canEdit: boolean;
-  overlap: boolean; isLast: boolean; onRemoved?: () => void; onAddPackage?: (slug: string, departureDate?: string) => void;
+  overlap: boolean;
+  conflicts?: { title: string; from: string; to: string }[];
+  isLast: boolean; onRemoved?: () => void; onAddPackage?: (slug: string, departureDate?: string) => void;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteValue, setNoteValue] = useState(trip.note || "");
   const [pkgs, setPkgs] = useState(trip.schedule!.packages);
-  const [expanded, setExpanded] = useState(false);
-  const [showItinerary, setShowItinerary] = useState(false);
+  // Both itinerary AND details expanded by default — user feedback: real
+  // operator-written data should surface immediately, not hide behind toggles.
+  // Synthetic template content is removed entirely; only operator data shows.
+  const [expanded, setExpanded] = useState(true);
+  const [showItinerary, setShowItinerary] = useState(true);
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const isTh = lang === "th";
@@ -251,6 +263,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
   //    Day 2 — Bon Island / ...") — operator writes one <h3> block per day
   // For multi-day trips we ALSO compute a per-block date stamp (departureDate
   // + index) so the user sees "Day 2 · 11 มิ.ย." not just "Day 2".
+  //
+  // NEVER fabricate. When schedule.itinerary is empty (the case for all 169
+  // prod DAYTRIP schedules), the section hides cleanly and points the user to
+  // the rich "ดูรายละเอียด" expand below — that data is operator-authentic.
   const itineraryDays = useMemo(() => parseItinerary(sched.itinerary), [sched.itinerary]);
   const itineraryDayDates = useMemo(() => {
     if (!isMultiDay) return [];
@@ -281,6 +297,13 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
   useEffect(() => {
     setDetail(null);
   }, [lang]);
+
+  // Auto-fetch on mount (and on lang change) since the detail section is now
+  // expanded by default — user wants operator's real schedule.content visible
+  // immediately, not after clicking a toggle.
+  useEffect(() => {
+    if (expanded && !detail && !detailLoading) fetchDetail();
+  }, [expanded, detail, detailLoading, fetchDetail]);
 
   const handleToggle = () => {
     if (!expanded) fetchDetail();
@@ -360,6 +383,55 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
               </button>
             )}
           </div>
+
+          {/* Date conflict warning — names the colliding trip(s) explicitly */}
+          {conflicts && conflicts.length > 0 && (
+            <div style={{
+              margin: "0 12px 10px",
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              display: "flex", alignItems: "flex-start", gap: 8,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 800, color: "#fca5a5", margin: "0 0 4px" }}>
+                  {isTh ? "วันชนกับทริปอื่น" : "Date conflict with another trip"}
+                </p>
+                {conflicts.map((c, ci) => {
+                  const range = c.from === c.to
+                    ? fmtDate(c.from, lang)
+                    : `${fmtDate(c.from, lang)} → ${fmtDate(c.to, lang)}`;
+                  return (
+                    <p key={ci} style={{ fontSize: 12, color: "#fecaca", margin: "0 0 2px", lineHeight: 1.4 }}>
+                      • <strong style={{ color: "#fff" }}>{c.title}</strong> ({range})
+                    </p>
+                  );
+                })}
+                <p style={{ fontSize: 11, color: "#a78c8c", margin: "6px 0 0", lineHeight: 1.4 }}>
+                  {isTh
+                    ? "ดำน้ำ 2 ที่พร้อมกันในวันเดียวไม่ได้ — กดเลื่อนวันที่ของทริปนี้ หรือเอาออกถ้าไม่จำเป็น"
+                    : "Can't be on two trips the same day — change this trip's date or remove it if not needed"}
+                </p>
+              </div>
+              {canEdit && (
+                <button onClick={handleRemove}
+                  style={{
+                    padding: "4px 10px", borderRadius: 6,
+                    border: "1px solid rgba(239,68,68,0.4)",
+                    background: "rgba(239,68,68,0.12)",
+                    color: "#fca5a5", fontSize: 11, fontWeight: 700,
+                    cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+                  }}>
+                  {isTh ? "เอาออก" : "Remove"}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Route (collapsed) */}
           {!expanded && sched.route && (
@@ -488,13 +560,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
               )}
             </div>
           )}
-
-          {/* Included / Not included — operator-aware fallback list */}
-          <TripIncludedBlock
-            tripType={trip.type}
-            operatorContentHtml={detail?.schedule?.content}
-            lang={lang}
-          />
 
           {/* Expand/collapse toggle */}
           <button

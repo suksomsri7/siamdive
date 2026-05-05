@@ -34,7 +34,10 @@ function operatorMentionsIncluded(html: string | null | undefined): boolean {
 }
 
 export default function TripIncludedBlock({ tripType, cert = "ow", operatorContentHtml, lang }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  // Expanded by default — user feedback round 2: "include / exclude ให้
+  // expand เลยไม่ต้องย่อ". The list is part of trip planning, not a detail
+  // they hunt for behind a toggle.
+  const [expanded, setExpanded] = useState(true);
   const isTh = lang === "th";
 
   const showFallback = !operatorMentionsIncluded(operatorContentHtml);

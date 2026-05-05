@@ -120,7 +120,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
 
   const buildEnrichedTrip = (schedule: Schedule): Omit<PlanTrip, "addedAt"> => {
     const st = pick(schedule.translations, lang);
-    const pkgInfo = schedule.packages.map(sp => {
+    const allPkgInfo = schedule.packages.map(sp => {
       const pkg = boat?.packages.find(p => p.id === sp.packageId);
       const pt = pkg ? pick(pkg.translations, lang) : null;
       const tiers = sp.priceTiers?.length ? sp.priceTiers : (pkg?.priceTiers || []);
@@ -128,6 +128,11 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
       const minPrice = prices.length ? Math.min(...prices) : 0;
       return { name: pt?.title || pkg?.name || "Package", minPrice };
     });
+    // Default to the FIRST package (operators typically list their flagship
+    // first). Showing all packages on the plan card confuses users who
+    // already think "selecting the schedule = selecting the trip". They
+    // can swap or add more via the plan UI's "Add Package" / chat picker.
+    const pkgInfo = allPkgInfo.length > 0 ? [allPkgInfo[0]] : [];
 
     return {
       boatId, title, slug, type, area, cover,

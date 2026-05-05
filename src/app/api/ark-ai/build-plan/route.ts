@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
           return packageIsSnorkelFriendly(tiers, title);
         })
       : s.packages;
-    const pkgs = filteredPackages.map(sp => {
+    const allPkgs = filteredPackages.map(sp => {
       const pt = pickByLang(sp.package.translations, lang);
       const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
       const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
@@ -200,6 +200,11 @@ export async function POST(req: NextRequest) {
         minPrice: prices.length ? Math.min(...prices) : 0,
       };
     });
+    // Default to the first package only — same UX rule as TripSchedulePicker.
+    // The auto-built plan shouldn't dump 5 packages on the user's first view;
+    // they already trusted us to pick the trip, give them a sane default and
+    // let them swap via plan UI if needed.
+    const pkgs = allPkgs.length > 0 ? [allPkgs[0]] : [];
     return {
       boatId: s.boat.id,
       title: bt?.title || s.boat.name,

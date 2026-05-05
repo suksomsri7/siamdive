@@ -45,3 +45,4 @@ export function parseItinerary(html: string | null | undefined): ItineraryDay[] 
   }
   return out;
 }
+
