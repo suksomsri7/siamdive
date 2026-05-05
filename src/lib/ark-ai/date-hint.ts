@@ -219,6 +219,26 @@ export function extractDateHint(text: string, now: Date = new Date()): DateHint 
     if (d) return { from: d };
   }
 
+  // 5b. Bare "วันที่ X" (no month, no "เดือนนี้") → infer current month if
+  // day still in the future, else next month. Real users frequently type
+  // "ภูเก็ตวันที่ 23" assuming the AI knows what month they mean. Without
+  // this branch, the regex returns null and the chat route hands the AI
+  // the full catalog including boats with no schedule that day.
+  const thBareDay = text.match(/วันที่\s*(\d{1,2})\b(?!\s*[\/\-\.])/);
+  if (thBareDay) {
+    const day = +thBareDay[1];
+    if (day >= 1 && day <= 31) {
+      let month = todayM;
+      let year = todayY;
+      if (day < todayD) {
+        month = todayM === 12 ? 1 : todayM + 1;
+        year = todayM === 12 ? todayY + 1 : todayY;
+      }
+      const d = isoFrom(year, month, day);
+      if (d) return { from: d, label: `วันที่ ${day}` };
+    }
+  }
+
   // 6. English: "May 23" or "23 May" with optional year
   const enMd = lower.match(/\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s+(\d{1,2})(?:[, ]\s*(\d{4}))?\b/);
   if (enMd) {
