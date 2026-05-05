@@ -68,6 +68,7 @@ export default function Navbar() {
   const [arkOpen,        setArkOpen]        = useState(false);
   const [planOpen,       setPlanOpen]       = useState(false);
   const [planInitialId,  setPlanInitialId]  = useState<string | null>(null);
+  const [planBuilding,   setPlanBuilding]   = useState(false);
   const [contactOpen,    setContactOpen]    = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
 
@@ -98,13 +99,24 @@ export default function Navbar() {
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      const detail = (e as CustomEvent<{ planId?: string; building?: boolean }>).detail;
       setPlanInitialId(detail?.planId ?? null);
+      setPlanBuilding(!!detail?.building);
       setPlanOpen(true);
       setArkOpen(false);
     };
     window.addEventListener("open-myplan", handler);
-    return () => window.removeEventListener("open-myplan", handler);
+    // Build resolved (or failed) — clear the parent-level building flag
+    // so MyPlanScreen falls back to its normal state instead of being
+    // stuck in the progress overlay.
+    const onResolved = () => setPlanBuilding(false);
+    window.addEventListener("myplan-build-done", onResolved);
+    window.addEventListener("myplan-build-error", onResolved);
+    return () => {
+      window.removeEventListener("open-myplan", handler);
+      window.removeEventListener("myplan-build-done", onResolved);
+      window.removeEventListener("myplan-build-error", onResolved);
+    };
   }, []);
 
   const currentLang = LANGS.find(l => l.code === lang)!;
@@ -228,7 +240,7 @@ export default function Navbar() {
       </header>
 
       <ArkAIChatPanel open={arkOpen} onClose={() => setArkOpen(false)} />
-      <MyPlanScreen open={planOpen} onClose={() => { setPlanOpen(false); setPlanInitialId(null); }} lang={lang} initialPlanId={planInitialId} />
+      <MyPlanScreen open={planOpen} onClose={() => { setPlanOpen(false); setPlanInitialId(null); setPlanBuilding(false); }} lang={lang} initialPlanId={planInitialId} buildingPlan={planBuilding} />
     </>
   );
 }

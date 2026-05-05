@@ -39,6 +39,42 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "incomplete_slots", slots }, { status: 400 });
   }
 
+  // If the user has already curated trips through the chat picker, that
+  // IS their plan — don't auto-build a competing one. Return the most
+  // recent PLANNING plan with at least one trip and let the client open
+  // it directly. Stops the "MyPlan shows trips I didn't pick" complaint.
+  const existingUser = await prisma.planUser.findUnique({ where: { deviceId } });
+  if (existingUser) {
+    const existingPlan = await prisma.userPlan.findFirst({
+      where: { userId: existingUser.id, status: "PLANNING" },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (existingPlan) {
+      const existingTrips = Array.isArray(existingPlan.trips) ? existingPlan.trips : [];
+      if (existingTrips.length > 0) {
+        return Response.json({
+          shortId: existingPlan.shortId,
+          name: existingPlan.name,
+          trips: existingTrips,
+          blogs: [],
+          warnings: [],
+          reused: true,
+          redirect: `/${lang}/plan/${existingPlan.shortId}`,
+          plan: {
+            id: existingPlan.id,
+            shortId: existingPlan.shortId,
+            name: existingPlan.name,
+            coverUrl: existingPlan.coverUrl,
+            startDate: null,
+            trips: existingTrips,
+            createdAt: existingPlan.createdAt.toISOString(),
+            updatedAt: existingPlan.updatedAt.toISOString(),
+          },
+        });
+      }
+    }
+  }
+
   const dates = slots.dates!;
   const region = slots.region!;
   const cert = lowestCert(slots.certs);
@@ -98,14 +134,49 @@ export async function POST(req: NextRequest) {
       }))
     : inRegion;
 
-  const topPicks = certFiltered
+  // Pick a single best-fit trip instead of "top 3 alternatives". The
+  // earlier slice(0,3) crammed three competing options (often a
+  // multi-day liveaboard PLUS two daytrips on the same departure date)
+  // into one plan — physically impossible to do them all and confusing
+  // for the user. Selection rules:
+  //   1. Sort by date proximity first, then by trip type preference
+  //      (LIVEABOARD wins over DAYTRIP when both are equally close —
+  //      it covers the whole vacation in one go).
+  //   2. Take the top match. If it's a LIVEABOARD, stop there — the
+  //      multi-day departure already fills the trip window.
+  //   3. If it's a DAYTRIP, allow up to 2 more daytrips on DISTINCT
+  //      departure dates so multi-day vacations get a real itinerary.
+  const TYPE_RANK: Record<string, number> = {
+    LIVEABOARD: 0,
+    DIVE_RESORT: 1,
+    DAYTRIP: 2,
+    SNORKELING: 2,
+  };
+  const ranked = certFiltered
     .map(s => ({
       s,
       score: dateProximity(s.departureDate?.toISOString().slice(0, 10) || null, dates.from, dates.to),
+      typeRank: TYPE_RANK[s.boat.type] ?? 9,
     }))
     .filter(({ score }) => Number.isFinite(score))
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3);
+    .sort((a, b) => a.score - b.score || a.typeRank - b.typeRank);
+
+  const topPicks: typeof ranked = [];
+  for (const cand of ranked) {
+    if (topPicks.length === 0) {
+      topPicks.push(cand);
+      if (cand.s.boat.type === "LIVEABOARD" || cand.s.boat.type === "DIVE_RESORT") break;
+      continue;
+    }
+    if (topPicks.length >= 3) break;
+    // Only stack additional DAYTRIPs and only on DISTINCT departure dates,
+    // never alongside a liveaboard.
+    if (cand.s.boat.type !== "DAYTRIP" && cand.s.boat.type !== "SNORKELING") continue;
+    if (topPicks.some(p => p.s.boat.type === "LIVEABOARD" || p.s.boat.type === "DIVE_RESORT")) break;
+    const candDate = cand.s.departureDate?.toISOString().slice(0, 10) || "";
+    if (topPicks.some(p => (p.s.departureDate?.toISOString().slice(0, 10) || "") === candDate)) continue;
+    topPicks.push(cand);
+  }
 
   const trips = topPicks.map(({ s }) => {
     const bt = pickByLang(s.boat.translations, lang);

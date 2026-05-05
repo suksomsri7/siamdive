@@ -5,13 +5,25 @@ import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 
-type Props = { open: boolean; onClose: () => void; lang: string; initialPlanId?: string | null };
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  lang: string;
+  initialPlanId?: string | null;
+  // When the chat fires "Build my plan", we open this drawer immediately
+  // and show a progress overlay while build-plan runs in the background.
+  // The chat dispatches "myplan-build-done" on success (with the new planId)
+  // or "myplan-build-error" with a reason list for the user to react to.
+  buildingPlan?: boolean;
+};
 
-export default function MyPlanScreen({ open, onClose, lang, initialPlanId }: Props) {
+export default function MyPlanScreen({ open, onClose, lang, initialPlanId, buildingPlan }: Props) {
   const [plans, setPlans] = useState<UserPlan[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [buildError, setBuildError] = useState<string[] | null>(null);
 
   const refresh = useCallback(() => {
     const p = getPlans();
@@ -28,6 +40,37 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId }: Pro
   useEffect(() => {
     if (open && initialPlanId) setActivePlanId(initialPlanId);
   }, [open, initialPlanId]);
+
+  // Mirror the parent-supplied buildingPlan flag into local state so we
+  // can clear it when the build resolves without bouncing the parent.
+  useEffect(() => {
+    if (buildingPlan) {
+      setBuilding(true);
+      setBuildError(null);
+    }
+  }, [buildingPlan]);
+
+  // Listen for the async build-plan resolution dispatched by ArkAIChatPanel.
+  useEffect(() => {
+    const onDone = (e: Event) => {
+      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      setBuilding(false);
+      setBuildError(null);
+      if (detail?.planId) setActivePlanId(detail.planId);
+      refresh();
+    };
+    const onError = (e: Event) => {
+      const detail = (e as CustomEvent<{ reasons?: string[] }>).detail;
+      setBuilding(false);
+      setBuildError(detail?.reasons?.length ? detail.reasons : [lang === "th" ? "สร้าง plan ไม่สำเร็จ" : "Couldn't build the plan"]);
+    };
+    window.addEventListener("myplan-build-done", onDone);
+    window.addEventListener("myplan-build-error", onError);
+    return () => {
+      window.removeEventListener("myplan-build-done", onDone);
+      window.removeEventListener("myplan-build-error", onError);
+    };
+  }, [refresh, lang]);
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +135,20 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId }: Pro
         animation: "planFadeIn 0.2s ease both",
         overflow: "hidden", touchAction: "none",
       }}>
-        {activePlanId ? (
+        {building ? (
+          <BuildingOverlay lang={lang} />
+        ) : buildError ? (
+          <BuildErrorState
+            lang={lang}
+            reasons={buildError}
+            onRetryInChat={() => {
+              setBuildError(null);
+              onClose();
+              setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100);
+            }}
+            onDismiss={() => setBuildError(null)}
+          />
+        ) : activePlanId ? (
           <PlanDetail
             planId={activePlanId}
             deviceId={getDeviceId()}
@@ -148,6 +204,113 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId }: Pro
         <PlanBottomNav onClose={onClose} />
       </div>
     </>
+  );
+}
+
+function BuildingOverlay({ lang }: { lang: string }) {
+  const isTh = lang === "th";
+  const steps = isTh
+    ? ["กำลังหาเรือที่ตรงกับวัน...", "ตรวจ schedule และ package...", "เลือกทริปที่ดีที่สุด...", "เกือบเสร็จแล้ว..."]
+    : ["Searching boats for your dates...", "Checking schedules and packages...", "Picking the best fit...", "Almost ready..."];
+  const [stepIdx, setStepIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1200);
+    return () => clearInterval(t);
+  }, [steps.length]);
+  return (
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "32px 24px", textAlign: "center",
+    }}>
+      <div style={{
+        width: 64, height: 64, marginBottom: 24,
+        borderRadius: "50%", background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 8px 32px rgba(59,130,246,0.45)",
+        animation: "buildPulse 1.6s ease-in-out infinite",
+      }}>
+        <img src="/ai-mask.png" alt="" width={36} height={36} style={{ filter: "brightness(1.15)" }} />
+      </div>
+      <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f5f5", marginBottom: 6 }}>
+        {isTh ? "AI กำลังสร้าง plan ให้..." : "AI is building your plan..."}
+      </p>
+      <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 28, lineHeight: 1.5, maxWidth: 320 }}>
+        {isTh
+          ? "ระบบกำลังจับคู่ความต้องการกับทริปที่มี schedule ตรง ใช้เวลาประมาณ 2-3 วินาที"
+          : "Matching your preferences against live trip schedules. Takes about 2-3 seconds."}
+      </p>
+      <div style={{
+        width: "100%", maxWidth: 320,
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 14px", borderRadius: 10,
+            background: i === stepIdx ? "rgba(59,130,246,0.12)" : "transparent",
+            border: i === stepIdx ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
+            opacity: i <= stepIdx ? 1 : 0.35,
+            transition: "all 0.3s",
+          }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%",
+              background: i < stepIdx ? "#22c55e" : i === stepIdx ? "#3b82f6" : "#1f2937",
+              flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "background 0.3s",
+            }}>
+              {i < stepIdx ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              ) : i === stepIdx ? (
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", animation: "buildDot 0.8s ease-in-out infinite" }} />
+              ) : null}
+            </div>
+            <p style={{ fontSize: 13, color: i === stepIdx ? "#f5f5f5" : "#9ca3af", textAlign: "left", margin: 0 }}>{s}</p>
+          </div>
+        ))}
+      </div>
+      <style>{`
+        @keyframes buildPulse { 0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(59,130,246,0.35); } 50% { transform: scale(1.06); box-shadow: 0 12px 40px rgba(59,130,246,0.55); } }
+        @keyframes buildDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      `}</style>
+    </div>
+  );
+}
+
+function BuildErrorState({ lang, reasons, onRetryInChat, onDismiss }: { lang: string; reasons: string[]; onRetryInChat: () => void; onDismiss: () => void }) {
+  const isTh = lang === "th";
+  return (
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "32px 24px", textAlign: "center",
+    }}>
+      <div style={{ fontSize: 44, marginBottom: 14 }}>🤔</div>
+      <p style={{ fontSize: 17, fontWeight: 800, color: "#f5f5f5", marginBottom: 10 }}>
+        {isTh ? "ยังสร้าง plan ไม่ได้" : "Can't build the plan yet"}
+      </p>
+      <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", maxWidth: 340 }}>
+        {reasons.map((r, i) => (
+          <li key={i} style={{
+            fontSize: 13, color: "#cbd5e1", marginBottom: 8, lineHeight: 1.5,
+            padding: "10px 14px", background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.2)", borderRadius: 10,
+          }}>{r}</li>
+        ))}
+      </ul>
+      <button onClick={onRetryInChat} style={{
+        padding: "12px 24px", borderRadius: 10, border: "none",
+        background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+        marginBottom: 8,
+      }}>
+        {isTh ? "กลับไปคุยกับ AI" : "Back to AI chat"}
+      </button>
+      <button onClick={onDismiss} style={{
+        padding: "8px 16px", background: "none", border: "none", color: "#888", fontSize: 13, cursor: "pointer",
+      }}>
+        {isTh ? "ดูแพลนทั้งหมด" : "See all plans"}
+      </button>
+    </div>
   );
 }
 

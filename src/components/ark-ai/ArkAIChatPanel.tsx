@@ -477,62 +477,55 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     sendMessage(text);
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const buildPlan = useCallback(async () => {
+  const buildPlan = useCallback(() => {
     const deviceId = readBrowserId("sd_vid");
     if (!deviceId) return;
     const sessionIdHdr = readBrowserId("sd_sid");
 
-    const buildingMsg = lang === "th"
-      ? "กำลังสร้าง plan ให้นะครับ..."
-      : "Building your plan...";
-    setMessages(prev => [...prev, { role: "assistant", content: buildingMsg }]);
+    // Snappier UX: close chat + open MyPlan in "building" mode IMMEDIATELY
+    // so the user sees progress, then run build-plan in the background.
+    // Resolution dispatches myplan-build-done / myplan-build-error which
+    // MyPlanScreen listens for to swap into PlanDetail or BuildErrorState.
+    onClose();
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));
+    }, 80);
 
-    try {
-      const res = await fetch("/api/ark-ai/build-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname }),
-      });
-      if (res.status === 400) {
-        const errBody = await res.json().catch(() => null) as { error?: string; reasons?: string[] } | null;
-        let askMsg: string;
-        if (errBody?.error === "no_matching_trips" && errBody.reasons?.length) {
-          // Server found no schedules that match all the slots — surface
-          // the actionable reason(s) instead of opening an empty MyPlan.
-          const intro = lang === "th"
-            ? "ยังสร้าง plan ไม่ได้ครับ เพราะ:"
-            : "Can't build the plan yet:";
-          askMsg = `${intro}\n\n${errBody.reasons.map(r => `• ${r}`).join("\n")}`;
-        } else {
-          askMsg = lang === "th"
-            ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan ครับ — บอกวันที่ จำนวนคน และฝั่งที่อยากไป (อันดามัน/อ่าวไทย) ได้ไหม?"
-            : "I need a bit more info before building the plan — please share dates, headcount, and which coast (Andaman/Gulf).";
+    fetch("/api/ark-ai/build-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname }),
+    })
+      .then(async res => {
+        if (res.status === 400) {
+          const errBody = await res.json().catch(() => null) as { error?: string; reasons?: string[] } | null;
+          const reasons = errBody?.error === "no_matching_trips" && errBody.reasons?.length
+            ? errBody.reasons
+            : [lang === "th"
+                ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan — วันที่ จำนวนคน และฝั่ง (อันดามัน/อ่าวไทย)"
+                : "Need more info — please share dates, headcount, and coast (Andaman/Gulf)."];
+          window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons } }));
+          return;
         }
-        setMessages(prev => [...prev, { role: "assistant", content: askMsg }]);
-        return;
-      }
-      if (!res.ok) throw new Error(`build-plan ${res.status}`);
-      const data = await res.json() as { plan?: UserPlan; redirect?: string };
-      if (data.plan?.id) {
-        upsertServerPlan(data.plan);
-        onClose();
-        // Slight defer so the chat panel finishes its close animation before
-        // the My Plan drawer slides over the top.
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId: data.plan!.id } }));
-        }, 80);
-      } else if (data.redirect) {
-        // Fallback: legacy redirect path if server didn't return the plan blob.
-        window.location.href = data.redirect;
-      }
-    } catch (err) {
-      console.error("[ark-ai] build-plan failed:", err);
-      const errMsg = lang === "th"
-        ? "ขออภัย สร้าง plan ไม่สำเร็จ ลองอีกครั้งหรือทักเราโดยตรงผ่าน LINE ก็ได้ครับ"
-        : "Sorry, couldn't build the plan. Please try again or contact us via LINE.";
-      setMessages(prev => [...prev, { role: "assistant", content: errMsg }]);
-    }
-  }, [lang, pathname]);
+        if (!res.ok) throw new Error(`build-plan ${res.status}`);
+        const data = await res.json() as { plan?: UserPlan; redirect?: string };
+        if (data.plan?.id) {
+          upsertServerPlan(data.plan);
+          window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId: data.plan.id } }));
+        } else if (data.redirect) {
+          window.location.href = data.redirect;
+        } else {
+          window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [lang === "th" ? "ระบบไม่ตอบสนอง ลองอีกครั้ง" : "Empty response, please retry"] } }));
+        }
+      })
+      .catch(err => {
+        console.error("[ark-ai] build-plan failed:", err);
+        const reason = lang === "th"
+          ? "สร้าง plan ไม่สำเร็จ ลองอีกครั้งหรือทักเราผ่าน LINE ครับ"
+          : "Couldn't build the plan. Please try again or contact us via LINE.";
+        window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [reason] } }));
+      });
+  }, [lang, pathname, onClose]);
 
   sendRef.current = sendMessage;
 
