@@ -10,6 +10,7 @@ import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import LogisticsBlock from "./LogisticsBlock";
 import PlanBookBar from "./PlanBookBar";
+import PrepBlock from "./PrepBlock";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 
@@ -360,7 +361,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         })), 100);
                       }}
                     />
-
+                    <div style={{ marginTop: 18 }}>
+                      <PrepBlock trips={trips} lang={lang} />
+                    </div>
                   </div>
                 )}
               </div>

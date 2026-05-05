@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
 import { groupTripsByDay, type DayBucket } from "@/lib/ark-ai/day-grouping";
 import { parseItinerary } from "@/lib/ark-ai/itinerary-parser";
+import TripIncludedBlock from "./TripIncludedBlock";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -387,6 +388,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
   const [noteValue, setNoteValue] = useState(trip.note || "");
   const [pkgs, setPkgs] = useState(trip.schedule!.packages);
   const [expanded, setExpanded] = useState(false);
+  const [showItinerary, setShowItinerary] = useState(false);
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const isTh = lang === "th";
@@ -394,6 +396,16 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
   const dayDates = generateDayDates(sched.departureDate, sched.returnDate);
   const isMultiDay = dayDates.length > 1;
   const isLiveaboard = trip.type === "LIVEABOARD" || trip.type === "DIVE_RESORT";
+
+  // Parse the operator's hour-by-hour itinerary so DAYTRIP/SNORKELING/FREEDIVE/
+  // LAND_TOUR cards can show "08:00 pickup → 10:30 dive 1 → 12:00 lunch ..."
+  // inline. Liveaboard/Resort cards skip this — their multi-day itinerary is
+  // already sliced across the day-bucket continuation cards above, so showing
+  // the full thing here would duplicate.
+  const itineraryDays = useMemo(
+    () => (!isLiveaboard ? parseItinerary(sched.itinerary) : []),
+    [sched.itinerary, isLiveaboard],
+  );
 
   const pkgKey = trip.schedule!.packages.map(p => p.name).join(",");
   useState(() => { /* init only */ });
@@ -531,6 +543,68 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, onRemo
               )}
             </div>
           )}
+
+          {/* Hour-by-hour itinerary for non-liveaboard trips (operator-written) */}
+          {itineraryDays.length > 0 && (
+            <div style={{ borderTop: "1px solid #1a1a1a" }}>
+              <button
+                type="button"
+                onClick={() => setShowItinerary(s => !s)}
+                style={{
+                  width: "100%", padding: "8px 12px",
+                  background: "transparent", border: "none",
+                  color: "#888", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontFamily: "inherit",
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+                <span>
+                  {showItinerary
+                    ? (isTh ? "ซ่อนกำหนดการ" : "Hide schedule")
+                    : (isTh ? `กำหนดการ (${itineraryDays.length} ช่วง)` : `Schedule (${itineraryDays.length} stops)`)}
+                </span>
+              </button>
+              {showItinerary && (
+                <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <style>{`
+                    .trip-itin-body { font-size: 13px; color: #b5b5b5; line-height: 1.65; }
+                    .trip-itin-body p { margin: 0 0 6px; }
+                    .trip-itin-body p:last-child { margin-bottom: 0; }
+                    .trip-itin-body strong, .trip-itin-body b { color: #e5e5e5; font-weight: 700; }
+                    .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
+                    .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
+                    .trip-itin-body li { margin-bottom: 3px; }
+                  `}</style>
+                  {itineraryDays.map((d, i) => (
+                    <div key={i} style={{
+                      borderLeft: "2px solid #1e3a8a",
+                      paddingLeft: 10,
+                    }}>
+                      {d.heading && (
+                        <p style={{ fontSize: 12, fontWeight: 800, color: "#dbeafe", margin: "0 0 4px" }}>
+                          {d.heading}
+                        </p>
+                      )}
+                      {d.bodyHtml && (
+                        <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Included / Not included — operator-aware fallback list */}
+          <TripIncludedBlock
+            tripType={trip.type}
+            operatorContentHtml={detail?.schedule?.content}
+            lang={lang}
+          />
 
           {/* Expand/collapse toggle */}
           <button

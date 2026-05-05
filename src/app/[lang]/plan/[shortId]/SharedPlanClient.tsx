@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
+import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import type { PlanTrip } from "@/lib/plan-store";
 
 type Trip = {
@@ -104,6 +105,22 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
               lang={currentLang}
               canEdit={false}
             />
+            <div style={{ marginTop: 18 }}>
+              <PrepBlock
+                trips={plan.trips.map(t => ({
+                  boatId: t.boatId,
+                  title: t.title,
+                  slug: t.slug || "",
+                  type: t.type,
+                  area: t.area || "",
+                  cover: t.cover || null,
+                  addedAt: t.addedAt || 0,
+                  schedule: t.schedule,
+                  note: t.note,
+                }))}
+                lang={currentLang}
+              />
+            </div>
           </div>
         )}
 
