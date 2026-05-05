@@ -47,18 +47,35 @@ export function parseItinerary(html: string | null | undefined): ItineraryDay[] 
 }
 
 // Extract the operator's "กำหนดการ" / "Schedule" / "Itinerary" section from
-// the rich `schedule.content` field. DAYTRIP operators put their hour-by-hour
-// in there as `<h2>กำหนดการ</h2><ul><li><strong>07:00</strong> — รับ...</li>`
-// rather than the dedicated `schedule.itinerary` field (which is empty for
-// 100% of prod daytrips). This lets the timeline surface real operator data
-// without inventing anything.
+// the rich `schedule.content` field. There are two structural conventions in
+// prod data:
 //
-// Looks for <h2> sections whose heading matches a schedule-ish keyword in any
-// of TH/EN/CN/DE/FR/RU/JA/KO; pulls every <li> directly under that <h2>'s
-// following <ul>/<ol>; returns one ItineraryDay per <li> with the bullet's
-// inner HTML preserved so <strong> time stamps still render.
+//  1. DAYTRIP — `<h2>กำหนดการ</h2><ul><li><strong>07:00</strong> — รับ...</li>`
+//  2. LIVEABOARD (h3-only) — `<h3>โปรแกรมรายวัน (Itinerary)</h3>` followed
+//     by sibling `<h3>15 เม.ย. — ลงเรือ</h3><p>...</p>` day cards, ended
+//     by section h3s like `รวมในราคา`, `ไม่รวมในราคา`, `ข้อมูลท่าเรือ`,
+//     `หมายเหตุ`. Several prod liveaboards (Orca Oktavia, Tapana) leave the
+//     dedicated `schedule.itinerary` field empty and live entirely in this
+//     content shape.
+//
+// We try the h2/list path first (matches all daytrips). If nothing comes back,
+// we fall back to the h3-section path. Returns ItineraryDay[] — one per
+// bullet (daytrip) or one per day h3 (liveaboard). Without this fallback the
+// timeline rendered empty for ~150 liveaboard schedules even though the same
+// content drove the schedule detail page just fine.
 const SCHEDULE_HEADING_RE = /\b(itinerary|schedule|timeline|plan)\b/i;
 const TH_SCHEDULE_KEYWORDS = ["กำหนดการ", "ตารางเวลา", "ตารางการเดินทาง", "โปรแกรม", "เวลา"];
+
+// Keywords that close out a day-h3 streak. The day h3s in prod look like
+// "15 เม.ย. — ลงเรือ" / "16 ส.ค. — Check Out" / "Day 1 — Sail Rock". When we
+// encounter an h3 whose heading matches these, we know the itinerary section
+// ended and the operator moved on to ancillary info.
+const NON_DAY_HEADING_RE = /\b(included|excluded|inclus|policy|cancel|note|info|highlight|dive\s*sites?|getting\s*there|transport|pickup|preparation|pricing|price|booking|contact)\b/i;
+const TH_NON_DAY_KEYWORDS = [
+  "รวมในราคา", "ไม่รวมในราคา", "รวมในแพ็กเกจ", "ไม่รวมในแพ็กเกจ", "รวม", "ไม่รวม",
+  "บริการเสริม", "การรับ–ส่ง", "การรับส่ง", "ข้อมูลท่าเรือ", "ข้อควรทราบ", "หมายเหตุ",
+  "นโยบาย", "การชำระเงิน", "เงื่อนไข", "ติดต่อ", "ไฮไลท์", "จุดดำน้ำ",
+];
 
 function headingIsSchedule(text: string): boolean {
   if (!text) return false;
@@ -67,11 +84,17 @@ function headingIsSchedule(text: string): boolean {
   return TH_SCHEDULE_KEYWORDS.some(k => text.includes(k));
 }
 
+function headingIsNonDay(text: string): boolean {
+  if (!text) return false;
+  if (NON_DAY_HEADING_RE.test(text.toLowerCase())) return true;
+  return TH_NON_DAY_KEYWORDS.some(k => text.includes(k));
+}
+
 const H2_BLOCK_RE = /<h2\b[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2\b|$)/gi;
+const H3_BLOCK_RE = /<h3\b[^>]*>([\s\S]*?)<\/h3>([\s\S]*?)(?=<h3\b|$)/gi;
 const LI_RE = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
 
-export function extractScheduleFromContent(html: string | null | undefined): ItineraryDay[] {
-  if (!html || typeof html !== "string") return [];
+function extractFromH2(html: string): ItineraryDay[] {
   H2_BLOCK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = H2_BLOCK_RE.exec(html)) !== null) {
@@ -84,15 +107,45 @@ export function extractScheduleFromContent(html: string | null | undefined): Iti
     while ((li = LI_RE.exec(body)) !== null) {
       const inner = li[1].trim();
       if (!inner) continue;
-      const heading = stripTags(inner);
-      items.push({
-        index: items.length,
-        heading,
-        bodyHtml: "",
-      });
+      items.push({ index: items.length, heading: stripTags(inner), bodyHtml: "" });
     }
     if (items.length > 0) return items;
   }
   return [];
+}
+
+// Walk h3 blocks. Skip everything until we see one whose heading matches a
+// schedule keyword (e.g. "โปรแกรมรายวัน (Itinerary)"). After that, every
+// subsequent h3 is treated as a day until we hit a non-day heading
+// (Included / Excluded / Notes / etc.) — at which point the streak ends.
+function extractFromH3(html: string): ItineraryDay[] {
+  H3_BLOCK_RE.lastIndex = 0;
+  const blocks: { heading: string; bodyHtml: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = H3_BLOCK_RE.exec(html)) !== null) {
+    blocks.push({ heading: stripTags(m[1]), bodyHtml: m[2].trim() });
+  }
+  const items: ItineraryDay[] = [];
+  let inItinerary = false;
+  for (const b of blocks) {
+    if (!inItinerary) {
+      if (headingIsSchedule(b.heading)) {
+        inItinerary = true;
+        // The "โปรแกรมรายวัน" h3 itself isn't a day — its body (if any) is
+        // typically intro prose, skip it.
+      }
+      continue;
+    }
+    if (headingIsNonDay(b.heading)) break;
+    items.push({ index: items.length, heading: b.heading, bodyHtml: b.bodyHtml });
+  }
+  return items;
+}
+
+export function extractScheduleFromContent(html: string | null | undefined): ItineraryDay[] {
+  if (!html || typeof html !== "string") return [];
+  const fromH2 = extractFromH2(html);
+  if (fromH2.length > 0) return fromH2;
+  return extractFromH3(html);
 }
 
