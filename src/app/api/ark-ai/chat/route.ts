@@ -12,6 +12,7 @@ import { isBotUa } from "@/lib/analytics/botFilter";
 import { detectMedicalConcern, buildMedicalRedirect } from "@/lib/ark-ai/safety";
 import { applyToolCall, formatSlotsForPrompt, isComplete, UPDATE_SLOTS_TOOL, type Slots } from "@/lib/ark-ai/slots";
 import { extractDateHint } from "@/lib/ark-ai/date-hint";
+import { extractHeadcountHint, extractRegionHint } from "@/lib/ark-ai/slot-hints";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
@@ -586,6 +587,18 @@ export async function POST(req: NextRequest) {
   if (dateHint) {
     effectiveSlots = { ...effectiveSlots, dates: dateHint };
   }
+  // Headcount + region pre-pass — same rationale as date-hint. Tool call
+  // fires DURING the stream which is too late for RAG. Apply ONLY when the
+  // slot isn't already filled (don't trample a persisted value); the LLM's
+  // tool call later in the turn can still refine.
+  if (!effectiveSlots.headcount) {
+    const hcHint = extractHeadcountHint(lastUserMsg);
+    if (hcHint) effectiveSlots = { ...effectiveSlots, headcount: hcHint };
+  }
+  if (!effectiveSlots.region) {
+    const regionHint = extractRegionHint(lastUserMsg);
+    if (regionHint) effectiveSlots = { ...effectiveSlots, region: regionHint };
+  }
   let scheduleFromDate: Date | undefined;
   let scheduleToDate: Date | undefined;
   if (effectiveSlots.dates?.from) {
@@ -730,9 +743,36 @@ export async function POST(req: NextRequest) {
   // (Google still text-only — tool use shape would need a separate adapter).
   const provider = config.provider || "anthropic";
   const supportsSlots = provider === "anthropic" || provider === "openai" || provider === "openrouter";
+  // Sprint 2 A1 — seed the slot handler with regex-extracted hints so they
+  // persist even if the LLM's tool call later in this turn forgets to extract
+  // them. The LLM can still override (its tool call merges into `current`).
   const slotHandler = supportsSlots
-    ? makeSlotHandler({ deviceId, sessionId, path, lang, initialSlots })
+    ? makeSlotHandler({ deviceId, sessionId, path, lang, initialSlots: effectiveSlots })
     : null;
+  // If the regex pre-pass surfaced fields the persisted session doesn't have,
+  // write them now (fire-and-forget) so cross-turn memory holds even if the
+  // LLM never calls update_slots.
+  if (deviceId && JSON.stringify(effectiveSlots) !== JSON.stringify(initialSlots)) {
+    (async () => {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const existing = await prisma.aiPlanSession.findFirst({
+        where: { deviceId, status: "active", expiresAt: { gt: now } },
+        orderBy: { lastActiveAt: "desc" },
+        select: { id: true },
+      });
+      if (existing) {
+        await prisma.aiPlanSession.update({
+          where: { id: existing.id },
+          data: { slots: effectiveSlots as never, lastActiveAt: now, expiresAt, status: "active" },
+        });
+      } else {
+        await prisma.aiPlanSession.create({
+          data: { deviceId, slots: effectiveSlots as never, status: "active", lastActiveAt: now, expiresAt },
+        });
+      }
+    })().catch(err => console.error("[ark-ai] slot-hint persist failed:", err));
+  }
   const toolOpts = slotHandler
     ? { tools: [UPDATE_SLOTS_TOOL as unknown as Anthropic.Messages.Tool], onToolCall: slotHandler.onToolCall }
     : {};

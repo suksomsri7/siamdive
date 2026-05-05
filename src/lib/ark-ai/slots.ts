@@ -194,7 +194,38 @@ export function applyToolCall(
 export const UPDATE_SLOTS_TOOL = {
   name: "update_slots",
   description:
-    "Silently record trip-planning info that the user has revealed. Call this whenever the user mentions trip dates, group size (headcount), region, certification level, budget, style/vibe, or interests — even casually. You may call it alongside your normal text reply (multiple content blocks per turn). Only include fields the user just revealed or updated; omit fields you've already recorded unchanged. Required-3 (dates, headcount, region) unlocks the user's 'Build my plan' button.",
+    `Silently record trip-planning info that the user has revealed. Call this whenever the user mentions trip dates, group size (headcount), region, certification level, budget, style/vibe, or interests — even casually. You may call it alongside your normal text reply (multiple content blocks per turn). Only include fields the user just revealed or updated; omit fields you've already recorded unchanged. Required-3 (dates, headcount, region) unlocks the user's 'Build my plan' button.
+
+# Headcount few-shot — the AI must NOT miss these phrasings:
+
+User says: "ไป 2 คนครับ" → call update_slots with {"headcount":{"adults":2}}
+User says: "เราสองคน" → {"headcount":{"adults":2}}
+User says: "two of us" / "the two of us" / "we are two" → {"headcount":{"adults":2}}
+User says: "couple" / "ไปเป็นคู่" / "ไปกับแฟน" / "คู่รัก" → {"headcount":{"adults":2}}
+User says: "solo" / "alone" / "ไปคนเดียว" → {"headcount":{"adults":1}}
+User says: "พวกเรา 4 คน" / "we are 4 people" / "4 ppl" / "4 pax" → {"headcount":{"adults":4}}
+User says: "พ่อแม่ลูก" → {"headcount":{"adults":2,"kids":1}}
+User says: "เรา 3 คนกับลูก 1" / "3 adults + 1 kid" → {"headcount":{"adults":3,"kids":1}}
+User says: "ครอบครัว 4 คน 2 เด็ก" → {"headcount":{"adults":2,"kids":2}}
+
+# Region few-shot:
+User says: "ภูเก็ต" / "Phi Phi" / "Similan" / "Krabi" / "Andaman" → {"region":"andaman"}
+User says: "Koh Tao" / "เกาะเต่า" / "Pha Ngan" / "Samui" → {"region":"gulf"}
+User says: "ที่ไหนก็ได้" / "either coast" / "open" → {"region":"both"}
+
+# Cert few-shot:
+User says: "OW 2 คน" → {"certs":["ow","ow"]}
+User says: "ผม OW แฟน AOW" → {"certs":["ow","aow"]}
+User says: "ไม่มีใบ" / "no cert" / "uncertified" → {"certs":["none"]}
+User says: "Discover Scuba" / "DSD" / "first time diving" → {"certs":["none"]}
+User says: "snorkel only" / "ดำผิวน้ำ" → {"certs":["none"]}
+
+# Date few-shot (resolve relative phrases to ISO using today as anchor):
+User says: "เดือนหน้า" → if today is 2026-05-05, dates.from="2026-06-01", label="เดือนหน้า"
+User says: "Songkran" → dates.from="2026-04-13", dates.to="2026-04-15", label="Songkran"
+User says: "this weekend" → next Sat–Sun ISO
+
+# Anti-pattern: NEVER omit headcount when user said any of the phrases above. NEVER force the user to repeat themselves — extract on first mention.`,
   input_schema: {
     type: "object" as const,
     properties: {
