@@ -1,0 +1,242 @@
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { isComplete, type Slots } from "@/lib/ark-ai/slots";
+import {
+  regionMatchesArea,
+  dateProximity,
+  lowestCert,
+  similanClosed,
+  buildPlanName,
+  packageIsSnorkelFriendly,
+} from "@/lib/ark-ai/build-plan";
+
+// Phase 3 — Auto-build a UserPlan from the slot extraction in AiPlanSession.
+// Reads slots → matches Schedule rows in a ±3-day window → cert/region filters
+// → top 3 by date proximity → gap-fills 2 blogs by area overlap → writes
+// UserPlan(source=ARK_AI). Returns redirect target to /[lang]/plan/[shortId].
+
+const DATE_FALLBACK_DAYS = 3;
+
+const pickByLang = <T extends { lang: string }>(arr: T[], lang: string) =>
+  arr.find(t => t.lang === lang) || arr.find(t => t.lang === "en") || arr[0];
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const deviceId: string | undefined = body?.deviceId;
+  const lang: string = typeof body?.lang === "string" ? body.lang : "en";
+  const sessionId: string | undefined = typeof body?.sessionId === "string" ? body.sessionId : undefined;
+  const path: string = typeof body?.path === "string" ? body.path : "/";
+  if (!deviceId) {
+    return Response.json({ error: "deviceId required" }, { status: 400 });
+  }
+
+  const session = await prisma.aiPlanSession.findFirst({
+    where: { deviceId, status: "active", expiresAt: { gt: new Date() } },
+    orderBy: { lastActiveAt: "desc" },
+  });
+  const slots = (session?.slots && typeof session.slots === "object" ? session.slots : {}) as Slots;
+  if (!isComplete(slots)) {
+    return Response.json({ error: "incomplete_slots", slots }, { status: 400 });
+  }
+
+  const dates = slots.dates!;
+  const region = slots.region!;
+  const cert = lowestCert(slots.certs);
+
+  const fromMs = Date.parse(dates.from + "T00:00:00Z");
+  const toMs = Date.parse((dates.to || dates.from) + "T23:59:59Z");
+  if (Number.isNaN(fromMs) || Number.isNaN(toMs)) {
+    return Response.json({ error: "invalid_dates" }, { status: 400 });
+  }
+  const windowStart = new Date(fromMs - DATE_FALLBACK_DAYS * 86_400_000);
+  const windowEnd = new Date(toMs + DATE_FALLBACK_DAYS * 86_400_000);
+
+  const schedules = await prisma.schedule.findMany({
+    where: {
+      status: "OPEN",
+      departureDate: { gte: windowStart, lte: windowEnd },
+      boat: { status: "PUBLISHED" },
+    },
+    include: {
+      boat: {
+        include: {
+          translations: { select: { lang: true, title: true, slug: true } },
+          serviceAreas: {
+            include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } },
+          },
+        },
+      },
+      translations: { select: { lang: true, title: true, route: true, itinerary: true, excerpt: true } },
+      packages: {
+        include: {
+          package: {
+            include: {
+              translations: { select: { lang: true, title: true, excerpt: true } },
+              priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
+            },
+          },
+          priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
+        },
+      },
+    },
+    orderBy: { departureDate: "asc" },
+  });
+
+  const inRegion = schedules.filter(s => {
+    if (region === "both") return true;
+    const areas = s.boat.serviceAreas
+      .map(sa => pickByLang(sa.serviceArea.translations, lang)?.name || "")
+      .filter(Boolean);
+    return areas.some(a => regionMatchesArea(region, a));
+  });
+
+  const certFiltered = cert === "none"
+    ? inRegion.filter(s => s.packages.some(sp => {
+        const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
+        const title = pickByLang(sp.package.translations, lang)?.title || sp.package.name;
+        return packageIsSnorkelFriendly(tiers, title);
+      }))
+    : inRegion;
+
+  const topPicks = certFiltered
+    .map(s => ({
+      s,
+      score: dateProximity(s.departureDate?.toISOString().slice(0, 10) || null, dates.from, dates.to),
+    }))
+    .filter(({ score }) => Number.isFinite(score))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3);
+
+  const trips = topPicks.map(({ s }) => {
+    const bt = pickByLang(s.boat.translations, lang);
+    const areaTrans = s.boat.serviceAreas[0]?.serviceArea
+      ? pickByLang(s.boat.serviceAreas[0].serviceArea.translations, lang)
+      : null;
+    const st = pickByLang(s.translations, lang);
+    const filteredPackages = cert === "none"
+      ? s.packages.filter(sp => {
+          const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
+          const title = pickByLang(sp.package.translations, lang)?.title || sp.package.name;
+          return packageIsSnorkelFriendly(tiers, title);
+        })
+      : s.packages;
+    const pkgs = filteredPackages.map(sp => {
+      const pt = pickByLang(sp.package.translations, lang);
+      const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
+      const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
+      return {
+        name: pt?.title || sp.package.name,
+        minPrice: prices.length ? Math.min(...prices) : 0,
+      };
+    });
+    return {
+      boatId: s.boat.id,
+      title: bt?.title || s.boat.name,
+      slug: bt?.slug || s.boat.id,
+      type: s.boat.type,
+      area: areaTrans?.name || "",
+      cover: s.boat.covers?.[0] || null,
+      addedAt: Date.now(),
+      schedule: {
+        scheduleId: s.id,
+        departureDate: s.departureDate?.toISOString().slice(0, 10) || "",
+        returnDate: s.returnDate?.toISOString().slice(0, 10) || null,
+        title: st?.title || bt?.title || s.boat.name,
+        route: st?.route || "",
+        itinerary: st?.itinerary || "",
+        excerpt: st?.excerpt || "",
+        packages: pkgs,
+      },
+    };
+  });
+
+  const chosenAreaIds = Array.from(new Set(
+    topPicks.flatMap(({ s }) => s.boat.serviceAreas.map(sa => sa.serviceAreaId)),
+  ));
+  const blogsRaw = chosenAreaIds.length > 0
+    ? await prisma.blog.findMany({
+        where: {
+          status: "PUBLISHED",
+          serviceAreaIds: { hasSome: chosenAreaIds },
+        },
+        include: {
+          translations: { where: { lang }, select: { title: true, slug: true, excerpt: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 3,
+      })
+    : [];
+  const blogs = blogsRaw
+    .filter(b => b.translations.length > 0)
+    .map(b => ({
+      blogId: b.id,
+      title: b.translations[0].title,
+      slug: b.translations[0].slug,
+      excerpt: b.translations[0].excerpt,
+      cover: b.covers?.[0] || null,
+    }));
+
+  const warnings: string[] = [];
+  if (region === "andaman" && similanClosed(dates.from) && trips.length === 0) {
+    warnings.push(lang === "th"
+      ? "อุทยานสิมิลัน-สุรินทร์ปิด 16 พ.ค. – 14 ต.ค. ทุกปี ลองเลือกช่วง พ.ย.–เม.ย. หรือเปลี่ยนพื้นที่เช่นพีพี/หินม่วง"
+      : "Similan/Surin national parks close May 16–Oct 14 each year. Try Nov–Apr or pick another area like Phi Phi/Hin Muang.");
+  }
+  if (trips.length === 0) {
+    warnings.push(lang === "th"
+      ? "ไม่พบทริปที่ตรงเวลา/พื้นที่ที่เลือก ลองขยายช่วงวันหรือเปลี่ยนภูมิภาคดูครับ"
+      : "No trips matched your dates and region — try widening the window or switching coast.");
+  }
+
+  let user = await prisma.planUser.findUnique({ where: { deviceId } });
+  if (!user) {
+    user = await prisma.planUser.create({ data: { deviceId } });
+  }
+
+  const planName = buildPlanName(slots, lang);
+  const plan = await prisma.userPlan.create({
+    data: {
+      userId: user.id,
+      name: planName,
+      coverUrl: trips[0]?.cover ?? null,
+      trips: trips as never,
+      source: "ARK_AI",
+      aiPrompt: JSON.stringify(slots),
+      status: "PLANNING",
+    },
+  });
+
+  if (session) {
+    prisma.aiPlanSession
+      .update({ where: { id: session.id }, data: { status: "completed" } })
+      .catch(err => console.error("[ark-ai/build-plan] session complete failed:", err));
+  }
+
+  if (sessionId) {
+    prisma.analyticsEvent
+      .createMany({
+        data: [
+          {
+            sessionId, visitorId: deviceId, type: "ARK_AI_PLAN_GENERATED" as never, path, lang,
+            properties: {
+              planId: plan.id, shortId: plan.shortId, tripCount: trips.length, blogCount: blogs.length, slots,
+            } as never,
+          },
+          {
+            sessionId, visitorId: deviceId, type: "ARK_AI_PLAN_SAVED" as never, path, lang,
+            properties: { planId: plan.id, shortId: plan.shortId } as never,
+          },
+        ],
+      })
+      .catch(err => console.error("[ark-ai/build-plan] analytics failed:", err));
+  }
+
+  return Response.json({
+    shortId: plan.shortId,
+    name: plan.name,
+    trips,
+    blogs,
+    warnings,
+    redirect: `/${lang}/plan/${plan.shortId}`,
+  });
+}

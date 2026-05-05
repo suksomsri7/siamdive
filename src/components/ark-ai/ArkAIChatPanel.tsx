@@ -442,15 +442,42 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     sendMessage(text);
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const buildPlan = useCallback(() => {
-    // Phase 2 stub. Phase 3 will POST /api/ark-ai/build-plan and route to
-    // the resulting UserPlan. For now we surface a friendly placeholder so
-    // testers see the CTA fires and analytics records intent.
-    const msg = lang === "th"
-      ? "ระบบสร้าง plan อัตโนมัติกำลังจะมาเร็วๆ นี้ — ระหว่างนี้พิมพ์ 'แนะนำทริปให้หน่อย' เพื่อให้ AI ช่วยจัดทริปได้เลยครับ"
-      : "Auto-build plan is coming soon — for now, just ask the AI 'recommend trips for me' to get matching options.";
-    sendMessage(msg);
-  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const buildPlan = useCallback(async () => {
+    const deviceId = readBrowserId("sd_vid");
+    if (!deviceId) return;
+    const sessionIdHdr = readBrowserId("sd_sid");
+
+    const buildingMsg = lang === "th"
+      ? "กำลังสร้าง plan ให้นะครับ..."
+      : "Building your plan...";
+    setMessages(prev => [...prev, { role: "assistant", content: buildingMsg }]);
+
+    try {
+      const res = await fetch("/api/ark-ai/build-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname }),
+      });
+      if (res.status === 400) {
+        const askMsg = lang === "th"
+          ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan ครับ — บอกวันที่ จำนวนคน และฝั่งที่อยากไป (อันดามัน/อ่าวไทย) ได้ไหม?"
+          : "I need a bit more info before building the plan — please share dates, headcount, and which coast (Andaman/Gulf).";
+        setMessages(prev => [...prev, { role: "assistant", content: askMsg }]);
+        return;
+      }
+      if (!res.ok) throw new Error(`build-plan ${res.status}`);
+      const data = await res.json() as { redirect?: string };
+      if (data.redirect) {
+        window.location.href = data.redirect;
+      }
+    } catch (err) {
+      console.error("[ark-ai] build-plan failed:", err);
+      const errMsg = lang === "th"
+        ? "ขออภัย สร้าง plan ไม่สำเร็จ ลองอีกครั้งหรือทักเราโดยตรงผ่าน LINE ก็ได้ครับ"
+        : "Sorry, couldn't build the plan. Please try again or contact us via LINE.";
+      setMessages(prev => [...prev, { role: "assistant", content: errMsg }]);
+    }
+  }, [lang, pathname]);
 
   sendRef.current = sendMessage;
 
