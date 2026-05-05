@@ -46,9 +46,103 @@ function pickYear(now: Date, month: number, day: number): number {
 
 export type DateHint = { from: string; to?: string; label?: string };
 
+function lastDayOfMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function monthRange(year: number, month: number, label: string): DateHint {
+  const last = lastDayOfMonth(year, month);
+  return {
+    from: `${year}-${pad(month)}-01`,
+    to: `${year}-${pad(month)}-${pad(last)}`,
+    label,
+  };
+}
+
+const TH_MONTH_NAMES_FULL = "มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม";
+const TH_MONTH_NAMES_ABBR = "ม\\.ค\\.|ก\\.พ\\.|มี\\.ค\\.|เม\\.ย\\.|พ\\.ค\\.|มิ\\.ย\\.|ก\\.ค\\.|ส\\.ค\\.|ก\\.ย\\.|ต\\.ค\\.|พ\\.ย\\.|ธ\\.ค\\.";
+
 export function extractDateHint(text: string, now: Date = new Date()): DateHint | null {
   if (!text) return null;
   const lower = text.toLowerCase();
+
+  // ──────────────────────────────────────────────────────────────────
+  // Relative phrases first — these are what users actually say in chat
+  // ("เดือนหน้า", "next month", "พรุ่งนี้") and our earlier date regex
+  // missed all of them, sending the AI the full unfiltered catalog.
+  // ──────────────────────────────────────────────────────────────────
+
+  const todayY = now.getUTCFullYear();
+  const todayM = now.getUTCMonth() + 1;
+  const todayD = now.getUTCDate();
+  const isoToday = `${todayY}-${pad(todayM)}-${pad(todayD)}`;
+
+  // "วันนี้" / "today"
+  if (/วันนี้|\btoday\b/.test(lower)) {
+    return { from: isoToday, label: "วันนี้" };
+  }
+
+  // "พรุ่งนี้" / "tomorrow"
+  if (/พรุ่งนี้|\btomorrow\b/.test(lower)) {
+    const t = new Date(now.getTime() + 86_400_000);
+    return { from: t.toISOString().slice(0, 10), label: "พรุ่งนี้" };
+  }
+
+  // "มะรืน(นี้)" / "day after tomorrow"
+  if (/มะรืน|day\s+after\s+tomorrow/.test(lower)) {
+    const t = new Date(now.getTime() + 2 * 86_400_000);
+    return { from: t.toISOString().slice(0, 10), label: "มะรืนนี้" };
+  }
+
+  // "อาทิตย์หน้า" / "สัปดาห์หน้า" / "next week" → 7-day window starting +7d
+  if (/อาทิตย์หน้า|สัปดาห์หน้า|next\s+week/.test(lower)) {
+    const start = new Date(now.getTime() + 7 * 86_400_000);
+    const end = new Date(now.getTime() + 13 * 86_400_000);
+    return {
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+      label: "อาทิตย์หน้า",
+    };
+  }
+
+  // "ต้นเดือนหน้า" — first 10 days of next month (must come BEFORE the
+  // bare "เดือนหน้า" check, otherwise the broader pattern wins)
+  if (/ต้นเดือนหน้า/.test(lower)) {
+    const nextM = todayM === 12 ? 1 : todayM + 1;
+    const nextY = todayM === 12 ? todayY + 1 : todayY;
+    return {
+      from: `${nextY}-${pad(nextM)}-01`,
+      to: `${nextY}-${pad(nextM)}-10`,
+      label: "ต้นเดือนหน้า",
+    };
+  }
+
+  // "เดือนหน้า" / "เดือนถัดไป" / "next month" → full next month
+  if (/เดือนหน้า|เดือนถัดไป|next\s+month/.test(lower)) {
+    const nextM = todayM === 12 ? 1 : todayM + 1;
+    const nextY = todayM === 12 ? todayY + 1 : todayY;
+    return monthRange(nextY, nextM, "เดือนหน้า");
+  }
+
+  // "ปลายเดือน(นี้)" — last 10 days of current month
+  if (/ปลายเดือน(?!หน้า)/.test(lower)) {
+    const last = lastDayOfMonth(todayY, todayM);
+    return {
+      from: `${todayY}-${pad(todayM)}-${pad(Math.max(1, last - 9))}`,
+      to: `${todayY}-${pad(todayM)}-${pad(last)}`,
+      label: "ปลายเดือนนี้",
+    };
+  }
+
+  // "เดือนนี้" alone (no day number) — remainder of this month
+  if (/เดือนนี้/.test(lower) && !/\d{1,2}\s*เดือนนี้/.test(text)) {
+    const last = lastDayOfMonth(todayY, todayM);
+    return {
+      from: isoToday,
+      to: `${todayY}-${pad(todayM)}-${pad(last)}`,
+      label: "เดือนนี้",
+    };
+  }
 
   // 1. ISO YYYY-MM-DD
   const iso = lower.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
@@ -122,6 +216,38 @@ export function extractDateHint(text: string, now: Date = new Date()): DateHint 
     const year = enDm[3] ? +enDm[3] : pickYear(now, month, day);
     const d = isoFrom(year, month, day);
     if (d) return { from: d };
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // Bare month names — "ดำน้ำเดือนมิถุนายน", "ในมิ.ย.", "in June"
+  // Returns the FULL month range so the AI can recommend any boat
+  // running that month. Always rolls forward to the next occurrence
+  // when the month has already passed this year.
+  // ──────────────────────────────────────────────────────────────────
+  const thBareFull = text.match(new RegExp(`(?:เดือน\\s*)?(${TH_MONTH_NAMES_FULL})\\s*(\\d{4})?`));
+  if (thBareFull) {
+    const month = TH_MONTHS[thBareFull[1]];
+    let year = thBareFull[2] ? +thBareFull[2] : todayY;
+    if (year > 2400) year -= 543;
+    if (!thBareFull[2] && month < todayM) year = todayY + 1;
+    return monthRange(year, month, `เดือน${thBareFull[1]} ${year}`);
+  }
+
+  const thBareAbbr = text.match(new RegExp(`(?:เดือน\\s*)?(${TH_MONTH_NAMES_ABBR})\\s*(\\d{4})?`));
+  if (thBareAbbr) {
+    const month = TH_MONTHS[thBareAbbr[1]];
+    let year = thBareAbbr[2] ? +thBareAbbr[2] : todayY;
+    if (year > 2400) year -= 543;
+    if (!thBareAbbr[2] && month < todayM) year = todayY + 1;
+    return monthRange(year, month, `เดือน${thBareAbbr[1]} ${year}`);
+  }
+
+  const enBare = lower.match(/\b(?:in\s+)?(january|february|march|april|may|june|july|august|september|october|november|december)\s*(\d{4})?\b/);
+  if (enBare) {
+    const month = EN_MONTHS[enBare[1]];
+    let year = enBare[2] ? +enBare[2] : todayY;
+    if (!enBare[2] && month < todayM) year = todayY + 1;
+    return monthRange(year, month, `${enBare[1]} ${year}`);
   }
 
   return null;
