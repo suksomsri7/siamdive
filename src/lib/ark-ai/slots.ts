@@ -7,6 +7,7 @@
 export type Region = "andaman" | "gulf" | "both";
 export type CertLevel = "none" | "ow" | "aow" | "rescue+";
 export type Style = "relaxed" | "intense" | "family" | "photography" | "training";
+export type TripCategory = "liveaboard" | "daytrip" | "snorkeling" | "land_tour";
 
 export type Dates = { from: string; to?: string; label?: string };
 export type Headcount = { adults: number; kids?: number };
@@ -17,6 +18,10 @@ export type Slots = {
   headcount?: Headcount;
   region?: Region;
   certs?: CertLevel[];
+  /** Which kind(s) of trip the user wants. Empty/missing = unknown — AI should
+   *  ask before recommending. Multiple allowed (e.g. liveaboard + a daytrip
+   *  add-on). */
+  categories?: TripCategory[];
   budget?: Budget;
   style?: Style;
   interests?: string[];
@@ -40,6 +45,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const REGIONS: Region[] = ["andaman", "gulf", "both"];
 const CERTS: CertLevel[] = ["none", "ow", "aow", "rescue+"];
 const STYLES: Style[] = ["relaxed", "intense", "family", "photography", "training"];
+const TRIP_CATEGORIES: TripCategory[] = ["liveaboard", "daytrip", "snorkeling", "land_tour"];
 
 function cleanString(v: unknown): string | undefined {
   if (typeof v !== "string") return undefined;
@@ -125,6 +131,22 @@ export function applyToolCall(
     }
   }
 
+  // categories — what type of trip the user wants. Required for sensible
+  // recommendations: "อยากดำน้ำ" alone shouldn't surface only daytrips when
+  // the user might want a liveaboard, or a snorkel-focused day, or a land
+  // tour add-on. AI must ask before pitching.
+  if (Array.isArray(raw.categories)) {
+    const next = Array.from(new Set(
+      raw.categories
+        .map(c => (typeof c === "string" ? c.trim().toLowerCase().replace(/\s/g, "_") : ""))
+        .filter((c): c is TripCategory => TRIP_CATEGORIES.includes(c as TripCategory))
+    ));
+    if (next.length && JSON.stringify(merged.categories) !== JSON.stringify(next)) {
+      merged.categories = next;
+      changed.push("categories");
+    }
+  }
+
   // budget
   if (raw.budget && typeof raw.budget === "object") {
     const b = raw.budget as Record<string, unknown>;
@@ -204,6 +226,11 @@ export const UPDATE_SLOTS_TOOL = {
         items: { type: "string", enum: ["none", "ow", "aow", "rescue+"] },
         description: "Certification per person, one entry per traveler. 'none' = snorkel only, 'ow' = Open Water (max 18m), 'aow' = Advanced (max 30m), 'rescue+' = Rescue or higher.",
       },
+      categories: {
+        type: "array",
+        items: { type: "string", enum: ["liveaboard", "daytrip", "snorkeling", "land_tour"] },
+        description: "Type(s) of trip the user wants. liveaboard = multi-day boat trip with onboard accommodation. daytrip = single-day dive trip returning same evening. snorkeling = snorkel-only day trip (no scuba). land_tour = land-based sightseeing (Big Buddha / Old Town / island hopping by speedboat). Multiple values OK if user wants to combine. Set this whenever the user names a category OR when they confirm one via a $$ASK$$ button.",
+      },
       budget: {
         type: "object",
         properties: {
@@ -241,6 +268,7 @@ export function formatSlotsForPrompt(slots: Slots | null | undefined): string | 
     parts.push(`headcount=${h.adults} adults${h.kids ? ` + ${h.kids} kids` : ""}`);
   }
   if (slots.region) parts.push(`region=${slots.region}`);
+  if (slots.categories?.length) parts.push(`categories=[${slots.categories.join(",")}]`);
   if (slots.certs?.length) parts.push(`certs=[${slots.certs.join(",")}]`);
   if (slots.budget) {
     const b = slots.budget;
