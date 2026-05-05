@@ -669,6 +669,35 @@ export async function POST(req: NextRequest) {
   } else {
     ragContext = buildRagContext(boats, ragSchedules, blogs, lastUserMsg);
   }
+
+  // Category-first hard guard. The system prompt asks the AI to query type
+  // before recommending, but LLMs ignore soft rules under recommendation
+  // pressure. If the user's message doesn't clearly imply a trip type AND
+  // no category slot has been set, replace the RAG block with a strict-mode
+  // instruction so $$TRIP$$ cards are suspended for this turn — same pattern
+  // as the no-matching-dates branch above.
+  const userHasCategoryHint = (() => {
+    const m = lastUserMsg.toLowerCase();
+    return /liveaboard|live-aboard|ค้างคืน|เรือนอน|day\s*trip|เดย์ทริป|day-trip|snorkel|สนอร์เกิล|ดำผิวน้ำ|land\s*tour|ทัวร์บก|land-tour/i.test(m);
+  })();
+  const pageImpliesCategory = !!(pageContext && /\/(boat|liveaboard|day-trip|daytrip|snorkel|land-tour)\//.test(pageContext));
+  const haveCategorySlot = Array.isArray(effectiveSlots.categories) && effectiveSlots.categories.length > 0;
+  const askCategoryFirst = !haveCategorySlot && !userHasCategoryHint && !pageImpliesCategory && !noTripsInWindow;
+  if (askCategoryFirst) {
+    ragContext =
+      `## ⚠️ CATEGORY UNKNOWN — STRICT MODE (READ FIRST, OVERRIDES RULE 7)\n` +
+      `The user is asking about diving but hasn't named a TRIP TYPE. Before showing any boat, you MUST ask which kind via $$ASK$$. **RULE 7 ($$TRIP$$ cards) IS SUSPENDED for this turn.** Do NOT emit any $$TRIP$$/$$COMPARE$$/$$PACKAGES$$ marker.\n\n` +
+      `Reply rules:\n` +
+      `1. One short opening line acknowledging the request (1 sentence).\n` +
+      `2. ONE $$ASK$$ marker with EXACTLY these 4 options (preserve the value strings verbatim — they trigger the categories slot extractor on the next turn):\n` +
+      `   - {"label":"Liveaboard (เรือค้างคืน 3-5 วัน)","value":"สนใจ liveaboard"}\n` +
+      `   - {"label":"Day Trip ดำน้ำไป-กลับ","value":"สนใจ day trip ดำน้ำ"}\n` +
+      `   - {"label":"Snorkeling เท่านั้น","value":"สนใจ snorkeling"}\n` +
+      `   - {"label":"Land Tour เที่ยวบก","value":"สนใจ land tour"}\n` +
+      `3. NOTHING else. No boat names, no recommendations, no other questions.\n\n` +
+      `Do NOT call update_slots in this turn — the user hasn't answered yet.\n`;
+  }
+
   const systemPrompt = buildSystemPrompt({
     lang,
     ragContext,

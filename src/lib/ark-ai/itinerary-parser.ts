@@ -46,3 +46,53 @@ export function parseItinerary(html: string | null | undefined): ItineraryDay[] 
   return out;
 }
 
+// Extract the operator's "กำหนดการ" / "Schedule" / "Itinerary" section from
+// the rich `schedule.content` field. DAYTRIP operators put their hour-by-hour
+// in there as `<h2>กำหนดการ</h2><ul><li><strong>07:00</strong> — รับ...</li>`
+// rather than the dedicated `schedule.itinerary` field (which is empty for
+// 100% of prod daytrips). This lets the timeline surface real operator data
+// without inventing anything.
+//
+// Looks for <h2> sections whose heading matches a schedule-ish keyword in any
+// of TH/EN/CN/DE/FR/RU/JA/KO; pulls every <li> directly under that <h2>'s
+// following <ul>/<ol>; returns one ItineraryDay per <li> with the bullet's
+// inner HTML preserved so <strong> time stamps still render.
+const SCHEDULE_HEADING_RE = /\b(itinerary|schedule|timeline|plan)\b/i;
+const TH_SCHEDULE_KEYWORDS = ["กำหนดการ", "ตารางเวลา", "ตารางการเดินทาง", "โปรแกรม", "เวลา"];
+
+function headingIsSchedule(text: string): boolean {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+  if (SCHEDULE_HEADING_RE.test(t)) return true;
+  return TH_SCHEDULE_KEYWORDS.some(k => text.includes(k));
+}
+
+const H2_BLOCK_RE = /<h2\b[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2\b|$)/gi;
+const LI_RE = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
+
+export function extractScheduleFromContent(html: string | null | undefined): ItineraryDay[] {
+  if (!html || typeof html !== "string") return [];
+  H2_BLOCK_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = H2_BLOCK_RE.exec(html)) !== null) {
+    const headingText = stripTags(m[1]);
+    if (!headingIsSchedule(headingText)) continue;
+    const body = m[2];
+    const items: ItineraryDay[] = [];
+    LI_RE.lastIndex = 0;
+    let li: RegExpExecArray | null;
+    while ((li = LI_RE.exec(body)) !== null) {
+      const inner = li[1].trim();
+      if (!inner) continue;
+      const heading = stripTags(inner);
+      items.push({
+        index: items.length,
+        heading,
+        bodyHtml: "",
+      });
+    }
+    if (items.length > 0) return items;
+  }
+  return [];
+}
+

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           },
         },
       },
-      translations: { select: { lang: true, title: true, route: true, itinerary: true, excerpt: true } },
+      translations: { select: { lang: true, title: true, route: true, itinerary: true, excerpt: true, content: true } },
       packages: {
         include: {
           package: {
@@ -221,6 +221,10 @@ export async function POST(req: NextRequest) {
         route: st?.route || "",
         itinerary: st?.itinerary || "",
         excerpt: st?.excerpt || "",
+        // schedule.content carries the operator's <h2>กำหนดการ</h2> block —
+        // PlanTimeline parses it for daytrip hour-by-hour rendering, since
+        // schedule.itinerary is empty for all prod daytrips.
+        content: st?.content || "",
         packages: pkgs,
       },
     };

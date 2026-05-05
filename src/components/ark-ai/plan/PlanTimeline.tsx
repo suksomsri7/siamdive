@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
-import { parseItinerary } from "@/lib/ark-ai/itinerary-parser";
+import { parseItinerary, extractScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -264,10 +264,22 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   // For multi-day trips we ALSO compute a per-block date stamp (departureDate
   // + index) so the user sees "Day 2 · 11 มิ.ย." not just "Day 2".
   //
-  // NEVER fabricate. When schedule.itinerary is empty (the case for all 169
-  // prod DAYTRIP schedules), the section hides cleanly and points the user to
-  // the rich "ดูรายละเอียด" expand below — that data is operator-authentic.
-  const itineraryDays = useMemo(() => parseItinerary(sched.itinerary), [sched.itinerary]);
+  // NEVER fabricate. Source priority:
+  //  1) schedule.itinerary HTML (operators write `<h3>Day N</h3><p>...</p>`
+  //     here — common for liveaboards)
+  //  2) schedule.content "<h2>กำหนดการ</h2><ul><li>...</li></ul>" — daytrip
+  //     operators put hour-by-hour here (100% of prod daytrips have this in
+  //     content, 0% have it in itinerary)
+  //  3) detail.schedule.content (same field, fetched async if not present
+  //     in the local plan trip)
+  // Empty across all three → section hides cleanly. No invented times.
+  const itineraryDays = useMemo(() => {
+    const parsed = parseItinerary(sched.itinerary);
+    if (parsed.length > 0) return parsed;
+    const fromLocalContent = extractScheduleFromContent(sched.content);
+    if (fromLocalContent.length > 0) return fromLocalContent;
+    return extractScheduleFromContent(detail?.schedule?.content);
+  }, [sched.itinerary, sched.content, detail]);
   const itineraryDayDates = useMemo(() => {
     if (!isMultiDay) return [];
     return itineraryDays.map((_, i) => dayDates[i] || dayDates[dayDates.length - 1]);
