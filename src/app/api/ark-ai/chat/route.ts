@@ -11,6 +11,7 @@ import { getArkAiProfile, formatProfileSummary } from "@/lib/ark-ai/profile";
 import { isBotUa } from "@/lib/analytics/botFilter";
 import { detectMedicalConcern, buildMedicalRedirect } from "@/lib/ark-ai/safety";
 import { applyToolCall, formatSlotsForPrompt, isComplete, UPDATE_SLOTS_TOOL, type Slots } from "@/lib/ark-ai/slots";
+import { extractDateHint } from "@/lib/ark-ai/date-hint";
 
 type Msg = { role: "user" | "assistant"; content: string };
 type Usage = { inputTokens: number; outputTokens: number };
@@ -568,12 +569,22 @@ export async function POST(req: NextRequest) {
   // AI only sees (and recommends) boats that actually run in that period.
   // Without this filter the model happily pitches a boat whose next departure
   // is months away from the requested date, then the picker shows no rows.
+  //
+  // Slot extraction runs as a tool call DURING the chat stream, so on the
+  // first turn the persisted slots are still empty when we build RAG. Fall
+  // back to a regex hint over the user's last message so first-turn
+  // recommendations already respect the date intent.
   const SCHEDULE_WINDOW_DAYS = 3;
+  let effectiveSlots: Slots = initialSlots;
+  if (!effectiveSlots.dates?.from) {
+    const hint = extractDateHint(lastUserMsg);
+    if (hint) effectiveSlots = { ...effectiveSlots, dates: hint };
+  }
   let scheduleFromDate: Date | undefined;
   let scheduleToDate: Date | undefined;
-  if (initialSlots.dates?.from) {
-    const fromMs = Date.parse(initialSlots.dates.from + "T00:00:00Z");
-    const toMs = Date.parse((initialSlots.dates.to || initialSlots.dates.from) + "T23:59:59Z");
+  if (effectiveSlots.dates?.from) {
+    const fromMs = Date.parse(effectiveSlots.dates.from + "T00:00:00Z");
+    const toMs = Date.parse((effectiveSlots.dates.to || effectiveSlots.dates.from) + "T23:59:59Z");
     if (!Number.isNaN(fromMs) && !Number.isNaN(toMs)) {
       scheduleFromDate = new Date(fromMs - SCHEDULE_WINDOW_DAYS * 86_400_000);
       scheduleToDate = new Date(toMs + SCHEDULE_WINDOW_DAYS * 86_400_000);
@@ -616,8 +627,8 @@ export async function POST(req: NextRequest) {
   const ragSchedules = noTripsInWindow ? widenedSchedules : schedules;
 
   let ragContext: string;
-  if (noTripsInWindow && initialSlots.dates?.from) {
-    const reqLabel = initialSlots.dates.label || initialSlots.dates.from;
+  if (noTripsInWindow && effectiveSlots.dates?.from) {
+    const reqLabel = effectiveSlots.dates.label || effectiveSlots.dates.from;
     // Don't even hand the model a "## Available Trips/Boats" section in this
     // case. Show only an alternatives list grouped by boat with real
     // departure dates so the model can't pitch a $$TRIP$$ card as if it ran
