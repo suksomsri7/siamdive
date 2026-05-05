@@ -564,11 +564,40 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const [boats, schedules, blogs] = await Promise.all([
+  // When the user has already given dates, narrow the schedule window so the
+  // AI only sees (and recommends) boats that actually run in that period.
+  // Without this filter the model happily pitches a boat whose next departure
+  // is months away from the requested date, then the picker shows no rows.
+  const SCHEDULE_WINDOW_DAYS = 3;
+  let scheduleFromDate: Date | undefined;
+  let scheduleToDate: Date | undefined;
+  if (initialSlots.dates?.from) {
+    const fromMs = Date.parse(initialSlots.dates.from + "T00:00:00Z");
+    const toMs = Date.parse((initialSlots.dates.to || initialSlots.dates.from) + "T23:59:59Z");
+    if (!Number.isNaN(fromMs) && !Number.isNaN(toMs)) {
+      scheduleFromDate = new Date(fromMs - SCHEDULE_WINDOW_DAYS * 86_400_000);
+      scheduleToDate = new Date(toMs + SCHEDULE_WINDOW_DAYS * 86_400_000);
+    }
+  }
+
+  const [boatsAll, schedules, blogs] = await Promise.all([
     searchBoats(lang),
-    searchSchedules(lang),
+    searchSchedules(lang, scheduleFromDate || scheduleToDate ? { fromDate: scheduleFromDate, toDate: scheduleToDate } : undefined),
     searchBlogs(lang, 20),
   ]);
+
+  // If we narrowed the schedule window, restrict the boat list to only boats
+  // that have at least one schedule in the window. Otherwise the AI still
+  // sees the full catalog and may recommend a boat with no matching trip.
+  const boats = scheduleFromDate
+    ? (() => {
+        const matching = new Set(schedules.map(s => s.boatId));
+        const filtered = boatsAll.filter(b => matching.has(b.id));
+        // Keep at least the unfiltered list when nothing matches, so the AI
+        // can still propose alternatives instead of going silent.
+        return filtered.length ? filtered : boatsAll;
+      })()
+    : boatsAll;
 
   const ragContext = buildRagContext(boats, schedules, blogs, lastUserMsg);
   const systemPrompt = buildSystemPrompt({

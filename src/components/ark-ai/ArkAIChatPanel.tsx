@@ -7,7 +7,7 @@ import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
-import { setTripSelectedPackage, getPlans } from "@/lib/plan-store";
+import { setTripSelectedPackage, getPlans, upsertServerPlan, type UserPlan } from "@/lib/plan-store";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -466,8 +466,17 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         return;
       }
       if (!res.ok) throw new Error(`build-plan ${res.status}`);
-      const data = await res.json() as { redirect?: string };
-      if (data.redirect) {
+      const data = await res.json() as { plan?: UserPlan; redirect?: string };
+      if (data.plan?.id) {
+        upsertServerPlan(data.plan);
+        onClose();
+        // Slight defer so the chat panel finishes its close animation before
+        // the My Plan drawer slides over the top.
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId: data.plan!.id } }));
+        }, 80);
+      } else if (data.redirect) {
+        // Fallback: legacy redirect path if server didn't return the plan blob.
         window.location.href = data.redirect;
       }
     } catch (err) {
@@ -585,6 +594,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               onBuildPlan={msg.role === "assistant" ? buildPlan : undefined}
               onPackageSelect={msg.role === "assistant" ? handlePackageSelect : undefined}
               selectedPackages={selectedPackages}
+              slotDate={slots.dates?.from}
               onScheduleAdded={(info) => {
                 // After user picks a schedule from a trip card, ping the AI
                 // with a plan-completion framing so it analyzes what info is

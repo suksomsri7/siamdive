@@ -67,6 +67,7 @@ export default function Navbar() {
   const [langOpen,       setLangOpen]       = useState(false);
   const [arkOpen,        setArkOpen]        = useState(false);
   const [planOpen,       setPlanOpen]       = useState(false);
+  const [planInitialId,  setPlanInitialId]  = useState<string | null>(null);
   const [contactOpen,    setContactOpen]    = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
 
@@ -96,7 +97,12 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const handler = () => { setPlanOpen(true); setArkOpen(false); };
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      setPlanInitialId(detail?.planId ?? null);
+      setPlanOpen(true);
+      setArkOpen(false);
+    };
     window.addEventListener("open-myplan", handler);
     return () => window.removeEventListener("open-myplan", handler);
   }, []);
@@ -222,7 +228,7 @@ export default function Navbar() {
       </header>
 
       <ArkAIChatPanel open={arkOpen} onClose={() => setArkOpen(false)} />
-      <MyPlanScreen open={planOpen} onClose={() => setPlanOpen(false)} lang={lang} />
+      <MyPlanScreen open={planOpen} onClose={() => { setPlanOpen(false); setPlanInitialId(null); }} lang={lang} initialPlanId={planInitialId} />
     </>
   );
 }

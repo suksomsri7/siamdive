@@ -5,9 +5,9 @@ import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 
-type Props = { open: boolean; onClose: () => void; lang: string };
+type Props = { open: boolean; onClose: () => void; lang: string; initialPlanId?: string | null };
 
-export default function MyPlanScreen({ open, onClose, lang }: Props) {
+export default function MyPlanScreen({ open, onClose, lang, initialPlanId }: Props) {
   const [plans, setPlans] = useState<UserPlan[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -24,6 +24,10 @@ export default function MyPlanScreen({ open, onClose, lang }: Props) {
     window.addEventListener("myplan-change", handler);
     return () => window.removeEventListener("myplan-change", handler);
   }, [open, refresh]);
+
+  useEffect(() => {
+    if (open && initialPlanId) setActivePlanId(initialPlanId);
+  }, [open, initialPlanId]);
 
   useEffect(() => {
     if (!open) return;

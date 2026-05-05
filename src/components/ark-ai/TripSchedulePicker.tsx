@@ -47,6 +47,10 @@ type Props = {
   area: string;
   cover: string | null;
   lang: string;
+  // ISO YYYY-MM-DD — when the AI conversation has surfaced a target date in
+  // the slot extractor, pass it down so the picker opens on that date instead
+  // of falling back to "tomorrow" / current month.
+  defaultDate?: string;
   onClose: () => void;
   onAdded: (info?: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
 };
@@ -59,7 +63,7 @@ const fmtDate = (iso: string) =>
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TripSchedulePicker({ boatId, title, slug, type, area, cover, lang, onClose, onAdded }: Props) {
+export default function TripSchedulePicker({ boatId, title, slug, type, area, cover, lang, defaultDate, onClose, onAdded }: Props) {
   const [boat, setBoat] = useState<BoatData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,8 +73,25 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   const tomorrowISO = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
   const currentMonthISO = () => new Date().toISOString().slice(0, 7);
 
-  const [filterDate, setFilterDate] = useState(() => usesDatePicker ? tomorrowISO() : "");
-  const [filterMonth, setFilterMonth] = useState(() => usesDatePicker ? "" : currentMonthISO());
+  const isFutureDate = (iso: string) => {
+    const d = Date.parse(iso + "T00:00:00Z");
+    return Number.isFinite(d) && d >= Date.parse(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+  };
+
+  const [filterDate, setFilterDate] = useState(() => {
+    if (!usesDatePicker) return "";
+    if (defaultDate && /^\d{4}-\d{2}-\d{2}$/.test(defaultDate) && isFutureDate(defaultDate)) {
+      return defaultDate;
+    }
+    return tomorrowISO();
+  });
+  const [filterMonth, setFilterMonth] = useState(() => {
+    if (usesDatePicker) return "";
+    if (defaultDate && /^\d{4}-\d{2}-\d{2}$/.test(defaultDate) && isFutureDate(defaultDate)) {
+      return defaultDate.slice(0, 7);
+    }
+    return currentMonthISO();
+  });
 
   const [addedScheduleIds, setAddedScheduleIds] = useState<Set<string>>(() => {
     const plans = getPlans();

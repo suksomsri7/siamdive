@@ -22,6 +22,10 @@ type Props = {
   onBuildPlan?: () => void;
   onPackageSelect?: (boatTitle: string, packageName: string) => void;
   selectedPackages?: Record<string, string>;
+  // When the chat has captured a target date via slot extraction, pass it down
+  // so the trip schedule picker defaults to the user's requested date instead
+  // of "tomorrow" / current month.
+  slotDate?: string;
 };
 
 type SelectedTrip = {
@@ -154,7 +158,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, onPackageSelect, selectedPackages }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, onPackageSelect, selectedPackages, slotDate }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -208,6 +212,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
               key={`picker-${selectedTrip.boatId}`}
               {...selectedTrip}
               lang={lang}
+              defaultDate={slotDate}
               onClose={() => setSelectedTrip(null)}
               onAdded={(info) => {
                 setTimeout(() => setSelectedTrip(null), 1200);

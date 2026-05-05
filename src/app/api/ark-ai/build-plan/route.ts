@@ -238,5 +238,17 @@ export async function POST(req: NextRequest) {
     blogs,
     warnings,
     redirect: `/${lang}/plan/${plan.shortId}`,
+    // Full plan in localStorage shape so the client can write it straight into
+    // plan-store and open the My Plan drawer without an extra round-trip.
+    plan: {
+      id: plan.id,
+      shortId: plan.shortId,
+      name: plan.name,
+      coverUrl: plan.coverUrl,
+      startDate: null,
+      trips,
+      createdAt: plan.createdAt.toISOString(),
+      updatedAt: plan.updatedAt.toISOString(),
+    },
   });
 }

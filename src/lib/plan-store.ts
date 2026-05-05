@@ -482,6 +482,22 @@ export function clearPlan() {
   scheduleSync();
 }
 
+// Insert (or replace) a plan returned by the server — used by Ark AI's
+// build-plan flow which writes to the DB directly. Marks the plan active so
+// the My Plan drawer drills straight into it on open.
+export function upsertServerPlan(plan: UserPlan): UserPlan {
+  const plans = readPlans();
+  const idx = plans.findIndex((p) => p.id === plan.id);
+  if (idx >= 0) {
+    plans[idx] = plan;
+  } else {
+    plans.push(plan);
+  }
+  writePlans(plans);
+  setActivePlanId(plan.id);
+  return plan;
+}
+
 export function hasTripInPlan(boatId: string): boolean {
   const plan = getActivePlan();
   return plan ? plan.trips.some((t) => t.boatId === boatId) : false;
