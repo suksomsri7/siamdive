@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { type PlanTrip, updateTripNote, removeTripByIndex } from "@/lib/plan-store";
+import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 
 type FetchedDetail = {
@@ -166,8 +166,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   conflicts?: { title: string; from: string; to: string }[];
   isLast: boolean; onRemoved?: () => void;
 }) {
-  const [editingNote, setEditingNote] = useState(false);
-  const [noteValue, setNoteValue] = useState(trip.note || "");
   // The per-trip day timeline is the primary surface and stays expanded.
   // The "ดูรายละเอียด" tab starts COLLAPSED — user feedback: it duplicated
   // the timeline and pushed real info below the fold. They open it on demand.
@@ -243,11 +241,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   const handleToggle = () => {
     if (!expanded) fetchDetail();
     setExpanded(!expanded);
-  };
-
-  const handleSaveNote = () => {
-    updateTripNote(planId, originalIdx, noteValue.trim());
-    setEditingNote(false);
   };
 
   const handleRemove = () => {
@@ -593,50 +586,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Note */}
-          {!expanded && (
-            <div style={{ padding: "0 12px 10px" }}>
-              {editingNote && canEdit ? (
-                <input
-                  autoFocus
-                  value={noteValue}
-                  onChange={(e) => setNoteValue(e.target.value)}
-                  onBlur={handleSaveNote}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveNote(); }}
-                  placeholder={isTh ? "เพิ่มโน้ต..." : "Add a note..."}
-                  style={{
-                    width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid #222",
-                    borderRadius: 6, color: "#f5f5f5", fontSize: 12, padding: "6px 8px",
-                    outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-                  }}
-                />
-              ) : trip.note ? (
-                <button
-                  onClick={() => canEdit && setEditingNote(true)}
-                  style={{ background: "none", border: "none", padding: 0, cursor: canEdit ? "pointer" : "default",
-                    display: "flex", alignItems: "center", gap: 4, color: "#888", fontSize: 12, textAlign: "left" }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                    <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  {trip.note}
-                </button>
-              ) : canEdit ? (
-                <button
-                  onClick={() => setEditingNote(true)}
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 4, color: "#444", fontSize: 12 }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                    <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  {isTh ? "เพิ่มโน้ต" : "Add note"}
-                </button>
-              ) : null}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -649,14 +598,7 @@ function UnscheduledCard({ trip, originalIdx, planId, lang, canEdit, onRemoved }
   trip: PlanTrip; originalIdx: number; planId: string; lang: string; canEdit: boolean;
   onRemoved?: () => void;
 }) {
-  const [editingNote, setEditingNote] = useState(false);
-  const [noteValue, setNoteValue] = useState(trip.note || "");
   const isTh = lang === "th";
-
-  const handleSaveNote = () => {
-    updateTripNote(planId, originalIdx, noteValue.trim());
-    setEditingNote(false);
-  };
 
   const handleRemove = () => {
     removeTripByIndex(planId, originalIdx);
@@ -680,52 +622,6 @@ function UnscheduledCard({ trip, originalIdx, planId, lang, canEdit, onRemoved }
         {trip.area && <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>{trip.area}</p>}
         <p style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
         <p style={{ fontSize: 11, color: "#555", margin: "2px 0 0" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
-        {editingNote && canEdit ? (
-          <input
-            autoFocus
-            value={noteValue}
-            onChange={(e) => setNoteValue(e.target.value)}
-            onBlur={handleSaveNote}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSaveNote(); }}
-            placeholder={isTh ? "โน้ต..." : "Note..."}
-            style={{
-              marginTop: 4, width: "100%",
-              background: "rgba(0,0,0,0.3)", border: "1px solid rgba(148,163,184,0.12)",
-              borderRadius: 6, color: "#f5f5f5", fontSize: 11, padding: "4px 6px",
-              outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-            }}
-          />
-        ) : trip.note ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); if (canEdit) setEditingNote(true); }}
-            style={{
-              marginTop: 2, background: "none", border: "none", padding: 0,
-              cursor: canEdit ? "pointer" : "default",
-              color: "#888", fontSize: 11, display: "flex", alignItems: "center", gap: 3,
-              textAlign: "left",
-            }}
-          >
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            {trip.note}
-          </button>
-        ) : canEdit ? (
-          <button
-            onClick={(e) => { e.stopPropagation(); setEditingNote(true); }}
-            style={{
-              marginTop: 2, background: "none", border: "none", padding: 0, cursor: "pointer",
-              color: "#444", fontSize: 11, display: "flex", alignItems: "center", gap: 3,
-            }}
-          >
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-              <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            {isTh ? "โน้ต" : "Note"}
-          </button>
-        ) : null}
       </div>
       {canEdit && (
         <button onClick={handleRemove}

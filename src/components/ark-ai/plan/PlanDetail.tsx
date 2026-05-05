@@ -8,7 +8,6 @@ import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
-import LogisticsBlock from "./LogisticsBlock";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import { getSavedEmail } from "@/lib/plan-store";
@@ -339,14 +338,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 ) : (
                   <div>
-                    <LogisticsBlock
-                      planId={planId}
-                      trips={trips}
-                      logistics={plan.logistics}
-                      lang={lang}
-                      canEdit={canEdit}
-                      onChange={(next) => setPlan((prev) => prev ? { ...prev, logistics: next } : prev)}
-                    />
                     <PlanTimeline
                       planId={planId}
                       trips={trips}
