@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
-import { getPlans, addTrip, addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
+import { getPlans, addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
+import { addPendingPick } from "@/lib/pending-picks";
 import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
 import DateConflictModal from "./ark-ai/plan/DateConflictModal";
 
@@ -494,25 +495,17 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     setPlanConflicts([]);
   };
 
+  // The "+" button no longer writes directly to the plan. Per the new flow,
+  // the user picks trips through Ark AI — the chat collects the rest of the
+  // trip details (transport, equipment, special needs) and the user explicitly
+  // builds a plan when satisfied. Adding a pending pick + opening the chat
+  // gives the AI a starting point; the plan only materializes on $$BUILD$$.
   const handleAddToPlan = (sched: ScheduleData | null) => {
     const t = buildPlanTrip(sched);
-    const plans = getPlans();
-    if (plans.length === 0) {
-      addTrip(t);
-      if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
-      return;
-    }
-    if (plans.length === 1) {
-      const planId = plans[0].id;
-      if (sched?.departureDate) {
-        const c = checkDateConflicts(planId, sched.departureDate, sched.returnDate);
-        if (c.length > 0) { setPendingPlanTrip(t); setPlanTargetId(planId); setPlanConflicts(c); return; }
-      }
-      doAddToPlan(planId, t);
-      return;
-    }
-    setPendingPlanTrip(t);
-    setShowPlanSelector(true);
+    addPendingPick(t);
+    if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
+    onClose();
+    setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100);
   };
 
   const handlePlanSelected = (planId: string) => {

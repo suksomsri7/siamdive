@@ -149,3 +149,49 @@ export function extractScheduleFromContent(html: string | null | undefined): Iti
   return extractFromH3(html);
 }
 
+// Remove the operator's "กำหนดการ" / "Schedule" section from the rich content
+// so the plan-detail view doesn't render the same itinerary that's already
+// surfaced in the per-trip Day timeline above. We strip the EXACT block
+// extractScheduleFromContent matched — h2 + its body up to next h2, or the
+// h3-streak from the schedule h3 through the last day h3 (stopping before
+// the next non-day section like "รวมในราคา").
+export function stripScheduleFromContent(html: string | null | undefined): string {
+  if (!html || typeof html !== "string") return "";
+  // h2 path — drop the whole "<h2>กำหนดการ</h2>...<ul>...</ul>..." block.
+  H2_BLOCK_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = H2_BLOCK_RE.exec(html)) !== null) {
+    const headingText = stripTags(m[1]);
+    if (headingIsSchedule(headingText)) {
+      return (html.slice(0, m.index) + html.slice(m.index + m[0].length)).trim();
+    }
+  }
+  // h3 path — drop from the schedule h3 (inclusive) up to but excluding the
+  // first non-day h3 that closes the streak.
+  H3_BLOCK_RE.lastIndex = 0;
+  type Block = { heading: string; index: number; end: number };
+  const blocks: Block[] = [];
+  while ((m = H3_BLOCK_RE.exec(html)) !== null) {
+    blocks.push({ heading: stripTags(m[1]), index: m.index, end: m.index + m[0].length });
+  }
+  let startIdx = -1;
+  let inItin = false;
+  let cutEnd = html.length;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (!inItin) {
+      if (headingIsSchedule(b.heading)) {
+        inItin = true;
+        startIdx = b.index;
+      }
+      continue;
+    }
+    if (headingIsNonDay(b.heading)) {
+      cutEnd = b.index;
+      break;
+    }
+  }
+  if (startIdx < 0) return html;
+  return (html.slice(0, startIdx) + html.slice(cutEnd)).trim();
+}
+

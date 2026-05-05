@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, updateTripNote, removeTripByIndex } from "@/lib/plan-store";
-import { parseItinerary, extractScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
+import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -168,10 +168,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteValue, setNoteValue] = useState(trip.note || "");
-  // Both itinerary AND details expanded by default — user feedback: real
-  // operator-written data should surface immediately, not hide behind toggles.
-  // Synthetic template content is removed entirely; only operator data shows.
-  const [expanded, setExpanded] = useState(true);
+  // The per-trip day timeline is the primary surface and stays expanded.
+  // The "ดูรายละเอียด" tab starts COLLAPSED — user feedback: it duplicated
+  // the timeline and pushed real info below the fold. They open it on demand.
+  const [expanded, setExpanded] = useState(false);
   const [showItinerary, setShowItinerary] = useState(true);
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -229,12 +229,16 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     setDetail(null);
   }, [lang]);
 
-  // Auto-fetch on mount (and on lang change) since the detail section is now
-  // expanded by default — user wants operator's real schedule.content visible
-  // immediately, not after clicking a toggle.
+  // Detail is now collapsed by default. Still fetch on mount when the local
+  // plan has no itinerary OR content — without a remote fetch the day-by-day
+  // timeline above would render empty for server-built plans (which don't
+  // persist content locally). User-curated plans skip the fetch since they
+  // already have everything cached.
+  const localHasContent = !!(sched.itinerary || sched.content);
   useEffect(() => {
     if (expanded && !detail && !detailLoading) fetchDetail();
-  }, [expanded, detail, detailLoading, fetchDetail]);
+    else if (!localHasContent && !detail && !detailLoading) fetchDetail();
+  }, [expanded, detail, detailLoading, fetchDetail, localHasContent]);
 
   const handleToggle = () => {
     if (!expanded) fetchDetail();
@@ -529,7 +533,12 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               {!detailLoading && detail && (() => {
                 const b = detail.boat;
                 const s = detail.schedule;
-                const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || s?.content);
+                // The schedule content already feeds the day-by-day timeline
+                // above. Strip its "กำหนดการ" / "Itinerary" section here so
+                // the detail panel surfaces the OTHER info (price/included/
+                // contact/notes) without duplicating what the timeline shows.
+                const sContentTrimmed = stripScheduleFromContent(s?.content);
+                const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || sContentTrimmed);
                 if (!hasAny) return (
                   <p style={{ fontSize: 12, color: "#555", textAlign: "center", padding: "8px 0" }}>
                     {isTh ? "ไม่มีรายละเอียดเพิ่มเติม" : "No additional details available"}
@@ -564,12 +573,12 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                         <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.route }} />
                       </div>
                     )}
-                    {s?.content && (
+                    {sContentTrimmed && (
                       <div>
                         <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                           {label("content")}
                         </p>
-                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.content }} />
+                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
                       </div>
                     )}
                   </>

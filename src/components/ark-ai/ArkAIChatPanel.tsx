@@ -7,7 +7,8 @@ import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
-import { getPlans, getActivePlan, upsertServerPlan, type UserPlan } from "@/lib/plan-store";
+import { addTrip, addTripToPlan, createPlan, getPlans, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
+import { readPendingPicks, removePendingPick, clearPendingPicks, type PendingPick } from "@/lib/pending-picks";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -146,6 +147,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const [lastError, setLastError] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slots>({});
   const [slotsComplete, setSlotsComplete] = useState(false);
+  // Trips the user clicked "+" on but hasn't built into a plan yet. Lives in
+  // sessionStorage (see pending-picks.ts). Until $$BUILD$$ fires, picks are
+  // pure intent — the plan-store stays untouched.
+  const [pendingPicks, setPendingPicks] = useState<PendingPick[]>(() => readPendingPicks());
+  // Step animation rendered while the build flushes pendingPicks → plan-store.
+  // null = no animation in flight. The integer is the current step (0-based).
+  const [buildStep, setBuildStep] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -162,6 +170,37 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       trackChatOpen();
       trackedOpenRef.current = true;
     }
+  }, [open]);
+
+  // Keep pendingPicks state in sync with sessionStorage. The boat-detail
+  // page's "+" button writes directly to storage and dispatches a
+  // pending-picks-changed event — without this listener we'd miss every
+  // out-of-component update.
+  useEffect(() => {
+    const sync = () => setPendingPicks(readPendingPicks());
+    window.addEventListener("pending-picks-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("pending-picks-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  // When the chat opens with picks already staged (typically because the user
+  // clicked "+" on the boat-detail page just before this), greet them with a
+  // contextual message instead of the generic welcome — the AI already knows
+  // which trip they care about.
+  useEffect(() => {
+    if (!open) return;
+    const picks = readPendingPicks();
+    if (picks.length === 0) return;
+    if (messages.length > 0) return;
+    const titles = picks.map(p => p.title).join(", ");
+    const text = lang === "th"
+      ? `สนใจ ${titles} อยากให้ผมช่วยจัดเข้า plan ใช่ไหมครับ?`
+      : `Interested in ${titles} — want me to help shape this into a plan?`;
+    sendRef.current?.(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Hydrate slot chips from the most-recent active session so the user can
@@ -428,26 +467,73 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       .catch(() => { /* keep optimistic state */ });
   }, []);
 
-  const buildPlan = useCallback(() => {
+  // Step labels for the build animation. Each tick advances the user-facing
+  // overlay so the user feels the AI is doing real work — even when the
+  // local fast path is essentially instant. Sized to feel deliberate (~1.6s
+  // total) without dragging.
+  const buildSteps = useCallback((): { th: string; en: string }[] => [
+    { th: "📦 จัดเตรียมทริป...",        en: "📦 Gathering trips..." },
+    { th: "🗓️ ลำดับวันที่...",          en: "🗓️ Sequencing dates..." },
+    { th: "🎒 สร้าง checklist...",       en: "🎒 Building checklist..." },
+    { th: "💰 คำนวณช่วงราคา...",         en: "💰 Calculating price range..." },
+    { th: "✓ พร้อมแล้ว!",               en: "✓ Ready!" },
+  ], []);
+
+  // Flush pendingPicks → plan-store with a step animation. Used by the
+  // fast path; the slow server-build path runs the animation in parallel
+  // with the actual /api/ark-ai/build-plan request.
+  const flushPicksToPlan = useCallback(async (picks: PendingPick[]): Promise<string | null> => {
+    if (picks.length === 0) return null;
+    const steps = buildSteps();
+    for (let i = 0; i < steps.length; i++) {
+      setBuildStep(i);
+      await new Promise(r => setTimeout(r, i === steps.length - 1 ? 300 : 320));
+    }
+    let plans = getPlans();
+    let planId: string | null = null;
+    if (plans.length === 0) {
+      const first = picks[0];
+      const plan = createPlan(suggestPlanName(first));
+      planId = plan.id;
+    } else {
+      planId = plans[0].id;
+    }
+    if (planId) {
+      for (const pick of picks) {
+        addTripToPlan(planId, pick);
+      }
+    } else {
+      // Fallback path — `createPlan` should always succeed, but defend
+      // against a corrupted localStorage by writing through `addTrip`,
+      // which auto-creates the active plan.
+      for (const pick of picks) addTrip(pick);
+      planId = (getPlans()[0] || null)?.id || null;
+    }
+    clearPendingPicks();
+    setPendingPicks([]);
+    setBuildStep(null);
+    return planId;
+  }, [buildSteps]);
+
+  const buildPlan = useCallback(async () => {
     const deviceId = readBrowserId("sd_vid");
     if (!deviceId) return;
     const sessionIdHdr = readBrowserId("sd_sid");
 
-    // Fast path — user already curated trips through the chat picker.
-    // Their plan IS in localStorage with the exact schedule + package
-    // they picked. Skip the server auto-build entirely (which would race
-    // the debounced sync, ignore their selection, and replace it with
-    // top-N picks). Open the plan detail straight away.
-    const curated = getActivePlan() || getPlans().find(p => p.trips.length > 0);
-    if (curated && curated.trips.length > 0) {
+    // Fast path — user has staged trips via "+" (chat or boat-detail page).
+    // Run the visible build animation, flush picks into the plan-store,
+    // then open My Plan straight to the new plan.
+    const stagedPicks = readPendingPicks();
+    if (stagedPicks.length > 0) {
+      const planId = await flushPicksToPlan(stagedPicks);
       onClose();
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId: curated.id } }));
+        window.dispatchEvent(new CustomEvent("open-myplan", planId ? { detail: { planId } } : {}));
       }, 80);
       return;
     }
 
-    // Slow path — no manual picks yet, ask the server to auto-build.
+    // Slow path — no staged picks, ask the server to auto-build from slots.
     // Open MyPlan in "building" mode so the user sees progress while we
     // wait for /api/ark-ai/build-plan to resolve.
     onClose();
@@ -489,7 +575,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           : "Couldn't build the plan. Please try again or contact us via LINE.";
         window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [reason] } }));
       });
-  }, [lang, pathname, onClose]);
+  }, [lang, pathname, onClose, flushPicksToPlan]);
 
   sendRef.current = sendMessage;
 
@@ -670,6 +756,80 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           </button>
         )}
 
+        {/* Staged trips — chips above input. Each chip has × to drop the
+            pick. The "✨ สร้าง plan ของฉัน" CTA materializes the picks via
+            buildPlan (fast path runs the step animation + opens MyPlan). */}
+        {pendingPicks.length > 0 && buildStep === null && (
+          <div style={{
+            padding: "10px 16px 0",
+            borderTop: "1px solid #1a1a1a",
+            flexShrink: 0,
+            background: "#0a0a0a",
+          }}>
+            <p style={{ fontSize: 10, color: "#9ca3af", margin: "0 0 6px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              {lang === "th" ? `ทริปที่เลือกไว้ (${pendingPicks.length})` : `Selected trips (${pendingPicks.length})`}
+            </p>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {pendingPicks.map((p) => {
+                const dt = p.schedule?.departureDate
+                  ? new Date(p.schedule.departureDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short" })
+                  : "";
+                const key = `${p.boatId}:${p.schedule?.scheduleId || ""}`;
+                return (
+                  <span key={key} style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "rgba(59,130,246,0.12)",
+                    border: "1px solid rgba(59,130,246,0.25)",
+                    color: "#bfdbfe", fontSize: 12, fontWeight: 600,
+                    padding: "5px 4px 5px 10px", borderRadius: 999, maxWidth: "100%",
+                  }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
+                      {p.title}{dt ? ` · ${dt}` : ""}
+                    </span>
+                    <button
+                      onClick={() => { removePendingPick(p.boatId, p.schedule?.scheduleId); setPendingPicks(readPendingPicks()); }}
+                      aria-label={lang === "th" ? `ลบ ${p.title}` : `Remove ${p.title}`}
+                      style={{
+                        width: 18, height: 18, borderRadius: "50%", border: "none",
+                        background: "rgba(255,255,255,0.08)", color: "#cbd5e1",
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, lineHeight: 1, flexShrink: 0,
+                      }}>×</button>
+                  </span>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={buildPlan}
+                disabled={streaming}
+                style={{
+                  flex: "1 1 60%", padding: "10px 14px", borderRadius: 12, border: "none",
+                  background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+                  color: "#fff", fontSize: 13, fontWeight: 800, letterSpacing: "0.01em",
+                  cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
+                  boxShadow: "0 4px 12px rgba(59,130,246,0.3)",
+                }}>
+                {lang === "th" ? `✨ สร้าง plan (${pendingPicks.length})` : `✨ Build plan (${pendingPicks.length})`}
+              </button>
+              <button
+                onClick={() => sendMessage(lang === "th"
+                  ? "แนะนำทริปเที่ยวเพิ่มเติมที่เข้ากับทริปที่ผมเลือกไว้หน่อยครับ"
+                  : "Recommend more trips that pair well with the ones I picked.")}
+                disabled={streaming}
+                style={{
+                  flex: "1 1 40%", padding: "10px 12px", borderRadius: 12,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(148,163,184,0.18)",
+                  color: "#e5e5e5", fontSize: 13, fontWeight: 700,
+                  cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
+                }}>
+                {lang === "th" ? "💡 แนะนำทริปต่อ" : "💡 Suggest more"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div style={{ padding: "10px 16px", paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #1a1a1a", flexShrink: 0, touchAction: "manipulation" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
@@ -710,6 +870,55 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             </button>
           </div>
         </div>
+
+        {/* Build animation overlay — covers the panel while flushPicksToPlan
+            walks the steps. Visible feedback that the AI is shaping the plan
+            (matters even when the local fast-path is essentially instant). */}
+        {buildStep !== null && (() => {
+          const steps = buildSteps();
+          return (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 20,
+              background: "rgba(10,10,10,0.96)",
+              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "32px 24px",
+              animation: "arkFadeIn 0.2s ease both",
+            }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 20, boxShadow: "0 8px 28px rgba(59,130,246,0.4)",
+              }}>
+                <img src="/ai-mask.png" alt="" width={32} height={32} />
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f5f5", margin: "0 0 18px" }}>
+                {lang === "th" ? "กำลังสร้าง plan ของคุณ..." : "Building your plan..."}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 240 }}>
+                {steps.map((s, i) => {
+                  const done = i < buildStep;
+                  const active = i === buildStep;
+                  return (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      fontSize: 14, fontWeight: 600,
+                      color: done ? "#4ade80" : active ? "#f5f5f5" : "rgba(255,255,255,0.3)",
+                      opacity: done || active ? 1 : 0.4,
+                      transition: "all 0.25s ease",
+                    }}>
+                      <span style={{ width: 18, textAlign: "center" }}>
+                        {done ? "✓" : active ? "•" : "·"}
+                      </span>
+                      <span>{lang === "th" ? s.th : s.en}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </>
   );

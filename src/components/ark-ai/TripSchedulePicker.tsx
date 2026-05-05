@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getPlans, addTrip, addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type DateConflict } from "@/lib/plan-store";
-import PlanSelectorSheet from "./plan/PlanSelectorSheet";
-import DateConflictModal from "./plan/DateConflictModal";
+import { getPlans, type PlanTrip } from "@/lib/plan-store";
+import { addPendingPick, readPendingPicks } from "@/lib/pending-picks";
 
 type SchedulePackage = {
   packageId: string;
@@ -93,23 +92,21 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
     return currentMonthISO();
   });
 
+  // "Already added" badge sources from BOTH committed plans AND staged
+  // pendingPicks — once the user clicks "+" the schedule should look added
+  // even though the plan-store hasn't received it yet (deferred until $$BUILD$$).
   const [addedScheduleIds, setAddedScheduleIds] = useState<Set<string>>(() => {
-    const plans = getPlans();
     const ids = new Set<string>();
-    for (const plan of plans) {
+    for (const plan of getPlans()) {
       for (const trip of plan.trips) {
-        if (trip.boatId === boatId && trip.schedule?.scheduleId) {
-          ids.add(trip.schedule.scheduleId);
-        }
+        if (trip.boatId === boatId && trip.schedule?.scheduleId) ids.add(trip.schedule.scheduleId);
       }
+    }
+    for (const pick of readPendingPicks()) {
+      if (pick.boatId === boatId && pick.schedule?.scheduleId) ids.add(pick.schedule.scheduleId);
     }
     return ids;
   });
-
-  const [pendingTrip, setPendingTrip] = useState<Omit<PlanTrip, "addedAt"> | null>(null);
-  const [showPlanSelector, setShowPlanSelector] = useState(false);
-  const [conflicts, setConflicts] = useState<DateConflict[]>([]);
-  const [targetPlanId, setTargetPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/public/boats/${boatId}`)
@@ -157,75 +154,16 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
       ? { boatId: trip.boatId, boatTitle: trip.title, scheduleDate: trip.schedule.departureDate, scheduleId: trip.schedule.scheduleId, area: trip.area, type: trip.type }
       : undefined;
 
-  const doAdd = (planId: string, trip: Omit<PlanTrip, "addedAt">) => {
-    const added = addTripToPlan(planId, trip);
-    if (added && trip.schedule?.scheduleId) {
-      setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
-      onAdded(buildAddedInfo(trip));
-    }
-    setPendingTrip(null);
-    setTargetPlanId(null);
-    setConflicts([]);
-  };
-
+  // The picker no longer writes to plan-store. Staging the trip into
+  // pendingPicks lets the chat continue collecting follow-up info (transport,
+  // equipment, special needs) before the user explicitly fires $$BUILD$$.
   const handleAddSchedule = (schedule: Schedule) => {
     const trip = buildEnrichedTrip(schedule);
-    const plans = getPlans();
-
-    if (plans.length === 0) {
-      addTrip(trip);
-      if (trip.schedule?.scheduleId) {
-        setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
-      }
-      onAdded(buildAddedInfo(trip));
-      return;
+    addPendingPick(trip);
+    if (trip.schedule?.scheduleId) {
+      setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
     }
-
-    if (plans.length === 1) {
-      const planId = plans[0].id;
-      if (schedule.departureDate) {
-        const c = checkDateConflicts(planId, schedule.departureDate, schedule.returnDate);
-        if (c.length > 0) {
-          setPendingTrip(trip);
-          setTargetPlanId(planId);
-          setConflicts(c);
-          return;
-        }
-      }
-      doAdd(planId, trip);
-      return;
-    }
-
-    setPendingTrip(trip);
-    setShowPlanSelector(true);
-  };
-
-  const handlePlanSelected = (planId: string) => {
-    setShowPlanSelector(false);
-    if (!pendingTrip) return;
-
-    if (pendingTrip.schedule?.departureDate) {
-      const c = checkDateConflicts(planId, pendingTrip.schedule.departureDate, pendingTrip.schedule.returnDate);
-      if (c.length > 0) {
-        setTargetPlanId(planId);
-        setConflicts(c);
-        return;
-      }
-    }
-    doAdd(planId, pendingTrip);
-  };
-
-  const handleConflictConfirm = () => {
-    if (targetPlanId && pendingTrip) {
-      doAdd(targetPlanId, pendingTrip);
-    }
-  };
-
-  const handleConflictNewPlan = () => {
-    if (!pendingTrip) return;
-    const name = suggestPlanName(pendingTrip);
-    const plan = createPlan(name);
-    doAdd(plan.id, pendingTrip);
+    onAdded(buildAddedInfo(trip));
   };
 
   const allSchedules = boat?.schedules?.filter(s =>
@@ -460,24 +398,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
         )}
       </div>
 
-      {showPlanSelector && (
-        <PlanSelectorSheet
-          lang={lang}
-          suggestedName={pendingTrip ? suggestPlanName(pendingTrip) : undefined}
-          onSelect={handlePlanSelected}
-          onClose={() => { setShowPlanSelector(false); setPendingTrip(null); }}
-        />
-      )}
-
-      {conflicts.length > 0 && (
-        <DateConflictModal
-          conflicts={conflicts}
-          lang={lang}
-          onConfirm={handleConflictConfirm}
-          onCreateNewPlan={handleConflictNewPlan}
-          onClose={() => { setConflicts([]); setPendingTrip(null); setTargetPlanId(null); }}
-        />
-      )}
     </>
   );
 }
