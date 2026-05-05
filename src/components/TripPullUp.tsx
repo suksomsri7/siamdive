@@ -440,31 +440,27 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     }
     return ids;
   });
-  const [addedPkgKeys, setAddedPkgKeys] = useState<Set<string>>(() => {
-    if (!trip.boatId) return new Set();
-    const plans = getPlans();
-    const keys = new Set<string>();
-    for (const p of plans) {
-      for (const t of p.trips) {
-        if (t.boatId === trip.boatId && t.schedule?.packages) {
-          const sid = t.schedule.scheduleId || "";
-          for (const pkg of t.schedule.packages) keys.add(`${sid}:${pkg.name}`);
-        }
-      }
-    }
-    return keys;
-  });
   const [pendingPlanTrip, setPendingPlanTrip] = useState<Omit<PlanTrip, "addedAt"> | null>(null);
   const [showPlanSelector, setShowPlanSelector] = useState(false);
   const [planConflicts, setPlanConflicts] = useState<DateConflict[]>([]);
   const [planTargetId, setPlanTargetId] = useState<string | null>(null);
 
-  const buildPlanTrip = (sched: ScheduleData | null, specificPkg?: { id: string }): Omit<PlanTrip, "addedAt"> => {
+  // The plan no longer tracks individual packages — the boat detail page can
+  // still display them, but adding to the plan stores only a schedule-wide
+  // price range. SiamDive confirms the right cabin/package after the booking
+  // inquiry. See PlanTripSchedule.priceMin / priceMax.
+  const buildPlanTrip = (sched: ScheduleData | null): Omit<PlanTrip, "addedAt"> => {
     const boatTr = pickTrans(boat?.translations, lang);
     const schedTr = sched ? pickTrans(sched.translations, lang) : undefined;
-    const pkgList = specificPkg
-      ? sched?.packages.filter(sp => sp.packageId === specificPkg.id) || []
-      : sched?.packages || [];
+    const allPrices: number[] = [];
+    for (const sp of sched?.packages || []) {
+      const pkg = boat?.packages.find(p => p.id === sp.packageId);
+      const tiers = sp.priceTiers?.length ? sp.priceTiers : (pkg?.priceTiers || []);
+      for (const t of tiers) {
+        const price = t.salePrice ?? t.regularPrice;
+        if (price > 0) allPrices.push(price);
+      }
+    }
     const scheduleData: PlanTripSchedule | undefined = sched?.departureDate ? {
       scheduleId: sched.id,
       departureDate: sched.departureDate,
@@ -474,13 +470,8 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
       itinerary: schedTr?.itinerary || "",
       excerpt: schedTr?.excerpt || "",
       content: schedTr?.content || "",
-      packages: pkgList.map(sp => {
-        const pkg = boat?.packages.find(p => p.id === sp.packageId);
-        const pt = pkg ? pickTrans(pkg.translations, lang) : undefined;
-        const tiers = sp.priceTiers?.length ? sp.priceTiers : (pkg?.priceTiers || []);
-        const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
-        return { name: pt?.title || pkg?.name || "Package", minPrice: prices.length ? Math.min(...prices) : 0 };
-      }),
+      priceMin: allPrices.length ? Math.min(...allPrices) : 0,
+      priceMax: allPrices.length ? Math.max(...allPrices) : 0,
     } : undefined;
     return {
       boatId: trip.boatId || "",
@@ -497,27 +488,18 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     const added = addTripToPlan(planId, t);
     if (added) {
       if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
-      if (t.schedule?.packages) {
-        const sid = t.schedule.scheduleId || "";
-        setAddedPkgKeys(prev => {
-          const next = new Set(prev);
-          for (const pkg of t.schedule!.packages) next.add(`${sid}:${pkg.name}`);
-          return next;
-        });
-      }
     }
     setPendingPlanTrip(null);
     setPlanTargetId(null);
     setPlanConflicts([]);
   };
 
-  const handleAddToPlan = (sched: ScheduleData | null, specificPkg?: { id: string }) => {
-    const t = buildPlanTrip(sched, specificPkg);
+  const handleAddToPlan = (sched: ScheduleData | null) => {
+    const t = buildPlanTrip(sched);
     const plans = getPlans();
     if (plans.length === 0) {
       addTrip(t);
       if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
-      if (t.schedule?.packages) { const sid = t.schedule.scheduleId || ""; setAddedPkgKeys(prev => { const n = new Set(prev); for (const p of t.schedule!.packages) n.add(`${sid}:${p.name}`); return n; }); }
       return;
     }
     if (plans.length === 1) {
@@ -1066,34 +1048,6 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                           </div>
                         </div>
                       </button>
-                      {/* + Add to plan */}
-                      {!pkgIsFull && (() => {
-                        const sched = matchingSchedules.length > 0 ? matchingSchedules[0] : null;
-                        const pkgName = pt?.title || pkg.name;
-                        const isAdded = addedPkgKeys.has(`${sched?.id || ""}:${pkgName}`);
-                        return (
-                          <button
-                            onClick={() => !isAdded && handleAddToPlan(sched, { id: pkg.id })}
-                            disabled={isAdded}
-                            style={{
-                              width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginRight: 12,
-                              background: isAdded ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
-                              border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
-                              color: isAdded ? "#4ade80" : "#fff",
-                              cursor: isAdded ? "default" : "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            {isAdded ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            ) : (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            )}
-                          </button>
-                        );
-                      })()}
                     </div>
 
                     {/* Expanded body */}

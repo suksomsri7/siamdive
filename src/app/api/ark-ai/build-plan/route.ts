@@ -184,30 +184,25 @@ export async function POST(req: NextRequest) {
       ? pickByLang(s.boat.serviceAreas[0].serviceArea.translations, lang)
       : null;
     const st = pickByLang(s.translations, lang);
-    const filteredPackages = cert === "none"
+    const eligiblePackages = cert === "none"
       ? s.packages.filter(sp => {
           const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
           const title = pickByLang(sp.package.translations, lang)?.title || sp.package.name;
           return packageIsSnorkelFriendly(tiers, title);
         })
       : s.packages;
-    const allPkgs = filteredPackages.map(sp => {
-      const pt = pickByLang(sp.package.translations, lang);
+    // Walk every tier to derive a schedule-wide price range. The plan UI
+    // renders "เริ่ม X — Y บาท/คน"; we no longer surface individual packages.
+    const allPrices: number[] = [];
+    for (const sp of eligiblePackages) {
       const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
-      const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
-      return {
-        name: pt?.title || sp.package.name,
-        minPrice: prices.length ? Math.min(...prices) : 0,
-      };
-    });
-    // Default to the first package only — same UX rule as TripSchedulePicker.
-    // The auto-built plan shouldn't dump 5 packages on the user's first view;
-    // they already trusted us to pick the trip, give them a sane default and
-    // let them swap via plan UI if needed. The full roster lives on
-    // availablePackages so a $$PACKAGES$$ click in chat can swap to any
-    // option (without it the swap silently no-ops because the chosen name
-    // isn't in the truncated `packages` array).
-    const pkgs = allPkgs.length > 0 ? [allPkgs[0]] : [];
+      for (const t of tiers) {
+        const price = t.salePrice ?? t.regularPrice;
+        if (price > 0) allPrices.push(price);
+      }
+    }
+    const priceMin = allPrices.length ? Math.min(...allPrices) : 0;
+    const priceMax = allPrices.length ? Math.max(...allPrices) : 0;
     return {
       boatId: s.boat.id,
       title: bt?.title || s.boat.name,
@@ -228,8 +223,8 @@ export async function POST(req: NextRequest) {
         // PlanTimeline parses it for daytrip hour-by-hour rendering, since
         // schedule.itinerary is empty for all prod daytrips.
         content: st?.content || "",
-        packages: pkgs,
-        availablePackages: allPkgs,
+        priceMin,
+        priceMax,
       },
     };
   });

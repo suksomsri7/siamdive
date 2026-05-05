@@ -6,7 +6,6 @@ import ChatTripCard from "./ChatTripCard";
 import ChatBlogCard from "./ChatBlogCard";
 import ComparisonTable from "./ComparisonTable";
 import BookingButtons from "./BookingButtons";
-import PackageTable from "./PackageTable";
 import TripSchedulePicker from "./TripSchedulePicker";
 
 type Props = {
@@ -20,8 +19,6 @@ type Props = {
   onAskClick?: (value: string) => void;
   onScheduleAdded?: (info: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
   onBuildPlan?: () => void;
-  onPackageSelect?: (boatTitle: string, packageName: string) => void;
-  selectedPackages?: Record<string, string>;
   // When the chat has captured a target date via slot extraction, pass it down
   // so the trip schedule picker defaults to the user's requested date instead
   // of "tomorrow" / current month.
@@ -44,7 +41,6 @@ type ParsedPart =
   | { type: "blog"; data: Record<string, unknown> }
   | { type: "compare"; data: { boats: Record<string, unknown>[] } }
   | { type: "booking"; data: { boatTitle: string; boatId?: string; schedule?: string | null; price?: number | null } }
-  | { type: "packages"; data: { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] } }
   | { type: "ask"; data: { prompt?: string; options: AskOption[] } }
   | { type: "build"; data: { label?: string; summary?: string } };
 
@@ -67,7 +63,7 @@ function extractBalancedJson(text: string, start: number): string | null {
 
 function parseStructured(text: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|PACKAGES|ASK|BUILD)\{/g;
+  const tagRegex = /\$\$(TRIP|BLOG|COMPARE|BOOKING|ASK|BUILD)\{/g;
   let lastIndex = 0;
   let match;
 
@@ -83,7 +79,7 @@ function parseStructured(text: string): ParsedPart[] {
     }
     try {
       const data = JSON.parse(jsonStr);
-      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "packages" | "ask" | "build";
+      const kind = match[1].toLowerCase() as "trip" | "blog" | "compare" | "booking" | "ask" | "build";
       parts.push({ type: kind, data });
     } catch {
       parts.push({ type: "text", content: text.slice(match.index, endIndex + 2) });
@@ -158,7 +154,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, onPackageSelect, selectedPackages, slotDate }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, slotDate }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -245,21 +241,6 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
       case "booking":
         rendered.push(<BookingButtons key={i} {...part.data as any} />);
         break;
-      case "packages": {
-        const pkgData = part.data as { boatTitle: string; scheduleDate?: string; packages: { title: string; excerpt: string; recommended?: boolean; isFull?: boolean }[] };
-        const selectedName = selectedPackages?.[pkgData.boatTitle];
-        rendered.push(
-          <PackageTable
-            key={i}
-            boatTitle={pkgData.boatTitle}
-            scheduleDate={pkgData.scheduleDate}
-            packages={pkgData.packages}
-            selectedName={selectedName}
-            onSelectPackage={onPackageSelect ? (title) => onPackageSelect(pkgData.boatTitle, title) : undefined}
-          />,
-        );
-        break;
-      }
       case "build": {
         const buildData = part.data as { label?: string; summary?: string };
         const defaultLabel = lang === "th" ? "✨ สร้าง plan ของฉัน" : "✨ Build my plan";

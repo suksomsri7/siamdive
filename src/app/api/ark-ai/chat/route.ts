@@ -686,7 +686,7 @@ export async function POST(req: NextRequest) {
   if (askCategoryFirst) {
     ragContext =
       `## ⚠️ CATEGORY UNKNOWN — STRICT MODE (READ FIRST, OVERRIDES RULE 7)\n` +
-      `The user is asking about diving but hasn't named a TRIP TYPE. Before showing any boat, you MUST ask which kind via $$ASK$$. **RULE 7 ($$TRIP$$ cards) IS SUSPENDED for this turn.** Do NOT emit any $$TRIP$$/$$COMPARE$$/$$PACKAGES$$ marker.\n\n` +
+      `The user is asking about diving but hasn't named a TRIP TYPE. Before showing any boat, you MUST ask which kind via $$ASK$$. **RULE 7 ($$TRIP$$ cards) IS SUSPENDED for this turn.** Do NOT emit any $$TRIP$$ or $$COMPARE$$ marker.\n\n` +
       `Reply rules:\n` +
       `1. One short opening line acknowledging the request (1 sentence).\n` +
       `2. ONE $$ASK$$ marker with EXACTLY these 4 options (preserve the value strings verbatim — they trigger the categories slot extractor on the next turn):\n` +

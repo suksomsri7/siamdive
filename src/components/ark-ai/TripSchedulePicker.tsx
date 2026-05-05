@@ -120,22 +120,20 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
 
   const buildEnrichedTrip = (schedule: Schedule): Omit<PlanTrip, "addedAt"> => {
     const st = pick(schedule.translations, lang);
-    const allPkgInfo = schedule.packages.map(sp => {
+    // Walk every tier on every package on this schedule to derive a
+    // schedule-wide price range. The plan UI surfaces "เริ่ม X — Y บาท/คน";
+    // we don't track individual packages anymore.
+    const allPrices: number[] = [];
+    for (const sp of schedule.packages) {
       const pkg = boat?.packages.find(p => p.id === sp.packageId);
-      const pt = pkg ? pick(pkg.translations, lang) : null;
       const tiers = sp.priceTiers?.length ? sp.priceTiers : (pkg?.priceTiers || []);
-      const prices = tiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
-      const minPrice = prices.length ? Math.min(...prices) : 0;
-      return { name: pt?.title || pkg?.name || "Package", minPrice };
-    });
-    // Default to the FIRST package (operators typically list their flagship
-    // first). Showing all packages on the plan card confuses users who
-    // already think "selecting the schedule = selecting the trip". They
-    // can swap or add more via the plan UI's "Add Package" / chat picker.
-    // We still keep the full roster on `availablePackages` so a chat
-    // $$PACKAGES$$ click can swap to any of them — without that lookup
-    // source the user would be stuck on whatever was first.
-    const pkgInfo = allPkgInfo.length > 0 ? [allPkgInfo[0]] : [];
+      for (const t of tiers) {
+        const price = t.salePrice ?? t.regularPrice;
+        if (price > 0) allPrices.push(price);
+      }
+    }
+    const priceMin = allPrices.length ? Math.min(...allPrices) : 0;
+    const priceMax = allPrices.length ? Math.max(...allPrices) : 0;
 
     return {
       boatId, title, slug, type, area, cover,
@@ -148,8 +146,8 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
         itinerary: st?.itinerary || "",
         excerpt: st?.excerpt || "",
         content: st?.content || "",
-        packages: pkgInfo,
-        availablePackages: allPkgInfo,
+        priceMin,
+        priceMax,
       },
     };
   };

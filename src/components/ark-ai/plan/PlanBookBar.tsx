@@ -1,13 +1,10 @@
 "use client";
 
-// PlanBookBar — sticky bottom CTA on PlanDetail. Replaces the inline budget
-// box that used to sit at the top of PlanTimeline. Shows total estimated
-// budget + count of trips, plus a primary "Book / Contact" button that
-// opens the same ContactChannelSheet as before. Stays pinned to the
-// drawer's bottom edge so it's always reachable on long itineraries.
-//
-// Renders nothing if there are no trips with priced packages — there's
-// nothing to book yet, so a CTA would be misleading.
+// PlanBookBar — sticky bottom CTA on PlanDetail. Shows the schedule-wide
+// price range ("เริ่ม X — Y บาท/คน") summed across every trip in the plan,
+// plus a primary "Book / Contact" button that opens ContactChannelSheet.
+// Renders nothing if there are no scheduled trips — a CTA would be
+// misleading.
 
 import type { PlanTrip, PlanLogistics } from "@/lib/plan-store";
 
@@ -22,8 +19,8 @@ type Props = {
 
 const L = {
   th: {
-    estBudget: "งบโดยประมาณ",
-    perGroup: "/ กลุ่ม",
+    estBudget: "ราคาเริ่มต้น",
+    perPerson: "/คน",
     book: "ติดต่อจอง",
     fromHotel: "รับที่",
     transferYes: "รับ-ส่งสนามบิน",
@@ -31,8 +28,8 @@ const L = {
     needs: "หมายเหตุ",
   },
   en: {
-    estBudget: "Est. budget",
-    perGroup: "/ group",
+    estBudget: "Starting price",
+    perPerson: "/person",
     book: "Book / Contact",
     fromHotel: "Pickup at",
     transferYes: "Airport transfer",
@@ -47,25 +44,29 @@ function getLabels(lang: string): Labels {
   return map[lang] || L.en;
 }
 
-function totalBudget(trips: PlanTrip[]): number {
-  return trips.reduce((sum, t) => {
-    if (!t.schedule?.packages?.length) return sum;
-    return sum + t.schedule.packages.reduce((s, p) => s + (p.minPrice > 0 ? p.minPrice * (p.qty || 1) : 0), 0);
-  }, 0);
+// Sum every trip's per-person price range into a plan-wide range.
+// "เริ่ม X — Y บาท/คน" where X = sum of every trip's priceMin and
+// Y = sum of every trip's priceMax. Trips without priceMin (legacy plans)
+// contribute 0 — the user just sees a lower starting figure.
+function priceRange(trips: PlanTrip[]): { min: number; max: number } {
+  let min = 0, max = 0;
+  for (const t of trips) {
+    const lo = t.schedule?.priceMin ?? 0;
+    const hi = t.schedule?.priceMax ?? lo;
+    min += lo;
+    max += hi;
+  }
+  return { min, max };
 }
 
-function buildBookingMessage(trips: PlanTrip[], logistics: PlanLogistics | undefined, planShortId: string, ownerEmail: string | null | undefined, total: number, t: ReturnType<typeof getLabels>): string {
+function buildBookingMessage(trips: PlanTrip[], logistics: PlanLogistics | undefined, planShortId: string, ownerEmail: string | null | undefined, range: { min: number; max: number }, t: ReturnType<typeof getLabels>): string {
   const lines: string[] = [];
   lines.push(`Hi, I'd like to book the following trips (Plan: ${planShortId}):`);
   for (const trip of trips) {
     const dep = trip.schedule?.departureDate?.slice(0, 10) || "";
     const ret = trip.schedule?.returnDate?.slice(0, 10);
     const dateLabel = ret && ret !== dep ? `${dep} → ${ret}` : dep;
-    const pkgs = trip.schedule?.packages || [];
-    const pkgLine = pkgs.length
-      ? pkgs.map(p => `${p.name} × ${p.qty || 1}`).join(", ")
-      : "";
-    lines.push(`- ${trip.title}${dateLabel ? ` (${dateLabel})` : ""}${pkgLine ? ` — ${pkgLine}` : ""}`);
+    lines.push(`- ${trip.title}${dateLabel ? ` (${dateLabel})` : ""}`);
   }
   if (logistics) {
     const lo: string[] = [];
@@ -75,20 +76,25 @@ function buildBookingMessage(trips: PlanTrip[], logistics: PlanLogistics | undef
     if (logistics.specialNeeds) lo.push(`${t.needs}: ${logistics.specialNeeds}`);
     if (lo.length) lines.push("", "Logistics:", ...lo.map(l => `- ${l}`));
   }
-  if (total > 0) lines.push("", `Estimated budget: ฿${total.toLocaleString()}`);
+  if (range.min > 0) {
+    const label = range.max > range.min
+      ? `From ฿${range.min.toLocaleString()} — ฿${range.max.toLocaleString()}/person`
+      : `From ฿${range.min.toLocaleString()}/person`;
+    lines.push("", label);
+  }
   if (ownerEmail) lines.push(`Email: ${ownerEmail}`);
   return lines.join("\n");
 }
 
 export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail, lang, onContact }: Props) {
   const t = getLabels(lang);
-  const total = totalBudget(trips);
+  const range = priceRange(trips);
   const scheduledCount = trips.filter(tr => tr.schedule?.departureDate).length;
 
   if (scheduledCount === 0) return null;
 
   const handleClick = () => {
-    onContact(buildBookingMessage(trips, logistics, planShortId, ownerEmail, total, t));
+    onContact(buildBookingMessage(trips, logistics, planShortId, ownerEmail, range, t));
   };
 
   return (
@@ -115,15 +121,17 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
         pointerEvents: "auto",
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {total > 0 ? (
+          {range.min > 0 ? (
             <>
               <p style={{ fontSize: 9, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
                 {t.estBudget}
               </p>
               <p style={{ fontSize: 17, fontWeight: 800, color: "#f5f5f5", margin: "1px 0 0", lineHeight: 1.1 }}>
-                ฿{total.toLocaleString()}
+                {range.max > range.min
+                  ? `฿${range.min.toLocaleString()} — ฿${range.max.toLocaleString()}`
+                  : `฿${range.min.toLocaleString()}`}
                 <span style={{ fontSize: 10, color: "#666", fontWeight: 600, marginLeft: 4 }}>
-                  {t.perGroup}
+                  {t.perPerson}
                 </span>
               </p>
             </>

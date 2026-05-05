@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { type PlanTrip, updateTripNote, updateTripPackages, removeTripByIndex } from "@/lib/plan-store";
+import { type PlanTrip, updateTripNote, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 
 type FetchedDetail = {
@@ -15,7 +15,6 @@ type Props = {
   lang: string;
   canEdit: boolean;
   onTripRemoved?: () => void;
-  onAddPackage?: (slug: string, departureDate?: string) => void;
   onContactClick?: (message: string) => void;
 };
 
@@ -54,7 +53,7 @@ const fmtDayHeader = (iso: string, lang: string) =>
     weekday: "short", day: "numeric", month: "short",
   });
 
-export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved, onAddPackage }: Props) {
+export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved }: Props) {
   const isTh = lang === "th";
 
   // Trip-first rendering — one card per trip in chronological order. The
@@ -131,7 +130,6 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
               conflicts={conflictsByTripIdx.get(originalIdx)}
               isLast={idx === sortedScheduled.length - 1}
               onRemoved={onTripRemoved}
-              onAddPackage={onAddPackage}
             />
           ))}
         </div>
@@ -161,88 +159,15 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
   );
 }
 
-// ── Package row with qty controls ─────────────────────────────────────────────
-function PackageRow({ pkg, index, canEdit, onChange, onRemove }: {
-  pkg: { name: string; minPrice: number; qty?: number };
-  index: number;
-  canEdit: boolean;
-  onChange: (idx: number, qty: number) => void;
-  onRemove: (idx: number) => void;
-}) {
-  const qty = pkg.qty || 1;
-  const total = pkg.minPrice * qty;
-
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 8,
-      padding: "8px 10px", borderRadius: 8,
-      background: "#0f0f0f",
-      border: "1px solid #1a1a1a",
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: "#e5e5e5", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {pkg.name}
-        </p>
-        {pkg.minPrice > 0 && (
-          <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0", fontWeight: 500 }}>
-            ฿{pkg.minPrice.toLocaleString()} × {qty} = ฿{total.toLocaleString()}
-          </p>
-        )}
-      </div>
-      {!canEdit && (
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6, flexShrink: 0 }}>
-          x{qty}
-        </span>
-      )}
-      {canEdit && (
-        <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
-          <button onClick={() => qty > 1 ? onChange(index, qty - 1) : onRemove(index)}
-            style={{
-              width: 28, height: 28, borderRadius: "6px 0 0 6px",
-              border: "1px solid #333", borderRight: "none",
-              background: "rgba(255,255,255,0.04)", color: "#aaa",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700,
-            }}>
-            {qty <= 1 ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-              </svg>
-            ) : "−"}
-          </button>
-          <div style={{
-            width: 32, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid #333", background: "rgba(0,0,0,0.3)",
-            fontSize: 13, fontWeight: 800, color: "#fff",
-          }}>
-            {qty}
-          </div>
-          <button onClick={() => onChange(index, qty + 1)}
-            style={{
-              width: 28, height: 28, borderRadius: "0 6px 6px 0",
-              border: "1px solid #333", borderLeft: "none",
-              background: "rgba(255,255,255,0.04)", color: "#aaa",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700,
-            }}>
-            +
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Trip section (scheduled) ─────────────────────────────────────────────────
-function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, conflicts, onRemoved, onAddPackage }: {
+function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, conflicts, onRemoved }: {
   trip: PlanTrip; originalIdx: number; planId: string; lang: string; canEdit: boolean;
   overlap: boolean;
   conflicts?: { title: string; from: string; to: string }[];
-  isLast: boolean; onRemoved?: () => void; onAddPackage?: (slug: string, departureDate?: string) => void;
+  isLast: boolean; onRemoved?: () => void;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteValue, setNoteValue] = useState(trip.note || "");
-  const [pkgs, setPkgs] = useState(trip.schedule!.packages);
   // Both itinerary AND details expanded by default — user feedback: real
   // operator-written data should surface immediately, not hide behind toggles.
   // Synthetic template content is removed entirely; only operator data shows.
@@ -285,12 +210,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     return itineraryDays.map((_, i) => dayDates[i] || dayDates[dayDates.length - 1]);
   }, [itineraryDays, dayDates, isMultiDay]);
 
-  const pkgKey = trip.schedule!.packages.map(p => p.name).join(",");
-  useState(() => { /* init only */ });
-  if (pkgKey !== pkgs.map(p => p.name).join(",")) {
-    setPkgs(trip.schedule!.packages);
-  }
-
   const fetchDetail = useCallback(async () => {
     if (detail) return;
     setDetailLoading(true);
@@ -330,27 +249,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   const handleRemove = () => {
     removeTripByIndex(planId, originalIdx);
     onRemoved?.();
-  };
-
-  const handlePkgQtyChange = (pkgIdx: number, qty: number) => {
-    const next = pkgs.map((p, i) => i === pkgIdx ? { ...p, qty } : p);
-    setPkgs(next);
-    updateTripPackages(planId, originalIdx, next);
-  };
-
-  const handlePkgRemove = (pkgIdx: number) => {
-    const next = pkgs.filter((_, i) => i !== pkgIdx);
-    if (next.length === 0) {
-      removeTripByIndex(planId, originalIdx);
-      onRemoved?.();
-      return;
-    }
-    setPkgs(next);
-    updateTripPackages(planId, originalIdx, next);
-  };
-
-  const handleAddPackage = () => {
-    onAddPackage?.(trip.slug, sched.departureDate?.slice(0, 10));
   };
 
   const SECTION_LABEL: Record<string, Record<string, string>> = {
@@ -457,24 +355,22 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Packages with qty controls */}
-          {(pkgs.length > 0 || canEdit) && (
-            <div style={{ padding: "0 12px 8px", display: "flex", flexDirection: "column", gap: 6 }}>
-              {pkgs.map((pkg, i) => (
-                <PackageRow key={i} pkg={pkg} index={i} canEdit={canEdit} onChange={handlePkgQtyChange} onRemove={handlePkgRemove} />
-              ))}
-              {canEdit && (
-                <button onClick={handleAddPackage}
-                  style={{
-                    padding: "6px 0", borderRadius: 8,
-                    border: "1px dashed #333", background: "transparent",
-                    color: "#666", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                  }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  {isLiveaboard ? (isTh ? "เพิ่ม Cabin" : "Add Cabin") : (isTh ? "เพิ่ม Package" : "Add Package")}
-                </button>
-              )}
+          {/* Price range — schedule-wide (lowest tier → highest tier across all
+               packages). User no longer picks a package; SiamDive confirms the
+               final price after the booking inquiry goes through. */}
+          {(sched.priceMin ?? 0) > 0 && (
+            <div style={{ padding: "0 12px 10px" }}>
+              <p style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>
+                {isTh ? "ราคาเริ่มต้น" : "Starting price"}
+              </p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", margin: 0 }}>
+                {sched.priceMax && sched.priceMax > (sched.priceMin ?? 0)
+                  ? `฿${sched.priceMin!.toLocaleString()} — ฿${sched.priceMax.toLocaleString()}`
+                  : `฿${sched.priceMin!.toLocaleString()}`}
+                <span style={{ fontSize: 11, color: "#666", fontWeight: 600, marginLeft: 4 }}>
+                  {isTh ? "/คน" : "/person"}
+                </span>
+              </p>
             </div>
           )}
 

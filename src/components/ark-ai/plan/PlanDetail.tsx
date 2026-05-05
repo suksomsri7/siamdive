@@ -353,13 +353,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       lang={lang}
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
-                      onAddPackage={(slug, departureDate) => {
-                        const t = trips.find((tr) => tr.slug === slug);
-                        onClose();
-                        setTimeout(() => window.dispatchEvent(new CustomEvent("open-trip-info", {
-                          detail: { slug, title: t?.title, type: t?.type, area: t?.area, cover: t?.cover, boatId: t?.boatId, initialDate: departureDate },
-                        })), 100);
-                      }}
                     />
                     <div style={{ marginTop: 18 }}>
                       <PrepBlock trips={trips} lang={lang} />

@@ -15,14 +15,13 @@ export type PlanTripSchedule = {
   itinerary: string;
   excerpt?: string;
   content?: string;
-  /** What renders in the plan card: typically [first] until the user
-   *  picks a different package via chat $$PACKAGES$$. Mutated by
-   *  setTripSelectedPackage. */
-  packages: { name: string; minPrice: number; qty?: number }[];
-  /** Full roster snapshot from when the trip was added — used as a
-   *  lookup source when the user picks a package not currently in
-   *  `packages`. Don't mutate; treat as read-only after creation. */
-  availablePackages?: { name: string; minPrice: number }[];
+  /** Cheapest tier across every package on this schedule, in THB/person.
+   *  0 means the schedule had no priced packages (rare). Drives the
+   *  "เริ่ม X — Y บาท/คน" range surfaced in the trip card + book bar. */
+  priceMin?: number;
+  /** Most expensive tier across every package on this schedule, in
+   *  THB/person. Equal to priceMin when there's only one tier. */
+  priceMax?: number;
 };
 
 export type PlanTrip = {
@@ -35,9 +34,6 @@ export type PlanTrip = {
   addedAt: number;
   schedule?: PlanTripSchedule;
   note?: string;
-  // Phase 2 — when the user picks a package/cabin via $$PACKAGES$$ in chat,
-  // we record the chosen one so the build step can compute price range.
-  selectedPackage?: { name: string; minPrice: number };
 };
 
 // Sprint 1: lightweight logistics held client-side. The /api/plans sync
@@ -332,13 +328,6 @@ function mergeOrAdd(plan: UserPlan, trip: Omit<PlanTrip, "addedAt">): boolean {
     t.boatId === trip.boatId &&
     (t.schedule?.scheduleId ?? "") === (trip.schedule?.scheduleId ?? "")
   );
-  if (existing && existing.schedule && trip.schedule?.packages?.length) {
-    const existingNames = new Set(existing.schedule.packages.map(p => p.name));
-    const newPkgs = trip.schedule.packages.filter(p => !existingNames.has(p.name));
-    if (newPkgs.length === 0) return false;
-    existing.schedule.packages.push(...newPkgs);
-    return true;
-  }
   if (existing) return false;
   plan.trips.push({ ...trip, addedAt: Date.now() });
   return true;
@@ -384,41 +373,6 @@ export function addTripToPlan(planId: string, trip: Omit<PlanTrip, "addedAt">): 
   trackPlanTripAdd(planId, trip.title, trip.boatId);
   window.dispatchEvent(new CustomEvent("plan-toast", { detail: { title: trip.title } }));
   return true;
-}
-
-// Phase 2 — record the user's chosen package/cabin on a trip already in a
-// plan. Match by boat + scheduleId (the unit the picker wrote). Returns the
-// minPrice that was locked in so callers can echo a price range to chat.
-export function setTripSelectedPackage(
-  boatId: string,
-  scheduleId: string | undefined,
-  packageName: string,
-  qty: number = 1,
-): { minPrice: number; planId: string } | null {
-  const plans = readPlans();
-  for (const plan of plans) {
-    const trip = plan.trips.find(t =>
-      t.boatId === boatId && (t.schedule?.scheduleId ?? "") === (scheduleId ?? ""),
-    );
-    if (!trip || !trip.schedule) continue;
-    // Look the chosen package up in the full roster first, then in the
-    // currently displayed list. Without availablePackages we used to lose
-    // every option except the first one, so a user clicking "Master" when
-    // the displayed package was "Deluxe" silently no-op'd and the plan
-    // stayed wrong.
-    const pkg =
-      trip.schedule.availablePackages?.find(p => p.name === packageName) ||
-      trip.schedule.packages.find(p => p.name === packageName);
-    if (!pkg) continue;
-    trip.selectedPackage = { name: pkg.name, minPrice: pkg.minPrice };
-    const safeQty = Math.max(1, Math.floor(qty));
-    trip.schedule.packages = [{ name: pkg.name, minPrice: pkg.minPrice, qty: safeQty }];
-    plan.updatedAt = new Date().toISOString();
-    writePlans(plans);
-    scheduleSync();
-    return { minPrice: pkg.minPrice, planId: plan.id };
-  }
-  return null;
 }
 
 function autoSetStartDate(plan: UserPlan) {
@@ -483,16 +437,6 @@ export function removeTripByIndex(planId: string, index: number) {
   writePlans(plans);
   scheduleSync();
   if (removed) trackPlanTripRemove(planId, removed.title);
-}
-
-export function updateTripPackages(planId: string, tripIndex: number, packages: { name: string; minPrice: number; qty?: number }[]) {
-  const plans = readPlans();
-  const plan = plans.find((p) => p.id === planId);
-  if (!plan || !plan.trips[tripIndex]?.schedule) return;
-  plan.trips[tripIndex].schedule!.packages = packages;
-  plan.updatedAt = new Date().toISOString();
-  writePlans(plans);
-  scheduleSync();
 }
 
 export function updatePlanLogistics(planId: string, patch: Partial<PlanLogistics>) {
