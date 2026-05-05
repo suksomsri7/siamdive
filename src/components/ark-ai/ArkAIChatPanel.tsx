@@ -158,6 +158,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Pixel offset between the layout viewport bottom and the visual viewport
+  // bottom — non-zero when the on-screen keyboard is visible. We use it to
+  // shrink the chat panel so the textarea stays visible above the keyboard.
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const trackedOpenRef = useRef(false);
   const sendRef = useRef<(t: string) => void>(undefined);
@@ -230,6 +235,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     // ready to type instead of tabbing through the header).
     setTimeout(() => inputRef.current?.focus(), 100);
 
+    // Track the on-screen keyboard so the textarea stays above it. iOS
+    // Safari + Chrome Mobile both expose keyboard size via visualViewport:
+    // when the keyboard opens the visual viewport shrinks while the layout
+    // viewport stays. The panel is `position:fixed; inset:0`, so without
+    // this listener the input falls behind the keyboard.
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    const updateKeyboardInset = () => {
+      if (!vv) return;
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(inset);
+    };
+    if (vv) {
+      vv.addEventListener("resize", updateKeyboardInset);
+      vv.addEventListener("scroll", updateKeyboardInset);
+      updateKeyboardInset();
+    }
+
     return () => {
       body.style.position = "";
       body.style.top = "";
@@ -239,9 +261,22 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       html.style.overflow = "";
       body.style.touchAction = "";
       window.removeEventListener("keydown", onKey);
+      if (vv) {
+        vv.removeEventListener("resize", updateKeyboardInset);
+        vv.removeEventListener("scroll", updateKeyboardInset);
+      }
+      setKeyboardInset(0);
       window.scrollTo(0, scrollY);
     };
   }, [open, onClose]);
+
+  // When the keyboard appears, scroll the chat to the bottom so the most
+  // recent message stays in view above the input.
+  useEffect(() => {
+    if (keyboardInset > 0 && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [keyboardInset]);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -459,9 +494,20 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname }),
       });
       if (res.status === 400) {
-        const askMsg = lang === "th"
-          ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan ครับ — บอกวันที่ จำนวนคน และฝั่งที่อยากไป (อันดามัน/อ่าวไทย) ได้ไหม?"
-          : "I need a bit more info before building the plan — please share dates, headcount, and which coast (Andaman/Gulf).";
+        const errBody = await res.json().catch(() => null) as { error?: string; reasons?: string[] } | null;
+        let askMsg: string;
+        if (errBody?.error === "no_matching_trips" && errBody.reasons?.length) {
+          // Server found no schedules that match all the slots — surface
+          // the actionable reason(s) instead of opening an empty MyPlan.
+          const intro = lang === "th"
+            ? "ยังสร้าง plan ไม่ได้ครับ เพราะ:"
+            : "Can't build the plan yet:";
+          askMsg = `${intro}\n\n${errBody.reasons.map(r => `• ${r}`).join("\n")}`;
+        } else {
+          askMsg = lang === "th"
+            ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan ครับ — บอกวันที่ จำนวนคน และฝั่งที่อยากไป (อันดามัน/อ่าวไทย) ได้ไหม?"
+            : "I need a bit more info before building the plan — please share dates, headcount, and which coast (Andaman/Gulf).";
+        }
         setMessages(prev => [...prev, { role: "assistant", content: askMsg }]);
         return;
       }
@@ -509,11 +555,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
       {/* Fullscreen panel */}
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={lang === "th" ? "ผู้ช่วย AI วางแผนทริปดำน้ำ" : "AI dive trip advisor"}
         style={{
-        position: "fixed", inset: 0, zIndex: 1300,
+        position: "fixed", left: 0, right: 0, top: 0,
+        bottom: keyboardInset, zIndex: 1300,
         background: "#0a0a0a", color: "#e5e5e5",
         display: "flex", flexDirection: "column",
         animation: "arkFadeIn 0.2s ease both",

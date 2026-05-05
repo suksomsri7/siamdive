@@ -176,17 +176,36 @@ export async function POST(req: NextRequest) {
       cover: b.covers?.[0] || null,
     }));
 
-  const warnings: string[] = [];
-  if (region === "andaman" && similanClosed(dates.from) && trips.length === 0) {
-    warnings.push(lang === "th"
-      ? "อุทยานสิมิลัน-สุรินทร์ปิด 16 พ.ค. – 14 ต.ค. ทุกปี ลองเลือกช่วง พ.ย.–เม.ย. หรือเปลี่ยนพื้นที่เช่นพีพี/หินม่วง"
-      : "Similan/Surin national parks close May 16–Oct 14 each year. Try Nov–Apr or pick another area like Phi Phi/Hin Muang.");
-  }
+  // Bail out before persisting an empty plan. Creating UserPlan with
+  // trips=[] sends the user to a blank MyPlan with no itinerary, which
+  // looks broken. Return the actionable warning to chat instead so the
+  // user can adjust their slots (widen dates / switch coast / drop the
+  // snorkel-only constraint).
   if (trips.length === 0) {
-    warnings.push(lang === "th"
-      ? "ไม่พบทริปที่ตรงเวลา/พื้นที่ที่เลือก ลองขยายช่วงวันหรือเปลี่ยนภูมิภาคดูครับ"
-      : "No trips matched your dates and region — try widening the window or switching coast.");
+    const reasons: string[] = [];
+    if (region === "andaman" && similanClosed(dates.from)) {
+      reasons.push(lang === "th"
+        ? "อุทยานสิมิลัน-สุรินทร์ปิด 16 พ.ค. – 14 ต.ค. ทุกปี — ลองช่วง พ.ย.–เม.ย. หรือเปลี่ยนพื้นที่เป็นพีพี/หินม่วง"
+        : "Similan/Surin national parks close May 16–Oct 14 each year. Try Nov–Apr or pick another area like Phi Phi/Hin Muang.");
+    }
+    if (cert === "none") {
+      reasons.push(lang === "th"
+        ? "ไม่พบทริป snorkel ในช่วงวัน/พื้นที่ที่เลือก — ลองขยายช่วงวันหรือเปลี่ยนพื้นที่"
+        : "No snorkel-friendly trips matched. Try widening the dates or switching coast.");
+    }
+    if (reasons.length === 0) {
+      reasons.push(lang === "th"
+        ? "ไม่พบทริปที่ตรงเวลา/พื้นที่ที่เลือก ลองขยายช่วงวันหรือเปลี่ยนภูมิภาคดูครับ"
+        : "No trips matched your dates and region — try widening the window or switching coast.");
+    }
+    return Response.json({
+      error: "no_matching_trips",
+      reasons,
+      slots,
+    }, { status: 400 });
   }
+
+  const warnings: string[] = [];
 
   let user = await prisma.planUser.findUnique({ where: { deviceId } });
   if (!user) {
