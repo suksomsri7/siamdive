@@ -60,108 +60,10 @@ function buildPlaceholder(lang: string): string {
     : `Coming in ${mn} for 10 days, budget 50k, AOW cert, ${s.coast === "andaman" ? "want to dive Similan" : "want to dive Koh Tao"}...`;
 }
 
-function buildSuggestions(lang: string): string[] {
-  const mn = monthName(lang);
-  const s = seasonInfo();
-  const out: string[] = [];
-
-  out.push(
-    lang === "th" ? `ดำน้ำเดือน${mn} ที่ไหนดี?` :
-    lang === "cn" ? `${mn}最佳潜水地?` :
-    lang === "ja" ? `${mn}のベストダイブサイトは?` :
-    lang === "ko" ? `${mn} 최고의 다이빙 장소?` :
-    `Best dive sites in ${mn}?`
-  );
-
-  if (s.whaleShark) {
-    out.push(
-      lang === "th" ? "ดูฉลามวาฬที่ไหนดี?" :
-      lang === "cn" ? "哪里能看到鲸鲨?" :
-      lang === "ja" ? "ジンベイザメはどこで見れる?" :
-      lang === "ko" ? "고래상어 어디서 볼 수 있나요?" :
-      "Where to see whale sharks now?"
-    );
-  } else {
-    out.push(
-      lang === "th" ? "ช่วงไหนเจอฉลามวาฬ?" :
-      lang === "cn" ? "鲸鲨季节是什么时候?" :
-      lang === "ja" ? "ジンベイザメのシーズンは?" :
-      lang === "ko" ? "고래상어 시즌은 언제?" :
-      "When is whale shark season?"
-    );
-  }
-
-  if (s.coast === "andaman") {
-    out.push(
-      lang === "th" ? "ทริป Liveaboard สิมิลัน" :
-      lang === "cn" ? "斯米兰船宿行程" :
-      lang === "ja" ? "シミラン リブアボード" :
-      lang === "ko" ? "시밀란 리브어보드" :
-      "Similan liveaboard trips"
-    );
-    out.push(
-      lang === "th" ? "สิมิลัน vs สุรินทร์" :
-      lang === "cn" ? "斯米兰 vs 素林群岛" :
-      lang === "ja" ? "シミラン vs スリン" :
-      lang === "ko" ? "시밀란 vs 수린" :
-      "Similan vs Surin Islands"
-    );
-  } else if (s.coast === "gulf") {
-    out.push(
-      lang === "th" ? "ดำน้ำเกาะเต่า" :
-      lang === "cn" ? "龟岛潜水" :
-      lang === "ja" ? "タオ島ダイビング" :
-      lang === "ko" ? "꼬따오 다이빙" :
-      "Diving at Koh Tao"
-    );
-    out.push(
-      lang === "th" ? "Day Trip Sail Rock" :
-      lang === "cn" ? "帆船岩一日游" :
-      lang === "ja" ? "セイルロック日帰り" :
-      lang === "ko" ? "세일록 데이트립" :
-      "Sail Rock day trip"
-    );
-  } else {
-    out.push(
-      lang === "th" ? "ทริปช่วงเปลี่ยนฤดู" :
-      lang === "cn" ? "换季期最佳行程" :
-      lang === "ja" ? "シーズン移行期のおすすめ" :
-      lang === "ko" ? "시즌 전환기 추천 트립" :
-      "Best trips during season change"
-    );
-    out.push(
-      lang === "th" ? "ดำน้ำที่ไหนได้ตอนนี้?" :
-      lang === "cn" ? "现在哪里能潜水?" :
-      lang === "ja" ? "今どこで潜れる?" :
-      lang === "ko" ? "지금 어디서 다이빙 가능?" :
-      "Where can I dive right now?"
-    );
-  }
-
-  out.push(
-    lang === "th" ? "ทริป 5 วัน งบ 30,000" :
-    lang === "cn" ? "5天行程 预算3万泰铢" :
-    lang === "ja" ? "5日間 予算3万バーツ" :
-    lang === "ko" ? "5일 여행 예산 3만 바트" :
-    "5-day trip, budget 30k THB"
-  );
-
-  out.push(
-    lang === "th" ? "เพิ่งเริ่มดำน้ำ ต้องเตรียมอะไร?" :
-    lang === "cn" ? "第一次潜水需要什么?" :
-    lang === "ja" ? "初ダイビング — 何が必要?" :
-    lang === "ko" ? "처음 다이빙 — 뭐가 필요?" :
-    "First time diving — what do I need?"
-  );
-
-  return out.slice(0, 6);
-}
-
 export default function HeroAI({ lang }: { lang: string }) {
   const [text, setText] = useState("");
   const l = (lang as L) || "en";
   const t = (key: keyof typeof T) => T[key][l] ?? T[key]["en"];
-  const suggestions = buildSuggestions(l);
   const placeholder = buildPlaceholder(l);
 
   const handleAsk = (message?: string) => {
@@ -236,28 +138,6 @@ export default function HeroAI({ lang }: { lang: string }) {
               </svg>
             </button>
           </div>
-        </div>
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 6,
-        }}>
-          {suggestions.map(q => (
-            <button key={q} onClick={() => handleAsk(q)} style={{
-              background: "transparent",
-              border: "1px solid #1e1e1e",
-              borderRadius: 10, padding: "8px 6px",
-              color: "#555", fontSize: 11, fontWeight: 500,
-              cursor: "pointer", transition: "all 0.15s",
-              textAlign: "center", lineHeight: 1.3,
-            }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#333"; e.currentTarget.style.color = "#999"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.color = "#555"; }}
-            >
-              {q}
-            </button>
-          ))}
         </div>
       </div>
     </section>
