@@ -628,19 +628,21 @@ export async function POST(req: NextRequest) {
     land_tour: ["LAND_TOUR"],
   };
   const categoryTypes: string[] = (() => {
+    // Latest-typed-intent wins. If the user named a category in their LAST
+    // message, narrow to that — even if the persisted slot says otherwise
+    // (the slot is stale until the LLM tool call updates it later in this
+    // stream). Same pivot pattern as the date-hint regex above.
+    const m = lastUserMsg.toLowerCase();
+    const fromKeyword: string[] = [];
+    if (/liveaboard|live-aboard|ค้างคืน|เรือนอน/.test(m)) fromKeyword.push("LIVEABOARD", "DIVE_RESORT");
+    if (/day\s*trip|เดย์ทริป|day-trip/.test(m)) fromKeyword.push("DAYTRIP");
+    if (/snorkel|สนอร์เกิล|ดำผิวน้ำ/.test(m)) fromKeyword.push("SNORKELING");
+    if (/land\s*tour|ทัวร์บก|land-tour/.test(m)) fromKeyword.push("LAND_TOUR");
+    if (fromKeyword.length) return [...new Set(fromKeyword)];
+    // No keyword in the latest turn → fall back to the persisted slot.
     const fromSlot = (effectiveSlots.categories || [])
       .flatMap(c => CATEGORY_TO_BOAT_TYPES[c] || []);
-    if (fromSlot.length) return [...new Set(fromSlot)];
-    // No slot yet — fall back to keyword detection on the user's last msg
-    // so a one-shot "daytrip ภูเก็ต" still gets a narrowed RAG before the
-    // slot extractor catches up via tool call.
-    const m = lastUserMsg.toLowerCase();
-    const types: string[] = [];
-    if (/liveaboard|live-aboard|ค้างคืน|เรือนอน/.test(m)) types.push("LIVEABOARD", "DIVE_RESORT");
-    if (/day\s*trip|เดย์ทริป|day-trip/.test(m)) types.push("DAYTRIP");
-    if (/snorkel|สนอร์เกิล|ดำผิวน้ำ/.test(m)) types.push("SNORKELING");
-    if (/land\s*tour|ทัวร์บก|land-tour/.test(m)) types.push("LAND_TOUR");
-    return [...new Set(types)];
+    return [...new Set(fromSlot)];
   })();
 
   const [boatsAll, schedulesUnfiltered, blogs] = await Promise.all([
