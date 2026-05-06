@@ -7,6 +7,7 @@ import ChatBlogCard from "./ChatBlogCard";
 import ComparisonTable from "./ComparisonTable";
 import BookingButtons from "./BookingButtons";
 import TripSchedulePicker from "./TripSchedulePicker";
+import { ChatThinkingSkeleton } from "./Skeletons";
 
 type Props = {
   role: "user" | "assistant";
@@ -170,6 +171,13 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         </div>
       </div>
     );
+  }
+
+  // Thinking state — assistant placeholder created but no tokens streamed yet.
+  // Replace the lone blinking cursor with a richer skeleton so the user knows
+  // the model is working (especially during the slow RAG + tool round-trip).
+  if (isStreaming && !content.trim()) {
+    return <ChatThinkingSkeleton lang={lang} />;
   }
 
   const parts = parseStructured(content);

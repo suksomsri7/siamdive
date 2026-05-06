@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { renamePlan, removeTripByIndex, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
+import type { Slots } from "@/lib/ark-ai/slots";
 import PlanMembers from "./PlanMembers";
 import EmailGateModal from "./EmailGateModal";
 import PlanTimeline from "./PlanTimeline";
@@ -11,6 +12,7 @@ import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
+import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 
@@ -51,6 +53,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [contactMessage, setContactMessage] = useState<string | null>(null);
   const [showChannelSheet, setShowChannelSheet] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [slots, setSlots] = useState<Slots | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const isTh = lang === "th";
@@ -100,6 +103,21 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   }, [planId, deviceId]);
 
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
+
+  // Sprint 4 B6 — fetch the user's chat slots so PlanBookBar can render a
+  // group-aware breakdown (X divers × per-person × N + Y non-divers note).
+  // Slots live in AiPlanSession keyed by deviceId, not on the plan itself —
+  // they reflect the current chat session that produced this plan. If the
+  // user opens an old plan in a new session there'll be no slots; the book
+  // bar simply falls back to the per-person range.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/ark-ai/session?deviceId=${encodeURIComponent(deviceId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data?.session?.slots) setSlots(data.session.slots); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [deviceId]);
 
   useEffect(() => {
     const handler = () => {
@@ -177,12 +195,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   };
 
   if (!plan) {
-    return (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 24, height: 24, border: "2px solid #333", borderTopColor: "#60a5fa", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <PlanDetailSkeleton />;
   }
 
   const trips = plan.trips;
@@ -371,6 +384,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             planShortId={plan.shortId}
             ownerEmail={plan.owner.email}
             lang={lang}
+            slots={slots}
             onContact={(msg) => {
               setContactMessage(msg);
               if (plan.owner.email) {

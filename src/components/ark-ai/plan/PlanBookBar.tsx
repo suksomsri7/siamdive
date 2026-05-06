@@ -7,6 +7,7 @@
 // misleading.
 
 import type { PlanTrip, PlanLogistics } from "@/lib/plan-store";
+import type { Slots } from "@/lib/ark-ai/slots";
 
 type Props = {
   trips: PlanTrip[];
@@ -14,6 +15,10 @@ type Props = {
   planShortId: string;
   ownerEmail?: string | null;
   lang: string;
+  /** Sprint 4 B6 — when present, used to render group-aware totals
+   *  (divers × per-person × N + non-divers note). Without slots the bar
+   *  falls back to the per-person range. */
+  slots?: Slots | null;
   onContact: (message: string) => void;
 };
 
@@ -26,6 +31,11 @@ const L = {
     transferYes: "รับ-ส่งสนามบิน",
     rent: "เช่าอุปกรณ์",
     needs: "หมายเหตุ",
+    diverCount: "ดำน้ำ",
+    nonDiverCount: "ไม่ดำ",
+    groupTotal: "รวมกลุ่ม",
+    person: "คน",
+    confirmAtBooking: "ราคา non-diver ยืนยันตอนจอง",
   },
   en: {
     estBudget: "Starting price",
@@ -35,6 +45,11 @@ const L = {
     transferYes: "Airport transfer",
     rent: "Rental",
     needs: "Notes",
+    diverCount: "divers",
+    nonDiverCount: "non-divers",
+    groupTotal: "Group total",
+    person: "pax",
+    confirmAtBooking: "Non-diver price confirmed at booking",
   },
 } as const;
 
@@ -86,10 +101,26 @@ function buildBookingMessage(trips: PlanTrip[], logistics: PlanLogistics | undef
   return lines.join("\n");
 }
 
-export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail, lang, onContact }: Props) {
+export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail, lang, slots, onContact }: Props) {
   const t = getLabels(lang);
   const range = priceRange(trips);
   const scheduledCount = trips.filter(tr => tr.schedule?.departureDate).length;
+
+  // Sprint 4 B6 — derive group breakdown from slots. divers = adults + kids
+  // (kids old enough to dive will already be inside adults; if not, the user
+  // should have updated slots) MINUS the explicit non-diver count.
+  // certs slot is a hint only — we don't have per-cert pricing in the schema
+  // (price tiers are SEASONS not certs), so we surface the cert mix as a
+  // labelled annotation rather than splitting numbers we can't trust.
+  const totalPeople = slots?.headcount
+    ? (slots.headcount.adults || 0) + (slots.headcount.kids || 0)
+    : 0;
+  const nonDivers = slots?.companions?.nonDivers || 0;
+  const divers = Math.max(0, totalPeople - nonDivers);
+  const showGroupBreakdown = totalPeople > 0 && range.min > 0;
+  const certMix = slots?.certs && slots.certs.length > 1 ? slots.certs : null;
+  const groupMin = divers * range.min;
+  const groupMax = divers * (range.max || range.min);
 
   if (scheduledCount === 0) return null;
 
@@ -110,15 +141,53 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
     }}>
       <div style={{
         margin: "20px 12px 10px",
-        padding: "10px 12px",
+        padding: showGroupBreakdown ? "8px 12px 10px" : "10px 12px",
         borderRadius: 14,
         background: "#111",
         border: "1px solid #1f1f1f",
         boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+        pointerEvents: "auto",
+      }}>
+        {showGroupBreakdown && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "6px 10px", marginBottom: 8,
+            background: "rgba(59,130,246,0.08)",
+            border: "1px solid rgba(59,130,246,0.18)",
+            borderRadius: 8,
+            flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 10, color: "#93c5fd", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {t.groupTotal}
+            </span>
+            <span style={{ fontSize: 12, color: "#dbeafe", fontWeight: 700 }}>
+              {divers > 0 && (
+                <>
+                  {divers} {t.diverCount}
+                  {certMix && <span style={{ color: "#93c5fd", fontWeight: 600 }}> ({certMix.map(c => c.toUpperCase()).join("/")})</span>}
+                </>
+              )}
+              {nonDivers > 0 && divers > 0 && " + "}
+              {nonDivers > 0 && <>{nonDivers} {t.nonDiverCount}</>}
+            </span>
+            {divers > 0 && (
+              <span style={{ fontSize: 12, color: "#fff", fontWeight: 800, marginLeft: "auto" }}>
+                {groupMax > groupMin
+                  ? `฿${groupMin.toLocaleString()} — ฿${groupMax.toLocaleString()}`
+                  : `฿${groupMin.toLocaleString()}`}
+              </span>
+            )}
+            {nonDivers > 0 && (
+              <span style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic", flexBasis: "100%" }}>
+                {t.confirmAtBooking}
+              </span>
+            )}
+          </div>
+        )}
+      <div style={{
         display: "flex",
         alignItems: "center",
         gap: 10,
-        pointerEvents: "auto",
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {range.min > 0 ? (
@@ -165,6 +234,7 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
           </svg>
           {t.book}
         </button>
+      </div>
       </div>
     </div>
   );

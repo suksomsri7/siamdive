@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
+import { ScheduleDetailSkeleton } from "../Skeletons";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -516,12 +517,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 .rich-content hr { border: none; border-top: 1px solid #262626; margin: 18px 0; }
                 @keyframes spin { to { transform: rotate(360deg); } }
               `}</style>
-              {detailLoading && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "16px 0", gap: 8 }}>
-                  <div style={{ width: 16, height: 16, border: "2px solid #333", borderTopColor: "#888", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
-                  <span style={{ fontSize: 12, color: "#666" }}>{isTh ? "กำลังโหลด..." : "Loading..."}</span>
-                </div>
-              )}
+              {detailLoading && <ScheduleDetailSkeleton lang={lang} />}
 
               {!detailLoading && detail && (() => {
                 const b = detail.boat;

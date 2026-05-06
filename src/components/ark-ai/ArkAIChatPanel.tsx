@@ -6,6 +6,7 @@ import ChatMessage from "./ChatMessage";
 import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import TemplatePicker from "./TemplatePicker";
+import CompareSheet from "./CompareSheet";
 import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
@@ -157,6 +158,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // Step animation rendered while the build flushes pendingPicks → plan-store.
   // null = no animation in flight. The integer is the current step (0-based).
   const [buildStep, setBuildStep] = useState<number | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -828,12 +830,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 );
               })}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 onClick={buildPlan}
                 disabled={streaming}
                 style={{
-                  flex: "1 1 60%", padding: "10px 14px", borderRadius: 12, border: "none",
+                  flex: "1 1 100%", padding: "10px 14px", borderRadius: 12, border: "none",
                   background: "linear-gradient(135deg, #1e40af, #3b82f6)",
                   color: "#fff", fontSize: 13, fontWeight: 800, letterSpacing: "0.01em",
                   cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
@@ -841,19 +843,34 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 }}>
                 {lang === "th" ? `✨ สร้าง plan (${pendingPicks.length})` : `✨ Build plan (${pendingPicks.length})`}
               </button>
+              {pendingPicks.length >= 2 && (
+                <button
+                  onClick={() => setCompareOpen(true)}
+                  disabled={streaming}
+                  style={{
+                    flex: "1 1 calc(50% - 4px)", padding: "8px 12px", borderRadius: 12,
+                    background: "rgba(245,158,11,0.10)",
+                    border: "1px solid rgba(245,158,11,0.35)",
+                    color: "#fbbf24", fontSize: 12.5, fontWeight: 700,
+                    cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
+                  }}>
+                  {lang === "th" ? "⚖️ เปรียบเทียบ" : "⚖️ Compare"}
+                </button>
+              )}
               <button
                 onClick={() => sendMessage(lang === "th"
                   ? "แนะนำทริปเที่ยวเพิ่มเติมที่เข้ากับทริปที่ผมเลือกไว้หน่อยครับ"
                   : "Recommend more trips that pair well with the ones I picked.")}
                 disabled={streaming}
                 style={{
-                  flex: "1 1 40%", padding: "10px 12px", borderRadius: 12,
+                  flex: pendingPicks.length >= 2 ? "1 1 calc(50% - 4px)" : "1 1 100%",
+                  padding: "8px 12px", borderRadius: 12,
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(148,163,184,0.18)",
-                  color: "#e5e5e5", fontSize: 13, fontWeight: 700,
+                  color: "#e5e5e5", fontSize: 12.5, fontWeight: 700,
                   cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
                 }}>
-                {lang === "th" ? "💡 แนะนำทริปต่อ" : "💡 Suggest more"}
+                {lang === "th" ? "💡 แนะนำต่อ" : "💡 Suggest more"}
               </button>
             </div>
           </div>
@@ -949,6 +966,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           );
         })()}
       </div>
+      {compareOpen && (
+        <CompareSheet
+          picks={pendingPicks}
+          lang={lang}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </>
   );
 }
