@@ -16,6 +16,7 @@ import {
   trackChatOpen,
   trackChatMessage,
   trackChatFeedback,
+  trackChatSessionFeedback,
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
@@ -159,6 +160,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // null = no animation in flight. The integer is the current step (0-based).
   const [buildStep, setBuildStep] = useState<number | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [sessionFeedbackPrompt, setSessionFeedbackPrompt] = useState(false);
+  const [sessionFeedbackReason, setSessionFeedbackReason] = useState("");
+  const sessionFeedbackAskedRef = useRef(false);
+  // Wraps requestClose so the keydown effect (which mounts once per open)
+  // doesn't need it as a dependency — would otherwise re-bind on every
+  // message change and disrupt scroll lock.
+  const requestCloseRef = useRef<() => void>(() => {});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -252,7 +260,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     }
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
 
@@ -322,10 +330,50 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     setShowScrollBtn(distFromBottom > 80);
   }, []);
 
-  const handleFeedback = useCallback((msgIndex: number, positive: boolean) => {
+  const handleFeedback = useCallback((msgIndex: number, positive: boolean, reason?: string) => {
     setFeedbackState(prev => ({ ...prev, [msgIndex]: positive }));
-    trackChatFeedback(positive, msgIndex);
+    trackChatFeedback(positive, msgIndex, reason);
   }, []);
+
+  useEffect(() => {
+    try { sessionFeedbackAskedRef.current = sessionStorage.getItem("ark-ai-session-fb") === "1"; } catch {}
+  }, []);
+
+  // User-initiated close (X button or Esc). Show the session feedback prompt
+  // once per session if the conversation had any back-and-forth AND the user
+  // hasn't already left per-message feedback. Auto-close paths after build
+  // success call onClose() directly — they bypass the prompt.
+  const requestClose = useCallback(() => {
+    const userTurns = messages.filter(m => m.role === "user").length;
+    const eligible =
+      !sessionFeedbackAskedRef.current &&
+      userTurns >= 2 &&
+      Object.keys(feedbackState).length === 0;
+    if (eligible) {
+      setSessionFeedbackPrompt(true);
+      return;
+    }
+    onClose();
+  }, [messages, feedbackState, onClose]);
+
+  useEffect(() => { requestCloseRef.current = requestClose; }, [requestClose]);
+
+  const submitSessionFeedback = useCallback((positive: boolean, reason?: string) => {
+    trackChatSessionFeedback(positive, reason, messages.length);
+    sessionFeedbackAskedRef.current = true;
+    try { sessionStorage.setItem("ark-ai-session-fb", "1"); } catch {}
+    setSessionFeedbackPrompt(false);
+    setSessionFeedbackReason("");
+    onClose();
+  }, [messages.length, onClose]);
+
+  const skipSessionFeedback = useCallback(() => {
+    sessionFeedbackAskedRef.current = true;
+    try { sessionStorage.setItem("ark-ai-session-fb", "1"); } catch {}
+    setSessionFeedbackPrompt(false);
+    setSessionFeedbackReason("");
+    onClose();
+  }, [onClose]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || streaming) return;
@@ -618,7 +666,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       }}>
         {/* Header */}
         <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
-          <button onClick={onClose}
+          <button onClick={requestClose}
             aria-label={lang === "th" ? "ปิดแชท" : "Close chat"}
             style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -892,6 +940,87 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           lang={lang}
           onClose={() => setCompareOpen(false)}
         />
+      )}
+      {sessionFeedbackPrompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={lang === "th" ? "ความเห็นเกี่ยวกับการแชท" : "Chat feedback"}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1400,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div style={{
+            background: "#0f0f0f", color: "#e5e5e5",
+            border: "1px solid #262626", borderRadius: 12,
+            padding: 20, maxWidth: 360, width: "100%",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+          }}>
+            <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#f5f5f5" }}>
+              {lang === "th" ? "ก่อนปิด — แชทนี้ช่วยคุณได้ไหม?" : "Before you go — was this chat helpful?"}
+            </p>
+            <p style={{ fontSize: 13, color: "#888", margin: "0 0 14px" }}>
+              {lang === "th" ? "ใช้เวลาแค่ 2 วิ ช่วยให้ AI เก่งขึ้น" : "Takes 2 seconds — helps the AI improve"}
+            </p>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <button
+                onClick={() => submitSessionFeedback(true, sessionFeedbackReason.trim() || undefined)}
+                style={{
+                  flex: 1, padding: "10px 12px", borderRadius: 8,
+                  background: "#1e40af", color: "#fff", border: "none",
+                  fontSize: 14, fontWeight: 600, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 10v12"/><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3.13 3.13 0 013 3.88z"/>
+                </svg>
+                {lang === "th" ? "ดี" : "Helpful"}
+              </button>
+              <button
+                onClick={() => submitSessionFeedback(false, sessionFeedbackReason.trim() || undefined)}
+                style={{
+                  flex: 1, padding: "10px 12px", borderRadius: 8,
+                  background: "#262626", color: "#e5e5e5",
+                  border: "1px solid #333",
+                  fontSize: 14, fontWeight: 600, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 14V2"/><path d="M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z"/>
+                </svg>
+                {lang === "th" ? "ไม่ตรง" : "Not great"}
+              </button>
+            </div>
+            <textarea
+              value={sessionFeedbackReason}
+              onChange={(e) => setSessionFeedbackReason(e.target.value)}
+              placeholder={lang === "th" ? "อยากเล่าให้ฟังไหม? (ไม่จำเป็น)" : "Want to tell us why? (optional)"}
+              rows={2}
+              style={{
+                width: "100%", padding: "8px 10px", fontSize: 13, lineHeight: 1.4,
+                background: "rgba(255,255,255,0.04)", color: "#e5e5e5",
+                border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6,
+                resize: "none", outline: "none", fontFamily: "inherit",
+                marginBottom: 10,
+              }}
+            />
+            <button
+              onClick={skipSessionFeedback}
+              style={{
+                width: "100%", padding: "8px", borderRadius: 6,
+                background: "transparent", color: "#888",
+                border: "none", fontSize: 13, cursor: "pointer",
+              }}
+            >
+              {lang === "th" ? "ข้ามไปก่อน" : "Skip"}
+            </button>
+          </div>
+        </div>
       )}
     </>
   );

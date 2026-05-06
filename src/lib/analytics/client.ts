@@ -341,8 +341,11 @@ export const trackChatOpen = () =>
 export const trackChatMessage = (role: "user" | "assistant", msgLength: number) =>
   track("CHAT_MESSAGE", { entityType: "CHAT", properties: { role, msgLength } });
 
-export const trackChatFeedback = (positive: boolean, msgIndex: number) =>
-  track("CHAT_FEEDBACK", { entityType: "CHAT", properties: { positive, msgIndex } });
+export const trackChatFeedback = (positive: boolean, msgIndex: number, reason?: string) =>
+  track("CHAT_FEEDBACK", { entityType: "CHAT", properties: { positive, msgIndex, ...(reason ? { reason } : {}) } });
+
+export const trackChatSessionFeedback = (positive: boolean, reason?: string, messageCount?: number) =>
+  track("CHAT_FEEDBACK", { entityType: "CHAT", properties: { positive, scope: "session", ...(reason ? { reason } : {}), ...(messageCount !== undefined ? { messageCount } : {}) } });
 
 export const trackChatTripClick = (boatId: string, slug: string) =>
   track("CHAT_TRIP_CLICK", { entityType: "BOAT", entityId: boatId, properties: { slug } });

@@ -14,7 +14,7 @@ type Props = {
   content: string;
   msgIndex: number;
   isStreaming?: boolean;
-  onFeedback?: (msgIndex: number, positive: boolean) => void;
+  onFeedback?: (msgIndex: number, positive: boolean, reason?: string) => void;
   feedbackGiven?: boolean;
   lang?: string;
   onAskClick?: (value: string) => void;
@@ -164,6 +164,8 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const [reasonText, setReasonText] = useState("");
 
   if (isUser) {
     return (
@@ -186,6 +188,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
   }
 
   const parts = parseStructured(content);
+  const hasFeedbackTarget = parts.some(p => p.type === "trip" || p.type === "build");
 
   const allTrips = parts.filter((p): p is ParsedPart & { type: "trip" } => p.type === "trip").map(p => p.data);
   const rendered: React.ReactNode[] = [];
@@ -380,44 +383,89 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
           <span style={{ display: "inline-block", width: 6, height: 14, background: "#60a5fa", borderRadius: 1, animation: "blink 1s infinite", verticalAlign: "middle", marginLeft: 2 }} />
         )}
       </div>
-      {!isStreaming && content && onFeedback && (
-        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-          <button
-            onClick={() => onFeedback(msgIndex, true)}
-            disabled={feedbackGiven !== undefined}
-            title="Good response"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 28, height: 28, borderRadius: 6,
-              background: feedbackGiven === true ? "rgba(255,255,255,0.12)" : "transparent",
-              border: `1px solid ${feedbackGiven === true ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
-              cursor: feedbackGiven !== undefined ? "default" : "pointer",
-              opacity: feedbackGiven === false ? 0.25 : 1,
-              transition: "all 0.15s",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === true ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 10v12"/><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3.13 3.13 0 013 3.88z"/>
-            </svg>
-          </button>
-          <button
-            onClick={() => onFeedback(msgIndex, false)}
-            disabled={feedbackGiven !== undefined}
-            title="Bad response"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 28, height: 28, borderRadius: 6,
-              background: feedbackGiven === false ? "rgba(255,255,255,0.12)" : "transparent",
-              border: `1px solid ${feedbackGiven === false ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
-              cursor: feedbackGiven !== undefined ? "default" : "pointer",
-              opacity: feedbackGiven === true ? 0.25 : 1,
-              transition: "all 0.15s",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === false ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 14V2"/><path d="M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z"/>
-            </svg>
-          </button>
+      {!isStreaming && content && onFeedback && hasFeedbackTarget && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => onFeedback(msgIndex, true)}
+              disabled={feedbackGiven !== undefined}
+              title={lang === "th" ? "คำแนะนำดี" : "Good response"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 28, height: 28, borderRadius: 6,
+                background: feedbackGiven === true ? "rgba(255,255,255,0.12)" : "transparent",
+                border: `1px solid ${feedbackGiven === true ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+                cursor: feedbackGiven !== undefined ? "default" : "pointer",
+                opacity: feedbackGiven === false ? 0.25 : 1,
+                transition: "all 0.15s",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === true ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 10v12"/><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3.13 3.13 0 013 3.88z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                if (feedbackGiven !== undefined) return;
+                setReasonOpen(true);
+              }}
+              disabled={feedbackGiven !== undefined}
+              title={lang === "th" ? "คำแนะนำไม่ตรง" : "Bad response"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 28, height: 28, borderRadius: 6,
+                background: feedbackGiven === false ? "rgba(255,255,255,0.12)" : "transparent",
+                border: `1px solid ${feedbackGiven === false ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+                cursor: feedbackGiven !== undefined ? "default" : "pointer",
+                opacity: feedbackGiven === true ? 0.25 : 1,
+                transition: "all 0.15s",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={feedbackGiven === false ? "#fff" : "rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 14V2"/><path d="M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z"/>
+              </svg>
+            </button>
+          </div>
+          {reasonOpen && feedbackGiven === undefined && (
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
+                {lang === "th" ? "อยากเล่าให้ฟังไหม? (ไม่จำเป็น)" : "Want to tell us why? (optional)"}
+              </p>
+              <textarea
+                value={reasonText}
+                onChange={(e) => setReasonText(e.target.value)}
+                placeholder={lang === "th" ? "เช่น คำแนะนำไม่ตรงกับวันที่..." : "e.g. recommendations didn't match my dates..."}
+                rows={2}
+                style={{
+                  width: "100%", padding: "6px 8px", fontSize: 13, lineHeight: 1.4,
+                  background: "rgba(255,255,255,0.04)", color: "#e5e5e5",
+                  border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6,
+                  resize: "none", outline: "none", fontFamily: "inherit",
+                }}
+              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() => { onFeedback(msgIndex, false, reasonText.trim() || undefined); setReasonOpen(false); }}
+                  style={{
+                    fontSize: 12, padding: "5px 10px", borderRadius: 6,
+                    background: "#1e40af", color: "#fff", border: "none", cursor: "pointer",
+                  }}
+                >
+                  {lang === "th" ? "ส่ง" : "Send"}
+                </button>
+                <button
+                  onClick={() => { onFeedback(msgIndex, false); setReasonOpen(false); }}
+                  style={{
+                    fontSize: 12, padding: "5px 10px", borderRadius: 6,
+                    background: "transparent", color: "#888",
+                    border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
+                  }}
+                >
+                  {lang === "th" ? "ข้าม" : "Skip"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
