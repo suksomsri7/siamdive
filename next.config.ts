@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "50mb" },
   },
   images: {
+    loader: "custom",
+    loaderFile: "./bunnyLoader.ts",
     remotePatterns: [
       { protocol: "https", hostname: "**" },
       { protocol: "http",  hostname: "**" },
