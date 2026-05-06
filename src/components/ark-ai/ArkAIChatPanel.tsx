@@ -11,7 +11,7 @@ import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
 import { addTrip, addTripToPlan, createPlan, getPlans, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
-import { readPendingPicks, removePendingPick, clearPendingPicks, type PendingPick } from "@/lib/pending-picks";
+import { readPendingPicks, clearPendingPicks, type PendingPick } from "@/lib/pending-picks";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -711,6 +711,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               lang={lang}
               onAskClick={msg.role === "assistant" && i === messages.length - 1 ? sendMessage : undefined}
               onBuildPlan={msg.role === "assistant" ? buildPlan : undefined}
+              onCompare={msg.role === "assistant" ? () => setCompareOpen(true) : undefined}
+              pendingPicksCount={pendingPicks.length}
               slotDate={slots.dates?.from}
               onScheduleAdded={(info) => {
                 // After user picks a schedule from a trip card, ping the AI
@@ -787,94 +789,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           </button>
         )}
 
-        {/* Staged trips — chips above input. Each chip has × to drop the
-            pick. The "✨ สร้าง plan ของฉัน" CTA materializes the picks via
-            buildPlan (fast path runs the step animation + opens MyPlan). */}
-        {pendingPicks.length > 0 && buildStep === null && (
-          <div style={{
-            padding: "10px 16px 0",
-            borderTop: "1px solid #1a1a1a",
-            flexShrink: 0,
-            background: "#0a0a0a",
-          }}>
-            <p style={{ fontSize: 10, color: "#9ca3af", margin: "0 0 6px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              {lang === "th" ? `ทริปที่เลือกไว้ (${pendingPicks.length})` : `Selected trips (${pendingPicks.length})`}
-            </p>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
-              {pendingPicks.map((p) => {
-                const dt = p.schedule?.departureDate
-                  ? new Date(p.schedule.departureDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short" })
-                  : "";
-                const key = `${p.boatId}:${p.schedule?.scheduleId || ""}`;
-                return (
-                  <span key={key} style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    background: "rgba(59,130,246,0.12)",
-                    border: "1px solid rgba(59,130,246,0.25)",
-                    color: "#bfdbfe", fontSize: 12, fontWeight: 600,
-                    padding: "5px 4px 5px 10px", borderRadius: 999, maxWidth: "100%",
-                  }}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
-                      {p.title}{dt ? ` · ${dt}` : ""}
-                    </span>
-                    <button
-                      onClick={() => { removePendingPick(p.boatId, p.schedule?.scheduleId); setPendingPicks(readPendingPicks()); }}
-                      aria-label={lang === "th" ? `ลบ ${p.title}` : `Remove ${p.title}`}
-                      style={{
-                        width: 18, height: 18, borderRadius: "50%", border: "none",
-                        background: "rgba(255,255,255,0.08)", color: "#cbd5e1",
-                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, lineHeight: 1, flexShrink: 0,
-                      }}>×</button>
-                  </span>
-                );
-              })}
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                onClick={buildPlan}
-                disabled={streaming}
-                style={{
-                  flex: "1 1 100%", padding: "10px 14px", borderRadius: 12, border: "none",
-                  background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-                  color: "#fff", fontSize: 13, fontWeight: 800, letterSpacing: "0.01em",
-                  cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
-                  boxShadow: "0 4px 12px rgba(59,130,246,0.3)",
-                }}>
-                {lang === "th" ? `✨ สร้าง plan (${pendingPicks.length})` : `✨ Build plan (${pendingPicks.length})`}
-              </button>
-              {pendingPicks.length >= 2 && (
-                <button
-                  onClick={() => setCompareOpen(true)}
-                  disabled={streaming}
-                  style={{
-                    flex: "1 1 calc(50% - 4px)", padding: "8px 12px", borderRadius: 12,
-                    background: "rgba(245,158,11,0.10)",
-                    border: "1px solid rgba(245,158,11,0.35)",
-                    color: "#fbbf24", fontSize: 12.5, fontWeight: 700,
-                    cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
-                  }}>
-                  {lang === "th" ? "⚖️ เปรียบเทียบ" : "⚖️ Compare"}
-                </button>
-              )}
-              <button
-                onClick={() => sendMessage(lang === "th"
-                  ? "แนะนำทริปเที่ยวเพิ่มเติมที่เข้ากับทริปที่ผมเลือกไว้หน่อยครับ"
-                  : "Recommend more trips that pair well with the ones I picked.")}
-                disabled={streaming}
-                style={{
-                  flex: pendingPicks.length >= 2 ? "1 1 calc(50% - 4px)" : "1 1 100%",
-                  padding: "8px 12px", borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(148,163,184,0.18)",
-                  color: "#e5e5e5", fontSize: 12.5, fontWeight: 700,
-                  cursor: streaming ? "default" : "pointer", opacity: streaming ? 0.6 : 1,
-                }}>
-                {lang === "th" ? "💡 แนะนำต่อ" : "💡 Suggest more"}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Sprint 4 fix3 — staged-picks strip removed per user feedback. The
+            chat is intentionally minimal above the text input. The Build CTA
+            now lives inside the AI's $$BUILD$$ marker (rendered by ChatMessage
+            when slots are sufficient), and the Compare button surfaces inside
+            the same card when pendingPicks ≥ 2. Discoverability lives in the
+            AI's spoken summary, not in persistent chrome. */}
 
         {/* Input */}
         <div style={{ padding: "10px 16px", paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #1a1a1a", flexShrink: 0, touchAction: "manipulation" }}>

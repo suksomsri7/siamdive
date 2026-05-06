@@ -614,8 +614,37 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Sprint 4 fix2 — derive boat-type filter from EITHER the categories slot
+  // OR a category keyword in the user's last message. Without this filter
+  // RAG returned every PUBLISHED boat, so the AI freely mixed liveaboards
+  // into daytrip recommendations (and vice-versa). Mapping is strict: a
+  // user who said "daytrip" gets DAYTRIP only, not DAYTRIP+SNORKELING etc.
+  // — the `categories` slot already supports multi-pick if the user wants
+  // both ("liveaboard + daytrip" → ["LIVEABOARD","DAYTRIP"]).
+  const CATEGORY_TO_BOAT_TYPES: Record<string, string[]> = {
+    liveaboard: ["LIVEABOARD", "DIVE_RESORT"],
+    daytrip: ["DAYTRIP"],
+    snorkeling: ["SNORKELING"],
+    land_tour: ["LAND_TOUR"],
+  };
+  const categoryTypes: string[] = (() => {
+    const fromSlot = (effectiveSlots.categories || [])
+      .flatMap(c => CATEGORY_TO_BOAT_TYPES[c] || []);
+    if (fromSlot.length) return [...new Set(fromSlot)];
+    // No slot yet — fall back to keyword detection on the user's last msg
+    // so a one-shot "daytrip ภูเก็ต" still gets a narrowed RAG before the
+    // slot extractor catches up via tool call.
+    const m = lastUserMsg.toLowerCase();
+    const types: string[] = [];
+    if (/liveaboard|live-aboard|ค้างคืน|เรือนอน/.test(m)) types.push("LIVEABOARD", "DIVE_RESORT");
+    if (/day\s*trip|เดย์ทริป|day-trip/.test(m)) types.push("DAYTRIP");
+    if (/snorkel|สนอร์เกิล|ดำผิวน้ำ/.test(m)) types.push("SNORKELING");
+    if (/land\s*tour|ทัวร์บก|land-tour/.test(m)) types.push("LAND_TOUR");
+    return [...new Set(types)];
+  })();
+
   const [boatsAll, schedules, blogs] = await Promise.all([
-    searchBoats(lang),
+    searchBoats(lang, categoryTypes.length ? categoryTypes : undefined),
     searchSchedules(lang, scheduleFromDate || scheduleToDate ? { fromDate: scheduleFromDate, toDate: scheduleToDate } : undefined),
     searchBlogs(lang, 20),
   ]);

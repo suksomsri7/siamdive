@@ -20,6 +20,11 @@ type Props = {
   onAskClick?: (value: string) => void;
   onScheduleAdded?: (info: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
   onBuildPlan?: () => void;
+  /** Sprint 4 fix3 — opens the CompareSheet from the assistant's $$BUILD$$
+   *  card. Render only when there are 2+ pendingPicks (panel passes the count
+   *  via `pendingPicksCount`). */
+  onCompare?: () => void;
+  pendingPicksCount?: number;
   // When the chat has captured a target date via slot extraction, pass it down
   // so the trip schedule picker defaults to the user's requested date instead
   // of "tomorrow" / current month.
@@ -155,7 +160,7 @@ function renderMarkdown(rawText: string) {
   return elements;
 }
 
-export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, slotDate }: Props) {
+export default function ChatMessage({ role, content, msgIndex, isStreaming, onFeedback, feedbackGiven, onAskClick, onScheduleAdded, onBuildPlan, onCompare, pendingPicksCount = 0, slotDate }: Props) {
   const isUser = role === "user";
   const lang = (useParams().lang as string) || "en";
   const [selectedTrip, setSelectedTrip] = useState<SelectedTrip | null>(null);
@@ -251,7 +256,13 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         break;
       case "build": {
         const buildData = part.data as { label?: string; summary?: string };
-        const defaultLabel = lang === "th" ? "✨ สร้าง plan ของฉัน" : "✨ Build my plan";
+        const defaultLabel = lang === "th"
+          ? `✨ สร้าง plan ของฉัน${pendingPicksCount ? ` (${pendingPicksCount} ทริป)` : ""}`
+          : `✨ Build my plan${pendingPicksCount ? ` (${pendingPicksCount} trips)` : ""}`;
+        const showCompare = pendingPicksCount >= 2 && !!onCompare;
+        const orMoreHint = lang === "th"
+          ? "หรือเลือกทริปอื่นเพื่อมาเปรียบเทียบ"
+          : "Or pick another trip to compare";
         rendered.push(
           <div key={`build-${i}`} style={{
             marginTop: 12, marginBottom: 4,
@@ -286,6 +297,28 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
             >
               {buildData.label || defaultLabel}
             </button>
+            {showCompare && (
+              <button
+                type="button"
+                onClick={() => onCompare?.()}
+                disabled={isStreaming}
+                style={{
+                  width: "100%", marginTop: 8,
+                  padding: "9px 14px", borderRadius: 10,
+                  background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#fbbf24",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: isStreaming ? "default" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {lang === "th" ? `⚖️ เปรียบเทียบ ${pendingPicksCount} ทริปที่เลือก` : `⚖️ Compare ${pendingPicksCount} selected trips`}
+              </button>
+            )}
+            <p style={{ fontSize: 11, color: "#7a8aa8", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
+              {orMoreHint}
+            </p>
           </div>,
         );
         break;

@@ -290,6 +290,7 @@ $$BUILD{"label":"✨ สร้าง plan ของฉัน","summary":"ทร�
 - Emit $$BUILD$$ at most once per turn, AFTER any text/$$TRIP$$/$$ASK$$ in the same response.
 - After emitting $$BUILD$$, do NOT also $$ASK$$ — the user's next action should be either click build or refine via free text.
 - If the user keeps adding info after $$BUILD$$ has been shown (e.g. picks another trip or adds a slot), re-emit $$BUILD$$ in your next reply with the updated summary.
+- The build card already shows a "หรือเลือกทริปอื่นเพื่อมาเปรียบเทียบ" / "Or pick another trip to compare" hint below the button — DON'T repeat that hint in your summary. Save the summary for plan specifics (which trip, dates, group, transfer, etc.).
 
 ### Hard rules (no exceptions)
 - Resolve relative dates to ISO (YYYY-MM-DD) using today as anchor.
