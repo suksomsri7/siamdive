@@ -1,7 +1,28 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { PendingPick } from "@/lib/pending-picks";
+
+// CompareSheet works on the minimum trip surface: anything with boatId/title/
+// type/area/cover and an optional schedule with departureDate/returnDate/
+// route/priceMin/priceMax. PendingPick (sessionStorage staged picks) AND
+// PlanTrip (committed trips inside a UserPlan) both satisfy this shape, so a
+// single component handles both call sites — pre-build (chat staged picks)
+// and post-build (MyPlan trips).
+export type ComparableTrip = {
+  boatId: string;
+  title: string;
+  type: string;
+  area: string;
+  cover: string | null;
+  schedule?: {
+    scheduleId: string;
+    departureDate: string;
+    returnDate: string | null;
+    route?: string;
+    priceMin?: number;
+    priceMax?: number;
+  };
+};
 
 const TYPE_LABEL: Record<string, Record<string, string>> = {
   DAYTRIP:    { th: "Day Trip",   en: "Day Trip" },
@@ -44,7 +65,8 @@ const dayCount = (from?: string, to?: string | null): number => {
 };
 
 type Props = {
-  picks: PendingPick[];
+  /** PendingPick[] (staged in chat) or PlanTrip[] (already in MyPlan) — both work. */
+  picks: ComparableTrip[];
   lang: string;
   onClose: () => void;
 };
@@ -57,7 +79,7 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
   const [leftId, setLeftId] = useState(picks[0] ? `${picks[0].boatId}:${picks[0].schedule?.scheduleId || ""}` : "");
   const [rightId, setRightId] = useState(picks[1] ? `${picks[1].boatId}:${picks[1].schedule?.scheduleId || ""}` : "");
 
-  const pickKey = (p: PendingPick) => `${p.boatId}:${p.schedule?.scheduleId || ""}`;
+  const pickKey = (p: ComparableTrip) => `${p.boatId}:${p.schedule?.scheduleId || ""}`;
   const left = picks.find(p => pickKey(p) === leftId);
   const right = picks.find(p => pickKey(p) === rightId);
 

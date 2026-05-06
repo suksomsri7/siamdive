@@ -4,6 +4,7 @@ import { useState } from "react";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import PlanNotificationsBanner from "@/components/ark-ai/plan/PlanNotificationsBanner";
+import CompareSheet from "@/components/ark-ai/CompareSheet";
 import type { PlanTrip } from "@/lib/plan-store";
 
 type Trip = {
@@ -33,7 +34,26 @@ const STATUS_LABEL: Record<string, { th: string; en: string; color: string }> = 
 
 export default function SharedPlanClient({ plan, currentLang }: Props) {
   const [copied, setCopied] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const isTh = currentLang === "th";
+
+  const compareTrips = plan.trips.map(t => ({
+    boatId: t.boatId,
+    title: t.title,
+    type: t.type,
+    area: t.area || "",
+    cover: t.cover || null,
+    schedule: t.schedule
+      ? {
+          scheduleId: t.schedule.scheduleId,
+          departureDate: t.schedule.departureDate,
+          returnDate: t.schedule.returnDate,
+          route: t.schedule.route,
+          priceMin: t.schedule.priceMin,
+          priceMax: t.schedule.priceMax,
+        }
+      : undefined,
+  }));
 
   const cover = plan.coverUrl || plan.trips.find(t => t.cover)?.cover;
   const status = STATUS_LABEL[plan.status] || STATUS_LABEL.PLANNING;
@@ -95,6 +115,22 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
             <p style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 10 }}>
               {isTh ? "ทริปในแพลน" : "Trips in this plan"}
             </p>
+            {plan.trips.length >= 2 && (
+              <button
+                type="button"
+                onClick={() => setCompareOpen(true)}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 12,
+                  background: "rgba(245,158,11,0.10)",
+                  border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#fbbf24", fontSize: 13, fontWeight: 700,
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  fontFamily: "inherit",
+                }}
+              >
+                {isTh ? `⚖️ เปรียบเทียบทริปในแพลน (${plan.trips.length})` : `⚖️ Compare trips in plan (${plan.trips.length})`}
+              </button>
+            )}
             <PlanTimeline
               planId={plan.shortId}
               trips={plan.trips.map(t => ({
@@ -155,6 +191,13 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
           </a>
         </div>
       </div>
+      {compareOpen && compareTrips.length >= 2 && (
+        <CompareSheet
+          picks={compareTrips}
+          lang={currentLang}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </div>
   );
 }

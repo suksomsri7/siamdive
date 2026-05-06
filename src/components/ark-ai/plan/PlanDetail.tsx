@@ -12,6 +12,7 @@ import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
+import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
@@ -54,6 +55,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [showChannelSheet, setShowChannelSheet] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [slots, setSlots] = useState<Slots | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const isTh = lang === "th";
@@ -355,6 +357,24 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 ) : (
                   <div>
+                    {trips.length >= 2 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => setCompareOpen(true)}
+                          style={{
+                            width: "100%", padding: "10px 14px", borderRadius: 10,
+                            background: "rgba(245,158,11,0.10)",
+                            border: "1px solid rgba(245,158,11,0.35)",
+                            color: "#fbbf24", fontSize: 13, fontWeight: 700,
+                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {isTh ? `⚖️ เปรียบเทียบทริปในแพลน (${trips.length})` : `⚖️ Compare trips in plan (${trips.length})`}
+                        </button>
+                      </div>
+                    )}
                     <PlanTimeline
                       planId={planId}
                       trips={trips}
@@ -437,6 +457,14 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           message={contactMessage}
           lang={lang}
           onClose={() => { setShowChannelSheet(false); setContactMessage(null); }}
+        />
+      )}
+
+      {compareOpen && trips.length >= 2 && (
+        <CompareSheet
+          picks={trips}
+          lang={lang}
+          onClose={() => setCompareOpen(false)}
         />
       )}
     </>
