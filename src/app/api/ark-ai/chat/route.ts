@@ -643,11 +643,22 @@ export async function POST(req: NextRequest) {
     return [...new Set(types)];
   })();
 
-  const [boatsAll, schedules, blogs] = await Promise.all([
+  const [boatsAll, schedulesUnfiltered, blogs] = await Promise.all([
     searchBoats(lang, categoryTypes.length ? categoryTypes : undefined),
     searchSchedules(lang, scheduleFromDate || scheduleToDate ? { fromDate: scheduleFromDate, toDate: scheduleToDate } : undefined),
     searchBlogs(lang, 20),
   ]);
+  // Sprint 4 fix2 — drop schedules whose boat is OUTSIDE categoryTypes too.
+  // RAG renders an "## Upcoming Schedules" section listing boatId + boatTitle
+  // — without this filter the LLM still saw daytrip schedules even when the
+  // boats list was liveaboard-only, and would fabricate $$TRIP$$ cards
+  // pointing to those daytrip boats. Pin schedules to the same allowed set.
+  const allowedBoatIds = categoryTypes.length
+    ? new Set(boatsAll.map(b => b.id))
+    : null;
+  const schedules = allowedBoatIds
+    ? schedulesUnfiltered.filter(s => allowedBoatIds.has(s.boatId))
+    : schedulesUnfiltered;
 
   // If we narrowed the schedule window, hard-restrict the boat list to only
   // boats with a schedule in that window — no fallback to the full catalog,
