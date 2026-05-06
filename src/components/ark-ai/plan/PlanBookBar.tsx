@@ -147,29 +147,29 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
           pointerEvents: "auto",
           display: "flex", alignItems: "center", gap: 6,
           padding: "6px 10px",
-          background: "rgba(15,23,42,0.92)",
+          background: "var(--plan-surface)",
           backdropFilter: "blur(12px)",
           border: "1px solid rgba(59,130,246,0.25)",
           borderRadius: 999,
-          boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+          boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
           maxWidth: 280,
           flexWrap: "wrap",
         }}>
-          <span style={{ fontSize: 9, color: "#93c5fd", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <span style={{ fontSize: 9, color: "#3b82f6", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em" }}>
             {t.groupTotal}
           </span>
-          <span style={{ fontSize: 11, color: "#dbeafe", fontWeight: 700 }}>
+          <span style={{ fontSize: 11, color: "var(--plan-fg)", fontWeight: 700 }}>
             {divers > 0 && (
               <>
                 {divers} {t.diverCount}
-                {certMix && <span style={{ color: "#93c5fd", fontWeight: 600 }}> ({certMix.map(c => c.toUpperCase()).join("/")})</span>}
+                {certMix && <span style={{ color: "#3b82f6", fontWeight: 600 }}> ({certMix.map(c => c.toUpperCase()).join("/")})</span>}
               </>
             )}
             {nonDivers > 0 && divers > 0 && " + "}
             {nonDivers > 0 && <>{nonDivers} {t.nonDiverCount}</>}
           </span>
           {divers > 0 && (
-            <span style={{ fontSize: 11, color: "#fff", fontWeight: 800 }}>
+            <span style={{ fontSize: 11, color: "var(--plan-fg)", fontWeight: 800 }}>
               {groupMax > groupMin
                 ? `฿${groupMin.toLocaleString()}–฿${groupMax.toLocaleString()}`
                 : `฿${groupMin.toLocaleString()}`}
@@ -187,19 +187,21 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
           style={{
             pointerEvents: "auto",
             width: 44, height: 44, borderRadius: "50%",
-            background: "rgba(15,23,42,0.92)",
+            background: "var(--plan-surface)",
             backdropFilter: "blur(12px)",
-            border: "1px solid #2a2a2a",
-            color: "#cbd5e1",
+            border: "1px solid var(--plan-border)",
+            color: "var(--plan-fg-muted)",
             cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
             transition: "transform 0.15s",
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/>
+            <line x1="22" y1="11" x2="16" y2="11"/>
           </svg>
         </button>
       )}
@@ -211,17 +213,17 @@ export default function PlanBookBar({ trips, logistics, planShortId, ownerEmail,
         title={t.book}
         style={{
           pointerEvents: "auto",
-          width: 56, height: 56, borderRadius: "50%",
+          width: 46, height: 46, borderRadius: "50%",
           background: "linear-gradient(135deg, #1e40af, #3b82f6)",
           border: "none",
           color: "#fff",
           cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 8px 24px rgba(59,130,246,0.45)",
+          boxShadow: "0 6px 18px rgba(59,130,246,0.4)",
           transition: "transform 0.15s",
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
         </svg>
       </button>

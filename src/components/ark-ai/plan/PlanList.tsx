@@ -16,17 +16,17 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
   if (plans.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 16px", textAlign: "center" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 16, background: "#161616", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ width: 64, height: 64, borderRadius: 16, background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
             <rect x="9" y="3" width="6" height="4" rx="1" />
             <line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" />
           </svg>
         </div>
-        <p style={{ fontSize: 18, fontWeight: 700, color: "#e5e5e5", marginBottom: 6 }}>
+        <p style={{ fontSize: 18, fontWeight: 700, color: "var(--plan-fg)", marginBottom: 6 }}>
           {isTh ? "เริ่มวางแผนทริปแรก" : "Start your first trip plan"}
         </p>
-        <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, maxWidth: 280, marginBottom: 24 }}>
+        <p style={{ fontSize: 13, color: "var(--plan-fg-muted)", lineHeight: 1.6, maxWidth: 280, marginBottom: 24 }}>
           {isTh
             ? "สร้างแพลน เพิ่มทริป ชวนเพื่อน แชร์รูป วางแผนดำน้ำด้วยกัน"
             : "Create a plan, add trips, invite friends, share photos — plan your dive trip together"}
@@ -52,14 +52,14 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
 
         {/* Create new card */}
         <button onClick={onCreateStart} style={{
-          background: "transparent", border: "1px dashed #333", borderRadius: 14,
+          background: "transparent", border: "1px dashed var(--plan-border)", borderRadius: 14,
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
           gap: 8, padding: "32px 16px", cursor: "pointer", minHeight: 160,
         }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#666" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--plan-fg-muted)" }}>
             {isTh ? "สร้างแพลนใหม่" : "New Plan"}
           </span>
         </button>
@@ -79,12 +79,10 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
     <div
       onClick={() => onOpen(plan.id)}
       style={{
-        position: "relative", background: "#111", border: "1px solid #1a1a1a",
+        position: "relative", background: "var(--plan-surface)", border: "1px solid var(--plan-border-soft)",
         borderRadius: 14, overflow: "hidden", cursor: "pointer",
         transition: "border-color 0.2s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#333")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1a1a1a")}
     >
       {/* Cover */}
       <div style={{ width: "100%", aspectRatio: "16/10", background: "#161616", position: "relative" }}>
@@ -139,10 +137,10 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
 
       {/* Info */}
       <div style={{ padding: "10px 12px 12px" }}>
-        <p style={{ fontSize: 13, fontWeight: 800, color: "#f5f5f5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {plan.name}
         </p>
-        <p style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
+        <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", marginTop: 2 }}>
           {trips.length} {isTh ? "ทริป" : "trips"}
         </p>
       </div>

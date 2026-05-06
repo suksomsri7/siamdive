@@ -235,9 +235,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   return (
     <>
       {/* Header */}
-      <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
+      <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--plan-border-soft)", flexShrink: 0 }}>
         <button onClick={onBack}
-          style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
+          style={{ background: "none", border: "none", color: "var(--plan-fg-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
           </svg>
@@ -250,11 +250,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             onChange={(e) => setNameValue(e.target.value)}
             onBlur={handleRename}
             onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
-            style={{ flex: 1, background: "#1a1a1a", border: "1px solid #333", borderRadius: 6, color: "#f5f5f5", fontSize: 14, fontWeight: 700, padding: "4px 8px", fontFamily: "inherit", outline: "none" }}
+            style={{ flex: 1, background: "var(--plan-surface-alt)", border: "1px solid var(--plan-border)", borderRadius: 6, color: "var(--plan-fg)", fontSize: 14, fontWeight: 700, padding: "4px 8px", fontFamily: "inherit", outline: "none" }}
           />
         ) : (
           <p onClick={() => isOwner && setRenaming(true)}
-            style={{ flex: 1, fontSize: 14, fontWeight: 800, color: "#f5f5f5", cursor: isOwner ? "pointer" : "default" }}>
+            style={{ flex: 1, fontSize: 14, fontWeight: 800, color: "var(--plan-fg)", cursor: isOwner ? "pointer" : "default" }}>
             {plan.name}
           </p>
         )}

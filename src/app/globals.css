@@ -4,6 +4,42 @@
 
 html { scroll-behavior: smooth; }
 
+/* MyPlan theme tokens — opt-in via inline `var(--plan-*)` in components.
+   Default = dark (matches the rest of the app). data-plan-theme="light"
+   on <html> swaps the palette to a clean white/black/gray scheme. */
+:root,
+[data-plan-theme="dark"] {
+  --plan-bg: #0a0a0a;
+  --plan-surface: #111;
+  --plan-surface-alt: #1a1a1a;
+  --plan-border: #262626;
+  --plan-border-soft: #1a1a1a;
+  --plan-fg: #f5f5f5;
+  --plan-fg-muted: #888;
+  --plan-fg-subtle: #555;
+  --plan-icon-muted: rgba(255,255,255,0.4);
+  --plan-icon-active: #fff;
+  --plan-nav-bg: linear-gradient(to top, rgba(8,8,8,0.98), rgba(13,13,13,0.95));
+  --plan-nav-border: rgba(255,255,255,0.06);
+  --plan-overlay: rgba(0,0,0,0.7);
+}
+
+[data-plan-theme="light"] {
+  --plan-bg: #ffffff;
+  --plan-surface: #fafafa;
+  --plan-surface-alt: #f3f4f6;
+  --plan-border: #e5e7eb;
+  --plan-border-soft: #f3f4f6;
+  --plan-fg: #111827;
+  --plan-fg-muted: #4b5563;
+  --plan-fg-subtle: #9ca3af;
+  --plan-icon-muted: rgba(15,23,42,0.45);
+  --plan-icon-active: #111827;
+  --plan-nav-bg: linear-gradient(to top, rgba(255,255,255,0.98), rgba(249,250,251,0.95));
+  --plan-nav-border: rgba(0,0,0,0.06);
+  --plan-overlay: rgba(15,23,42,0.5);
+}
+
 body {
   background: #0d0d0d;
   color: #f0f0f0;

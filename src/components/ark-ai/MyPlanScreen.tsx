@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan } from "@/lib/plan-store";
+import { usePlanTheme } from "@/lib/plan-theme";
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 
@@ -24,6 +25,7 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string[] | null>(null);
+  const { mode: themeMode, toggle: toggleTheme } = usePlanTheme();
 
   const refresh = useCallback(() => {
     const p = getPlans();
@@ -130,10 +132,11 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
       `}</style>
       <div style={{
         position: "fixed", inset: 0, zIndex: 1300,
-        background: "#0a0a0a", color: "#e5e5e5",
+        background: "var(--plan-bg)", color: "var(--plan-fg)",
         display: "flex", flexDirection: "column",
         animation: "planFadeIn 0.2s ease both",
         overflow: "hidden", touchAction: "none",
+        transition: "background 0.2s, color 0.2s",
       }}>
         {building ? (
           <BuildingOverlay lang={lang} />
@@ -159,14 +162,15 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
         ) : (
           <>
             {/* Header */}
-            <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
+            <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--plan-border-soft)", flexShrink: 0 }}>
               <button onClick={onClose}
-                style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
+                style={{ background: "none", border: "none", color: "var(--plan-fg-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
                 </svg>
               </button>
-              <p style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>My Plans</p>
+              <p style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "var(--plan-fg)" }}>My Plans</p>
+              <ThemeToggle mode={themeMode} onToggle={toggleTheme} />
             </div>
 
             {/* Plan List */}
@@ -376,9 +380,9 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
       <div style={{
         width: "100%", maxWidth: 480,
         display: "flex", alignItems: "stretch",
-        background: "linear-gradient(to top, rgba(8,8,8,0.98), rgba(13,13,13,0.95))",
+        background: "var(--plan-nav-bg)",
         backdropFilter: "blur(20px) saturate(1.5)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
+        borderTop: "1px solid var(--plan-nav-border)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}>
         {/* Search */}
@@ -388,7 +392,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", gap: 3,
             padding: "10px 0 8px", border: "none", background: "transparent",
-            color: "rgba(255,255,255,0.4)", cursor: "pointer",
+            color: "var(--plan-icon-muted)", cursor: "pointer",
             animation: tapped === "search" ? "planNavPulse 0.3s ease" : "none",
             transition: "color 0.15s",
           }}
@@ -424,7 +428,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", gap: 3,
             padding: "10px 0 8px", border: "none", background: "transparent",
-            color: "#fff", cursor: "default",
+            color: "var(--plan-icon-active)", cursor: "default",
           }}
         >
           <div style={{ position: "relative" }}>
@@ -449,6 +453,56 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </nav>
+  );
+}
+
+function ThemeToggle({ mode, onToggle }: { mode: "light" | "dark"; onToggle: () => void }) {
+  const isLight = mode === "light";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={isLight}
+      aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+      title={isLight ? "Light mode" : "Dark mode"}
+      style={{
+        position: "relative",
+        width: 50, height: 26, borderRadius: 999,
+        background: isLight ? "#e5e7eb" : "#1f2937",
+        border: `1px solid ${isLight ? "#d1d5db" : "#374151"}`,
+        cursor: "pointer", padding: 0,
+        transition: "background 0.2s, border-color 0.2s",
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: isLight ? 26 : 2,
+          width: 20, height: 20, borderRadius: "50%",
+          background: isLight ? "#fff" : "#0a0a0a",
+          boxShadow: isLight ? "0 1px 3px rgba(0,0,0,0.18)" : "0 1px 3px rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "left 0.2s ease, background 0.2s",
+        }}
+      >
+        {isLight ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
+            <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
+            <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" /><line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
+            <line x1="4.93" y1="19.07" x2="6.34" y2="17.66" /><line x1="17.66" y1="6.34" x2="19.07" y2="4.93" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+          </svg>
+        )}
+      </span>
+    </button>
   );
 }
 
