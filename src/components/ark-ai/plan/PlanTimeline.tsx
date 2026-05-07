@@ -200,11 +200,13 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   //     in the local plan trip)
   // Empty across all three → section hides cleanly. No invented times.
   const itineraryDays = useMemo(() => {
+    // Prefer freshly-fetched detail (current lang) over local cached fields,
+    // which may be in a stale language from the original add-time fetch.
+    const fromDetailContent = extractScheduleFromContent(detail?.schedule?.content);
+    if (fromDetailContent.length > 0) return fromDetailContent;
     const parsed = parseItinerary(sched.itinerary);
     if (parsed.length > 0) return parsed;
-    const fromLocalContent = extractScheduleFromContent(sched.content);
-    if (fromLocalContent.length > 0) return fromLocalContent;
-    return extractScheduleFromContent(detail?.schedule?.content);
+    return extractScheduleFromContent(sched.content);
   }, [sched.itinerary, sched.content, detail]);
   const itineraryDayDates = useMemo(() => {
     if (!isMultiDay) return [];
@@ -230,16 +232,13 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     setDetail(null);
   }, [lang]);
 
-  // Detail is now collapsed by default. Still fetch on mount when the local
-  // plan has no itinerary OR content — without a remote fetch the day-by-day
-  // timeline above would render empty for server-built plans (which don't
-  // persist content locally). User-curated plans skip the fetch since they
-  // already have everything cached.
-  const localHasContent = !!(sched.itinerary || sched.content);
+  // Always (re)fetch on mount and whenever lang changes. Local cached
+  // sched.itinerary/content/route may be in a stale language from the
+  // original add-time fetch — pulling detail in the current lang lets the
+  // timeline + collapsed route preview render in the user's chosen lang.
   useEffect(() => {
-    if (expanded && !detail && !detailLoading) fetchDetail();
-    else if (!localHasContent && !detail && !detailLoading) fetchDetail();
-  }, [expanded, detail, detailLoading, fetchDetail, localHasContent]);
+    if (!detail && !detailLoading) fetchDetail();
+  }, [detail, detailLoading, fetchDetail]);
 
   const handleToggle = () => {
     if (!expanded) fetchDetail();
@@ -366,17 +365,21 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Route (collapsed) */}
-          {!expanded && sched.route && (
-            <div style={{ padding: "0 12px 8px", display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-              <p style={{ fontSize: 12, color: "var(--plan-fg-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {sched.route.replace(/<[^>]+>/g, "").slice(0, 80)}
-              </p>
-            </div>
-          )}
+          {/* Route (collapsed) — prefer fresh detail (current lang) over cached */}
+          {(() => {
+            const routeText = detail?.schedule?.route || sched.route;
+            if (expanded || !routeText) return null;
+            return (
+              <div style={{ padding: "0 12px 8px", display: "flex", alignItems: "center", gap: 4 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                <p style={{ fontSize: 12, color: "var(--plan-fg-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {routeText.replace(/<[^>]+>/g, "").slice(0, 80)}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Price range — schedule-wide (lowest tier → highest tier across all
                packages). User no longer picks a package; SiamDive confirms the
