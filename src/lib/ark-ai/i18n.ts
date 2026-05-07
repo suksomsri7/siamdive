@@ -198,6 +198,14 @@ const DICT = {
   // === Article ===
   readArticle: { th: "อ่านบทความ →", en: "Read article →", cn: "阅读文章 →", ja: "記事を読む →", ko: "기사 읽기 →", de: "Artikel lesen →", fr: "Lire l'article →", ru: "Читать статью →" },
 
+  // === Plan notifications (rendered from type + payload, server stores TH-only fallback) ===
+  notifSoldOutTitle: { th: "ทริปเต็มแล้ว", en: "Trip sold out", cn: "行程已售罄", ja: "ツアー満員", ko: "투어 매진", de: "Tour ausgebucht", fr: "Voyage complet", ru: "Тур распродан" },
+  notifSoldOutBody: { th: "ทริปที่คุณเลือกขายหมดแล้ว ติดต่อ SiamDive เพื่อหาวันใกล้เคียง", en: "Your selected trip has sold out — contact SiamDive for nearby dates", cn: "您选择的行程已售罄 — 请联系 SiamDive 寻找其他日期", ja: "選択されたツアーは満員です — 近い日程は SiamDive までお問い合わせください", ko: "선택하신 투어가 매진되었습니다 — 가까운 날짜는 SiamDive에 문의하세요", de: "Deine Tour ist ausgebucht — kontaktiere SiamDive für andere Daten", fr: "Votre voyage est complet — contactez SiamDive pour d'autres dates", ru: "Выбранный тур распродан — свяжитесь с SiamDive по другим датам" },
+  notifLowSeatsTitle: { th: "ที่นั่งเหลือน้อย", en: "Seats running low", cn: "席位即将售罄", ja: "残席わずか", ko: "좌석 얼마 남지 않음", de: "Plätze fast voll", fr: "Places limitées", ru: "Мест осталось мало" },
+  notifReminderTomorrowTitle: { th: "ทริปออกพรุ่งนี้!", en: "Trip departs tomorrow!", cn: "明天出发!", ja: "明日出発!", ko: "내일 출발!", de: "Tour startet morgen!", fr: "Départ demain !", ru: "Отправление завтра!" },
+  notifReminderTomorrowBody: { th: "เช็คอุปกรณ์ ของฝาก เอกสารใบเซอร์ — ทริปออกพรุ่งนี้แล้ว", en: "Check your gear, packing list and certification card — trip departs tomorrow", cn: "检查装备、行李和潜水证 — 明天就出发了", ja: "装備、持ち物、ライセンスカードの確認を — ツアーは明日出発です", ko: "장비, 짐, 자격증 카드를 확인하세요 — 투어가 내일 출발합니다", de: "Ausrüstung, Gepäck und Tauchbrevet checken — Tour startet morgen", fr: "Vérifiez équipement, bagages et brevet — départ demain", ru: "Проверьте снаряжение, вещи и сертификат — поездка завтра" },
+  notifNewBlogTitle: { th: "บทความใหม่ที่น่าสนใจ", en: "New article you might like", cn: "新文章推荐", ja: "新しい記事のおすすめ", ko: "새 기사 추천", de: "Neuer Artikel für dich", fr: "Nouvel article", ru: "Новая статья" },
+
   // === locale codes (kept for date helpers) ===
   localeBcp47: { th: "th-TH", en: "en-GB", cn: "zh-CN", ja: "ja-JP", ko: "ko-KR", de: "de-DE", fr: "fr-FR", ru: "ru-RU" },
   langCodeShort: { th: "th", en: "en", cn: "cn", ja: "ja", ko: "ko", de: "de", fr: "fr", ru: "ru" },
@@ -344,6 +352,45 @@ const ADDED_TO_MYPLAN_TPL: Record<ArkLang, (boat: string, date: string) => strin
 };
 export const addedToMyPlanMessage = (lang: string | undefined, boat: string, date: string) =>
   ADDED_TO_MYPLAN_TPL[normalizeArkLang(lang)](boat, date);
+
+const NOTIF_LOW_SEATS_BODY_TPL: Record<ArkLang, (seats: number) => string> = {
+  th: (n) => `เหลือเพียง ${n} ที่ — รีบ confirm ก่อนเต็ม`,
+  en: (n) => `Only ${n} seats left — confirm before they're gone`,
+  cn: (n) => `仅剩 ${n} 个席位 — 请尽快确认`,
+  ja: (n) => `残り ${n} 席 — 満員になる前に確定を`,
+  ko: (n) => `${n}석 남음 — 매진 전에 확정하세요`,
+  de: (n) => `Nur noch ${n} Plätze — schnell bestätigen`,
+  fr: (n) => `Plus que ${n} places — confirmez vite`,
+  ru: (n) => `Осталось ${n} мест — подтвердите скорее`,
+};
+export const notifLowSeatsBody = (lang: string | undefined, seats: number) =>
+  NOTIF_LOW_SEATS_BODY_TPL[normalizeArkLang(lang)](seats);
+
+const NOTIF_REMINDER_DAYS_TITLE_TPL: Record<ArkLang, (days: number) => string> = {
+  th: (d) => `เหลืออีก ${d} วันก่อนทริป`,
+  en: (d) => `${d} days until your trip`,
+  cn: (d) => `还有 ${d} 天就出发`,
+  ja: (d) => `あと ${d} 日で出発`,
+  ko: (d) => `출발까지 ${d}일 남음`,
+  de: (d) => `Noch ${d} Tage bis zur Tour`,
+  fr: (d) => `${d} jours avant le départ`,
+  ru: (d) => `${d} дней до поездки`,
+};
+export const notifReminderDaysTitle = (lang: string | undefined, days: number) =>
+  NOTIF_REMINDER_DAYS_TITLE_TPL[normalizeArkLang(lang)](days);
+
+const NOTIF_REMINDER_DAYS_BODY_TPL: Record<ArkLang, (days: number) => string> = {
+  th: (d) => `เริ่มแพ็คของได้แล้ว — ทริปออกอีก ${d} วัน`,
+  en: (d) => `Time to start packing — trip departs in ${d} days`,
+  cn: (d) => `可以开始打包了 — ${d} 天后出发`,
+  ja: (d) => `荷造りを始めましょう — ${d}日後に出発`,
+  ko: (d) => `짐을 챙길 시간 — ${d}일 후 출발`,
+  de: (d) => `Zeit zu packen — Abreise in ${d} Tagen`,
+  fr: (d) => `Il est temps de préparer vos affaires — départ dans ${d} jours`,
+  ru: (d) => `Пора собирать вещи — отправление через ${d} дн.`,
+};
+export const notifReminderDaysBody = (lang: string | undefined, days: number) =>
+  NOTIF_REMINDER_DAYS_BODY_TPL[normalizeArkLang(lang)](days);
 
 // BCP-47 locale codes for Date.toLocaleDateString — used wherever we format a
 // date for chat output so each language gets its native short format.
