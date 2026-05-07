@@ -20,6 +20,7 @@ import {
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
+import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage } from "@/lib/ark-ai/i18n";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -87,23 +88,59 @@ const WELCOME_BROWSING: Record<string, string> = {
   ru: "Привет! Вижу, вы ищете дайвинг-трип 🔍\n\nПомогу найти быстрее:\n- **Скажите даты и уровень сертификата** — подберу лучшее\n- **Сравнить лодки**\n\nНравится? Нажмите **+** чтобы добавить в план!",
 };
 
+// Per-lang season tag-lines for the welcome message header. Geographic
+// names (Similan / Surin / Koh Tao / Sail Rock / whale shark) stay in
+// their conventional Roman spellings — those are the proper nouns dive
+// travellers search for.
+const SEASON_HEADER: Record<string, (mn: string) => string> = {
+  th: (mn) => `🌊 **เดือน${mn}**`,
+  en: (mn) => `🌊 **${mn}**`,
+  cn: (mn) => `🌊 **${mn}**`,
+  ja: (mn) => `🌊 **${mn}**`,
+  ko: (mn) => `🌊 **${mn}**`,
+  de: (mn) => `🌊 **${mn}**`,
+  fr: (mn) => `🌊 **${mn}**`,
+  ru: (mn) => `🌊 **${mn}**`,
+};
+const WHALE_SHARK_NOTE: Record<string, string> = {
+  th: " ช่วงนี้มีโอกาสเจอฉลามวาฬ!",
+  en: " — whale shark season!",
+  cn: " — 鲸鲨季节!",
+  ja: " — ジンベエザメのシーズン!",
+  ko: " — 고래상어 시즌!",
+  de: " — Walhai-Saison!",
+  fr: " — saison des requins-baleines !",
+  ru: " — сезон китовых акул!",
+};
+const ANDAMAN_NOTE: Record<string, string> = {
+  th: " สิมิลัน-สุรินทร์ เปิดอยู่!",
+  en: " — Similan & Surin are open!",
+  cn: " — 西米兰和素林开放!",
+  ja: " — シミラン&スリン オープン中!",
+  ko: " — 시밀란 & 수린 오픈!",
+  de: " — Similan & Surin geöffnet!",
+  fr: " — Similan & Surin sont ouverts !",
+  ru: " — Симилан и Сурин открыты!",
+};
+const GULF_NOTE: Record<string, string> = {
+  th: " เกาะเต่า-Sail Rock สภาพดี!",
+  en: " — Koh Tao & Sail Rock at their best!",
+  cn: " — 龟岛和 Sail Rock 状态最佳!",
+  ja: " — タオ島 & Sail Rock 絶好調!",
+  ko: " — 따오섬 & Sail Rock 최상!",
+  de: " — Koh Tao & Sail Rock in Bestform!",
+  fr: " — Koh Tao & Sail Rock au meilleur !",
+  ru: " — Ко-Тао и Sail Rock в лучшем состоянии!",
+};
 function buildSeasonLine(lang: string): string {
   const mn = monthName(lang);
   const s = seasonInfo();
   const label = seasonLabel(lang);
-
-  if (lang === "th") {
-    let line = `\n\n🌊 **เดือน${mn}** — ${label}`;
-    if (s.whaleShark) line += " ช่วงนี้มีโอกาสเจอฉลามวาฬ!";
-    else if (s.coast === "andaman") line += " สิมิลัน-สุรินทร์ เปิดอยู่!";
-    else if (s.coast === "gulf") line += " เกาะเต่า-Sail Rock สภาพดี!";
-    return line;
-  }
-
-  let line = `\n\n🌊 **${mn}** — ${label}`;
-  if (s.whaleShark) line += " — whale shark season!";
-  else if (s.coast === "andaman") line += " — Similan & Surin are open!";
-  else if (s.coast === "gulf") line += " — Koh Tao & Sail Rock at their best!";
+  const header = (SEASON_HEADER[lang] || SEASON_HEADER.en)(mn);
+  let line = `\n\n${header} — ${label}`;
+  if (s.whaleShark) line += WHALE_SHARK_NOTE[lang] || WHALE_SHARK_NOTE.en;
+  else if (s.coast === "andaman") line += ANDAMAN_NOTE[lang] || ANDAMAN_NOTE.en;
+  else if (s.coast === "gulf") line += GULF_NOTE[lang] || GULF_NOTE.en;
   return line;
 }
 
@@ -210,19 +247,15 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     if (messages.length > 0) return;
     const fmtDateShort = (iso: string) =>
       new Date(iso + "T00:00:00").toLocaleDateString(
-        lang === "th" ? "th-TH" : "en-GB",
+        bcp47Locale(lang),
         { day: "numeric", month: "short", year: "2-digit" },
       );
     const labels = picks.map(p => {
       const d = p.schedule?.departureDate?.slice(0, 10);
       if (!d) return p.title;
-      return lang === "th"
-        ? `${p.title} วันที่ ${fmtDateShort(d)}`
-        : `${p.title} on ${fmtDateShort(d)}`;
+      return pickDateLabel(lang, p.title, fmtDateShort(d));
     });
-    const text = lang === "th"
-      ? `สนใจทริป ${labels.join(", ")} ช่วยจัดการ Plan ให้หน่อยครับ`
-      : `Interested in ${labels.join(", ")} — help me shape this into a plan`;
+    const text = pickGreetingMessage(lang, labels.join(", "));
     sendRef.current?.(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -535,13 +568,16 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // overlay so the user feels the AI is doing real work — even when the
   // local fast path is essentially instant. Sized to feel deliberate (~1.6s
   // total) without dragging.
-  const buildSteps = useCallback((): { th: string; en: string }[] => [
-    { th: "📦 จัดเตรียมทริป...",        en: "📦 Gathering trips..." },
-    { th: "🗓️ ลำดับวันที่...",          en: "🗓️ Sequencing dates..." },
-    { th: "🎒 สร้าง checklist...",       en: "🎒 Building checklist..." },
-    { th: "💰 คำนวณช่วงราคา...",         en: "💰 Calculating price range..." },
-    { th: "✓ พร้อมแล้ว!",               en: "✓ Ready!" },
-  ], []);
+  const buildSteps = useCallback((): { label: string }[] => {
+    const stepDicts: Record<string, string>[] = [
+      { th: "📦 จัดเตรียมทริป...", en: "📦 Gathering trips...", cn: "📦 整理行程...", ja: "📦 ツアーを集めています...", ko: "📦 투어 준비 중...", de: "📦 Touren werden zusammengestellt...", fr: "📦 Collecte des voyages...", ru: "📦 Собираем туры..." },
+      { th: "🗓️ ลำดับวันที่...", en: "🗓️ Sequencing dates...", cn: "🗓️ 排序日期...", ja: "🗓️ 日程を並べています...", ko: "🗓️ 날짜 정렬 중...", de: "🗓️ Daten werden sortiert...", fr: "🗓️ Ordonnancement des dates...", ru: "🗓️ Упорядочиваем даты..." },
+      { th: "🎒 สร้าง checklist...", en: "🎒 Building checklist...", cn: "🎒 创建清单...", ja: "🎒 チェックリスト作成...", ko: "🎒 체크리스트 생성 중...", de: "🎒 Checkliste wird erstellt...", fr: "🎒 Création de la liste...", ru: "🎒 Создаём чек-лист..." },
+      { th: "💰 คำนวณช่วงราคา...", en: "💰 Calculating price range...", cn: "💰 计算价格范围...", ja: "💰 価格帯を計算...", ko: "💰 가격대 계산 중...", de: "💰 Preisspanne berechnen...", fr: "💰 Calcul de la plage de prix...", ru: "💰 Считаем диапазон цен..." },
+      { th: "✓ พร้อมแล้ว!", en: "✓ Ready!", cn: "✓ 准备就绪!", ja: "✓ 準備完了!", ko: "✓ 준비 완료!", de: "✓ Fertig!", fr: "✓ Prêt !", ru: "✓ Готово!" },
+    ];
+    return stepDicts.map(d => ({ label: d[lang] || d.en }));
+  }, [lang]);
 
   // Flush pendingPicks → plan-store with a step animation. Used by the
   // fast path; the slow server-build path runs the animation in parallel
@@ -615,9 +651,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           const errBody = await res.json().catch(() => null) as { error?: string; reasons?: string[] } | null;
           const reasons = errBody?.error === "no_matching_trips" && errBody.reasons?.length
             ? errBody.reasons
-            : [lang === "th"
-                ? "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan — วันที่ จำนวนคน และฝั่ง (อันดามัน/อ่าวไทย)"
-                : "Need more info — please share dates, headcount, and coast (Andaman/Gulf)."];
+            : [t(lang, "needMoreInfo")];
           window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons } }));
           return;
         }
@@ -629,14 +663,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         } else if (data.redirect) {
           window.location.href = data.redirect;
         } else {
-          window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [lang === "th" ? "ระบบไม่ตอบสนอง ลองอีกครั้ง" : "Empty response, please retry"] } }));
+          window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [t(lang, "emptyResponse")] } }));
         }
       })
       .catch(err => {
         console.error("[ark-ai] build-plan failed:", err);
-        const reason = lang === "th"
-          ? "สร้าง plan ไม่สำเร็จ ลองอีกครั้งหรือทักเราผ่าน LINE ครับ"
-          : "Couldn't build the plan. Please try again or contact us via LINE.";
+        const reason = t(lang, "buildPlanFailedLong");
         window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [reason] } }));
       });
   }, [lang, pathname, onClose, flushPicksToPlan]);
@@ -665,7 +697,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={lang === "th" ? "ผู้ช่วย AI วางแผนทริปดำน้ำ" : "AI dive trip advisor"}
+        aria-label={t(lang, "aiAdvisor")}
         style={{
         position: "fixed", left: 0, right: 0, top: 0,
         bottom: keyboardInset, zIndex: 1300,
@@ -678,7 +710,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         {/* Header */}
         <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
           <button onClick={requestClose}
-            aria-label={lang === "th" ? "ปิดแชท" : "Close chat"}
+            aria-label={t(lang, "closeChat")}
             style={{ background: "none", border: "none", color: "#888", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 4, marginRight: 8 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
@@ -702,8 +734,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 fetch(`/api/ark-ai/session?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" }).catch(() => {});
               }
             }}
-            aria-label={lang === "th" ? "ล้างแชท" : "Clear chat"}
-            title={lang === "th" ? "ล้างแชท" : "Clear chat"}
+            aria-label={t(lang, "clearChat")}
+            title={t(lang, "clearChat")}
             style={{ background: "none", border: "1px solid #262626", color: "#888", width: 30, height: 30, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -724,7 +756,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           aria-live="polite"
           aria-atomic="false"
           aria-relevant="additions text"
-          aria-label={lang === "th" ? "ประวัติการสนทนา" : "Conversation history"}
+          aria-label={t(lang, "conversationHistory")}
           style={{ flex: 1, overflowY: "auto", padding: "12px 16px", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch", position: "relative" }}>
           {messages.length === 0 && (
             <div style={{ padding: "8px 0" }}>
@@ -779,11 +811,8 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 // still needed (cert, hotel, transfer, equipment, kids, etc.)
                 // — NOT generic packing tips. Phrasing matters: ask "what's
                 // missing for the plan?" not "what should I prepare?".
-                const dt = new Date(info.scheduleDate).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
-                const text = lang === "th"
-                  ? `เพิ่ม ${info.boatTitle} (${dt}) เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`
-                  : `Added ${info.boatTitle} (${dt}) to MyPlan — what else is missing in the plan?`;
-                sendMessage(text);
+                const dt = new Date(info.scheduleDate).toLocaleDateString(bcp47Locale(lang), { day: "numeric", month: "short", year: "numeric" });
+                sendMessage(addedToMyPlanMessage(lang, info.boatTitle, dt));
               }}
             />
           ))}
@@ -800,7 +829,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
                 </svg>
-                {lang === "th" ? "ลองใหม่" : "Try again"}
+                {t(lang, "retry")}
               </button>
               <a
                 href="https://lin.ee/siamdive"
@@ -812,7 +841,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                   textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
                 }}
               >
-                {lang === "th" ? "ติดต่อทีมงาน" : "Contact us"}
+                {t(lang, "contactTeam")}
               </a>
             </div>
           )}
@@ -863,7 +892,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={lang === "th" ? "ถามเกี่ยวกับทริปดำน้ำ..." : "Ask about diving trips..."}
+              placeholder={t(lang, "askAboutDiving")}
               rows={1}
               style={{
                 flex: 1, resize: "none", background: "#161616", border: "1px solid #262626",
@@ -880,7 +909,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             <button
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || streaming}
-              aria-label={lang === "th" ? "ส่งข้อความ" : "Send message"}
+              aria-label={t(lang, "sendMessage")}
               style={{
                 width: 40, height: 40, borderRadius: 10, border: "none",
                 background: input.trim() && !streaming ? "#1e40af" : "#1a1a1a",
@@ -919,7 +948,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 <img src="/ai-mask.png" alt="" width={32} height={32} />
               </div>
               <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f5f5", margin: "0 0 18px" }}>
-                {lang === "th" ? "กำลังสร้าง plan ของคุณ..." : "Building your plan..."}
+                {t(lang, "buildingYourPlan")}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 240 }}>
                 {steps.map((s, i) => {
@@ -936,7 +965,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                       <span style={{ width: 18, textAlign: "center" }}>
                         {done ? "✓" : active ? "•" : "·"}
                       </span>
-                      <span>{lang === "th" ? s.th : s.en}</span>
+                      <span>{s.label}</span>
                     </div>
                   );
                 })}
@@ -956,7 +985,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={lang === "th" ? "ความเห็นเกี่ยวกับการแชท" : "Chat feedback"}
+          aria-label={t(lang, "chatFeedbackLabel")}
           style={{
             position: "fixed", inset: 0, zIndex: 1400,
             background: "rgba(0,0,0,0.7)",
@@ -971,10 +1000,10 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
           }}>
             <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#f5f5f5" }}>
-              {lang === "th" ? "ก่อนปิด — แชทนี้ช่วยคุณได้ไหม?" : "Before you go — was this chat helpful?"}
+              {t(lang, "beforeYouGo")}
             </p>
             <p style={{ fontSize: 13, color: "#888", margin: "0 0 14px" }}>
-              {lang === "th" ? "ใช้เวลาแค่ 2 วิ ช่วยให้ AI เก่งขึ้น" : "Takes 2 seconds — helps the AI improve"}
+              {t(lang, "takesTwoSeconds")}
             </p>
             <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
               <button
@@ -989,7 +1018,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M7 10v12"/><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3.13 3.13 0 013 3.88z"/>
                 </svg>
-                {lang === "th" ? "ดี" : "Helpful"}
+                {t(lang, "helpfulShort")}
               </button>
               <button
                 onClick={() => submitSessionFeedback(false, sessionFeedbackReason.trim() || undefined)}
@@ -1004,13 +1033,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 14V2"/><path d="M9 18.12L10 14H4.17a2 2 0 01-1.92-2.56l2.33-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.76a2 2 0 00-1.79 1.11L12 22a3.13 3.13 0 01-3-3.88z"/>
                 </svg>
-                {lang === "th" ? "ไม่ตรง" : "Not great"}
+                {t(lang, "notGreatShort")}
               </button>
             </div>
             <textarea
               value={sessionFeedbackReason}
               onChange={(e) => setSessionFeedbackReason(e.target.value)}
-              placeholder={lang === "th" ? "อยากเล่าให้ฟังไหม? (ไม่จำเป็น)" : "Want to tell us why? (optional)"}
+              placeholder={t(lang, "wantToTellWhy")}
               rows={2}
               style={{
                 width: "100%", padding: "8px 10px", fontSize: 13, lineHeight: 1.4,
@@ -1028,7 +1057,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 border: "none", fontSize: 13, cursor: "pointer",
               }}
             >
-              {lang === "th" ? "ข้ามไปก่อน" : "Skip"}
+              {t(lang, "skipForNow")}
             </button>
           </div>
         </div>

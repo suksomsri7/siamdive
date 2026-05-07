@@ -8,6 +8,7 @@ import ComparisonTable from "./ComparisonTable";
 import BookingButtons from "./BookingButtons";
 import TripSchedulePicker from "./TripSchedulePicker";
 import { ChatThinkingSkeleton } from "./Skeletons";
+import { t, comparePickedLabel, buildMyPlanWithCountLabel } from "@/lib/ark-ai/i18n";
 
 type Props = {
   role: "user" | "assistant";
@@ -259,13 +260,11 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         break;
       case "build": {
         const buildData = part.data as { label?: string; summary?: string };
-        const defaultLabel = lang === "th"
-          ? `✨ สร้าง plan ของฉัน${pendingPicksCount ? ` (${pendingPicksCount} ทริป)` : ""}`
-          : `✨ Build my plan${pendingPicksCount ? ` (${pendingPicksCount} trips)` : ""}`;
+        const defaultLabel = pendingPicksCount
+          ? buildMyPlanWithCountLabel(lang || "en", pendingPicksCount)
+          : t(lang || "en", "buildMyPlan");
         const showCompare = pendingPicksCount >= 2 && !!onCompare;
-        const orMoreHint = lang === "th"
-          ? "หรือเลือกทริปอื่นเพื่อมาเปรียบเทียบ"
-          : "Or pick another trip to compare";
+        const orMoreHint = t(lang || "en", "orPickAnotherToCompare");
         rendered.push(
           <div key={`build-${i}`} style={{
             marginTop: 12, marginBottom: 4,
@@ -316,7 +315,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
                   fontFamily: "inherit",
                 }}
               >
-                {lang === "th" ? `⚖️ เปรียบเทียบ ${pendingPicksCount} ทริปที่เลือก` : `⚖️ Compare ${pendingPicksCount} selected trips`}
+                {comparePickedLabel(lang || "en", pendingPicksCount)}
               </button>
             )}
             <p style={{ fontSize: 11, color: "#7a8aa8", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
@@ -389,7 +388,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
             <button
               onClick={() => onFeedback(msgIndex, true)}
               disabled={feedbackGiven !== undefined}
-              title={lang === "th" ? "คำแนะนำดี" : "Good response"}
+              title={t(lang || "en", "goodResponse")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 28, height: 28, borderRadius: 6,
@@ -410,7 +409,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
                 setReasonOpen(true);
               }}
               disabled={feedbackGiven !== undefined}
-              title={lang === "th" ? "คำแนะนำไม่ตรง" : "Bad response"}
+              title={t(lang || "en", "badResponse")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 28, height: 28, borderRadius: 6,
@@ -429,12 +428,12 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
           {reasonOpen && feedbackGiven === undefined && (
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
-                {lang === "th" ? "อยากเล่าให้ฟังไหม? (ไม่จำเป็น)" : "Want to tell us why? (optional)"}
+                {t(lang || "en", "wantToTellWhy")}
               </p>
               <textarea
                 value={reasonText}
                 onChange={(e) => setReasonText(e.target.value)}
-                placeholder={lang === "th" ? "เช่น คำแนะนำไม่ตรงกับวันที่..." : "e.g. recommendations didn't match my dates..."}
+                placeholder={t(lang || "en", "feedbackPlaceholder")}
                 rows={2}
                 style={{
                   width: "100%", padding: "6px 8px", fontSize: 13, lineHeight: 1.4,
@@ -451,7 +450,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
                     background: "#1e40af", color: "#fff", border: "none", cursor: "pointer",
                   }}
                 >
-                  {lang === "th" ? "ส่ง" : "Send"}
+                  {t(lang || "en", "send")}
                 </button>
                 <button
                   onClick={() => { onFeedback(msgIndex, false); setReasonOpen(false); }}
@@ -461,7 +460,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
                     border: "1px solid rgba(255,255,255,0.12)", cursor: "pointer",
                   }}
                 >
-                  {lang === "th" ? "ข้าม" : "Skip"}
+                  {t(lang || "en", "skip")}
                 </button>
               </div>
             </div>

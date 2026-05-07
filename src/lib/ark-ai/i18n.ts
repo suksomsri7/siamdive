@@ -36,6 +36,8 @@ const DICT = {
   somethingWentWrong: { th: "เกิดข้อผิดพลาด ลองใหม่", en: "Something went wrong, try again", cn: "出错了,请重试", ja: "エラーが発生しました。再試行してください", ko: "오류가 발생했습니다. 다시 시도해주세요", de: "Etwas ist schiefgelaufen, bitte erneut versuchen", fr: "Une erreur s'est produite, réessayez", ru: "Произошла ошибка, попробуйте снова" },
   somethingWentWrongLong: { th: "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง", en: "Something went wrong. Please try again.", cn: "出错了。请重试。", ja: "エラーが発生しました。もう一度お試しください。", ko: "오류가 발생했습니다. 다시 시도해주세요.", de: "Etwas ist schiefgelaufen. Bitte erneut versuchen.", fr: "Une erreur s'est produite. Veuillez réessayer.", ru: "Произошла ошибка. Пожалуйста, попробуйте снова." },
   comingSoon: { th: "เร็วๆ นี้", en: "Coming soon", cn: "即将推出", ja: "近日公開", ko: "곧 출시", de: "Demnächst", fr: "Bientôt disponible", ru: "Скоро" },
+  buildMyPlan: { th: "✨ สร้าง plan ของฉัน", en: "✨ Build my plan", cn: "✨ 构建我的计划", ja: "✨ プランを作成", ko: "✨ 내 플랜 만들기", de: "✨ Meinen Plan erstellen", fr: "✨ Créer mon plan", ru: "✨ Создать мой план" },
+  orPickAnotherToCompare: { th: "หรือเลือกทริปอื่นเพื่อมาเปรียบเทียบ", en: "Or pick another trip to compare", cn: "或选择其他行程进行比较", ja: "または別のツアーを選んで比較", ko: "또는 다른 투어를 선택해 비교", de: "Oder weitere Touren zum Vergleich wählen", fr: "Ou choisissez un autre voyage à comparer", ru: "Или выберите другой тур для сравнения" },
   now: { th: "เมื่อกี้", en: "now", cn: "刚刚", ja: "今", ko: "방금", de: "gerade", fr: "à l'instant", ru: "только что" },
   contactUs: { th: "ติดต่อสอบถาม", en: "Contact Us", cn: "联系我们", ja: "お問い合わせ", ko: "문의하기", de: "Kontakt", fr: "Contact", ru: "Связаться" },
   contactTeam: { th: "ติดต่อทีมงาน", en: "Contact us", cn: "联系团队", ja: "サポートに連絡", ko: "팀에 연락", de: "Team kontaktieren", fr: "Contacter l'équipe", ru: "Связаться с командой" },
@@ -131,6 +133,8 @@ const DICT = {
   buildingYourPlan: { th: "กำลังสร้าง plan ของคุณ...", en: "Building your plan...", cn: "正在建立您的计划...", ja: "プランを作成中...", ko: "플랜 생성 중...", de: "Plan wird erstellt...", fr: "Création du plan...", ru: "Создание плана..." },
   cantBuildPlan: { th: "ยังสร้าง plan ไม่ได้", en: "Can't build the plan yet", cn: "还无法创建计划", ja: "まだプランを作成できません", ko: "플랜을 만들 수 없습니다", de: "Plan kann noch nicht erstellt werden", fr: "Plan pas encore disponible", ru: "Пока не могу создать план" },
   buildPlanFailed: { th: "สร้าง plan ไม่สำเร็จ", en: "Couldn't build the plan", cn: "无法创建计划", ja: "プランを作成できませんでした", ko: "플랜 생성 실패", de: "Plan konnte nicht erstellt werden", fr: "Échec de la création du plan", ru: "Не удалось создать план" },
+  buildPlanFailedLong: { th: "สร้าง plan ไม่สำเร็จ ลองอีกครั้งหรือทักเราผ่าน LINE ครับ", en: "Couldn't build the plan. Please try again or contact us via LINE.", cn: "无法创建计划。请重试或通过 LINE 联系我们。", ja: "プランを作成できませんでした。再試行するか LINE でお問い合わせください。", ko: "플랜을 만들 수 없습니다. 다시 시도하거나 LINE으로 문의해주세요.", de: "Plan konnte nicht erstellt werden. Bitte erneut versuchen oder via LINE kontaktieren.", fr: "Échec de la création du plan. Réessayez ou contactez-nous via LINE.", ru: "Не удалось создать план. Попробуйте снова или свяжитесь через LINE." },
+  needMoreInfo: { th: "ขอข้อมูลเพิ่มอีกนิดก่อนสร้าง plan — วันที่ จำนวนคน และฝั่ง (อันดามัน/อ่าวไทย)", en: "Need more info — please share dates, headcount, and coast (Andaman/Gulf).", cn: "需要更多信息 — 请告诉我日期、人数和海岸(安达曼海/泰国湾)。", ja: "もう少し情報が必要です — 日程、人数、海岸(アンダマン/タイ湾)を教えてください。", ko: "정보가 더 필요해요 — 날짜, 인원수, 해안(안다만/태국만)을 알려주세요.", de: "Mehr Infos nötig — bitte Datum, Personenzahl und Küste (Andamanen/Golf) angeben.", fr: "Plus d'infos nécessaires — partagez les dates, le nombre de personnes et la côte (Andaman/Golfe).", ru: "Нужно больше информации — укажите даты, количество людей и побережье (Андаман/Залив)." },
   matchingPreferences: { th: "ระบบกำลังจับคู่ความต้องการกับทริปที่มี schedule ตรง ใช้เวลาประมาณ 2-3 วินาที", en: "Matching your preferences against live trip schedules. Takes about 2-3 seconds.", cn: "正在将您的偏好与可用的行程时间匹配。约需 2-3 秒。", ja: "ご希望に合うツアー日程を探しています。2〜3秒ほどかかります。", ko: "선호 사항과 일정을 매칭 중입니다. 약 2-3초 소요됩니다.", de: "Wir vergleichen deine Wünsche mit verfügbaren Touren. Dauert etwa 2–3 Sekunden.", fr: "Comparaison de vos préférences avec les départs. Environ 2-3 secondes.", ru: "Подбираем туры по вашим запросам. Это займёт 2-3 секунды." },
   buildingStepSearch: { th: "กำลังหาเรือที่ตรงกับวัน...", en: "Searching boats for your dates...", cn: "正在为您的日期寻找船只...", ja: "ご希望日のボートを検索中...", ko: "날짜에 맞는 보트 검색 중...", de: "Suche nach Booten für deine Daten...", fr: "Recherche de bateaux pour vos dates...", ru: "Ищем лодки на ваши даты..." },
   buildingStepSchedules: { th: "ตรวจ schedule และ package...", en: "Checking schedules and packages...", cn: "检查行程和套餐...", ja: "日程とパッケージを確認中...", ko: "일정과 패키지 확인 중...", de: "Pläne und Pakete werden geprüft...", fr: "Vérification des horaires et offres...", ru: "Проверяем расписания и пакеты..." },
@@ -284,6 +288,77 @@ const COMPARE_IN_PLAN_TPL: Record<ArkLang, (n: number) => string> = {
   ru: (n) => `⚖️ Сравнить туры плана (${n})`,
 };
 export const compareInPlanLabel = (lang: string | undefined, n: number) => COMPARE_IN_PLAN_TPL[normalizeArkLang(lang)](n);
+
+const BUILD_MY_PLAN_WITH_COUNT_TPL: Record<ArkLang, (n: number) => string> = {
+  th: (n) => `✨ สร้าง plan ของฉัน (${n} ทริป)`,
+  en: (n) => `✨ Build my plan (${n} trips)`,
+  cn: (n) => `✨ 构建我的计划 (${n} 个行程)`,
+  ja: (n) => `✨ プランを作成 (${n}ツアー)`,
+  ko: (n) => `✨ 내 플랜 만들기 (${n}개 투어)`,
+  de: (n) => `✨ Meinen Plan erstellen (${n} Touren)`,
+  fr: (n) => `✨ Créer mon plan (${n} voyages)`,
+  ru: (n) => `✨ Создать мой план (${n} туров)`,
+};
+export const buildMyPlanWithCountLabel = (lang: string | undefined, n: number) => BUILD_MY_PLAN_WITH_COUNT_TPL[normalizeArkLang(lang)](n);
+
+// Auto-greeting injected as a "user" turn when chat opens with pre-staged
+// picks. The whole conversation is then seeded with this language, so the
+// AI's first reply matches it. This is THE key signal driving response
+// language — without per-lang strings here, JP/KO users get a TH/EN seed
+// and the model responds in TH/EN no matter what the system prompt says.
+const PICK_GREETING_TPL: Record<ArkLang, (labels: string) => string> = {
+  th: (l) => `สนใจทริป ${l} ช่วยจัดการ Plan ให้หน่อยครับ`,
+  en: (l) => `Interested in ${l} — help me shape this into a plan`,
+  cn: (l) => `对 ${l} 感兴趣 — 帮我整理一个计划`,
+  ja: (l) => `${l} に興味があります — プランを組み立てるのを手伝ってください`,
+  ko: (l) => `${l}에 관심이 있어요 — 플랜을 짜도록 도와주세요`,
+  de: (l) => `Interessiere mich für ${l} — hilf mir, daraus einen Plan zu machen`,
+  fr: (l) => `Intéressé par ${l} — aide-moi à en faire un plan`,
+  ru: (l) => `Меня интересует ${l} — помогите собрать план`,
+};
+export const pickGreetingMessage = (lang: string | undefined, labels: string) =>
+  PICK_GREETING_TPL[normalizeArkLang(lang)](labels);
+
+const PICK_DATE_LABEL_TPL: Record<ArkLang, (title: string, date: string) => string> = {
+  th: (t, d) => `${t} วันที่ ${d}`,
+  en: (t, d) => `${t} on ${d}`,
+  cn: (t, d) => `${t} ${d}`,
+  ja: (t, d) => `${t}(${d})`,
+  ko: (t, d) => `${t} (${d})`,
+  de: (t, d) => `${t} am ${d}`,
+  fr: (t, d) => `${t} le ${d}`,
+  ru: (t, d) => `${t} ${d}`,
+};
+export const pickDateLabel = (lang: string | undefined, title: string, date: string) =>
+  PICK_DATE_LABEL_TPL[normalizeArkLang(lang)](title, date);
+
+const ADDED_TO_MYPLAN_TPL: Record<ArkLang, (boat: string, date: string) => string> = {
+  th: (b, d) => `เพิ่ม ${b} (${d}) เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`,
+  en: (b, d) => `Added ${b} (${d}) to MyPlan — what else is missing in the plan?`,
+  cn: (b, d) => `已将 ${b} (${d}) 添加到 MyPlan — 计划中还缺少什么信息?`,
+  ja: (b, d) => `${b} (${d}) を MyPlan に追加しました — プランで他に必要な情報は何ですか?`,
+  ko: (b, d) => `${b} (${d})을 MyPlan에 추가했습니다 — 플랜에 더 필요한 정보가 있나요?`,
+  de: (b, d) => `${b} (${d}) zum MyPlan hinzugefügt — was fehlt noch im Plan?`,
+  fr: (b, d) => `${b} (${d}) ajouté au MyPlan — qu'est-ce qui manque dans le plan ?`,
+  ru: (b, d) => `${b} (${d}) добавлено в MyPlan — чего ещё не хватает в плане?`,
+};
+export const addedToMyPlanMessage = (lang: string | undefined, boat: string, date: string) =>
+  ADDED_TO_MYPLAN_TPL[normalizeArkLang(lang)](boat, date);
+
+// BCP-47 locale codes for Date.toLocaleDateString — used wherever we format a
+// date for chat output so each language gets its native short format.
+export function bcp47Locale(lang: string | undefined): string {
+  switch (normalizeArkLang(lang)) {
+    case "th": return "th-TH";
+    case "en": return "en-GB";
+    case "cn": return "zh-CN";
+    case "ja": return "ja-JP";
+    case "ko": return "ko-KR";
+    case "de": return "de-DE";
+    case "fr": return "fr-FR";
+    case "ru": return "ru-RU";
+  }
+}
 
 const CONNECTED_TPL: Record<ArkLang, (email: string) => string> = {
   th: (e) => `เชื่อมต่อกับ ${e} แล้ว`,

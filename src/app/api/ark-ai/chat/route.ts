@@ -722,8 +722,8 @@ export async function POST(req: NextRequest) {
       `Instead, reply in plain text only:\n` +
       `1. First sentence: apologize that ${reqLabel} has no trips in the requested region.\n` +
       `2. List the closest 2–4 alternative DEPARTURE DATES from the table below as bullet points (boat name + the real date — do NOT use ${reqLabel}).\n` +
-      `3. End with: "อยากเลื่อนวันมาเป็นวันไหนดีครับ?" (or the same question in the user's language).\n` +
-      `Do NOT say "มีทริปวันที่ ${reqLabel}" / "there are trips on ${reqLabel}". Do NOT emit $$ASK$$ buttons.\n\n` +
+      `3. End with the equivalent of "Would you like to shift to a different date?" — written in the user's language (per the LANGUAGE LOCK section). The Thai phrase "อยากเลื่อนวันมาเป็นวันไหนดีครับ?" is a TEMPLATE — translate the meaning into the user's language.\n` +
+      `Do NOT claim trips run on the requested date. Do NOT emit $$ASK$$ buttons. ALL prose MUST be in the user's language.\n\n` +
       `## Alternative Departures (NEAR the requested date — NOT ON it)\n${altLines || "(no alternatives within ±14 days)"}\n`;
   } else {
     ragContext = buildRagContext(boats, ragSchedules, blogs, lastUserMsg);
@@ -748,11 +748,11 @@ export async function POST(req: NextRequest) {
       `The user is asking about diving but hasn't named a TRIP TYPE. Before showing any boat, you MUST ask which kind via $$ASK$$. **RULE 7 ($$TRIP$$ cards) IS SUSPENDED for this turn.** Do NOT emit any $$TRIP$$ or $$COMPARE$$ marker.\n\n` +
       `Reply rules:\n` +
       `1. One short opening line acknowledging the request (1 sentence).\n` +
-      `2. ONE $$ASK$$ marker with EXACTLY these 4 options (preserve the value strings verbatim — they trigger the categories slot extractor on the next turn):\n` +
-      `   - {"label":"Liveaboard (เรือค้างคืน 3-5 วัน)","value":"สนใจ liveaboard"}\n` +
-      `   - {"label":"Day Trip ดำน้ำไป-กลับ","value":"สนใจ day trip ดำน้ำ"}\n` +
-      `   - {"label":"Snorkeling เท่านั้น","value":"สนใจ snorkeling"}\n` +
-      `   - {"label":"Land Tour เที่ยวบก","value":"สนใจ land tour"}\n` +
+      `2. ONE $$ASK$$ marker with EXACTLY these 4 options. **CRITICAL:** the \`value\` field MUST be the exact Thai/English keyword shown below (it triggers the slot extractor on the next turn — DO NOT translate the value). The \`label\` field is what the user sees — translate it into the user's language (lang code: ${lang}).\n` +
+      `   - {"label":"<translate: Liveaboard (overnight boat 3-5 days)>","value":"สนใจ liveaboard"}\n` +
+      `   - {"label":"<translate: Day Trip diving (return same day)>","value":"สนใจ day trip ดำน้ำ"}\n` +
+      `   - {"label":"<translate: Snorkeling only>","value":"สนใจ snorkeling"}\n` +
+      `   - {"label":"<translate: Land Tour (sightseeing on land)>","value":"สนใจ land tour"}\n` +
       `3. NOTHING else. No boat names, no recommendations, no other questions.\n\n` +
       `Do NOT call update_slots in this turn — the user hasn't answered yet.\n`;
   }

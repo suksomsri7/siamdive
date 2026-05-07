@@ -63,31 +63,69 @@ export function parseItinerary(html: string | null | undefined): ItineraryDay[] 
 // bullet (daytrip) or one per day h3 (liveaboard). Without this fallback the
 // timeline rendered empty for ~150 liveaboard schedules even though the same
 // content drove the schedule detail page just fine.
-const SCHEDULE_HEADING_RE = /\b(itinerary|schedule|timeline|plan)\b/i;
-const TH_SCHEDULE_KEYWORDS = ["กำหนดการ", "ตารางเวลา", "ตารางการเดินทาง", "โปรแกรม", "เวลา"];
+const SCHEDULE_HEADING_RE = /\b(itinerary|schedule|timeline|plan|tagesablauf|programme|programm)\b/i;
+// Schedule-section heading keywords across all 8 supported languages. The
+// operator-written content uses these as the H2 above the day-by-day or
+// hour-by-hour list. Without each language present here, parseItinerary()
+// returns an empty array for that language and PlanTimeline shows nothing.
+const SCHEDULE_KEYWORDS_MULTILANG = [
+  // th
+  "กำหนดการ", "ตารางเวลา", "ตารางการเดินทาง", "โปรแกรม", "เวลา",
+  // cn (Simplified)
+  "行程", "日程", "时间表",
+  // ja
+  "スケジュール", "日程", "行程",
+  // ko
+  "일정", "스케줄", "프로그램",
+  // de (also matched by regex above)
+  "Tagesablauf", "Programm", "Zeitplan",
+  // fr (also matched by regex above)
+  "Programme", "Itinéraire",
+  // ru
+  "Программа", "Расписание", "Маршрут",
+];
 
 // Keywords that close out a day-h3 streak. The day h3s in prod look like
 // "15 เม.ย. — ลงเรือ" / "16 ส.ค. — Check Out" / "Day 1 — Sail Rock". When we
 // encounter an h3 whose heading matches these, we know the itinerary section
 // ended and the operator moved on to ancillary info.
-const NON_DAY_HEADING_RE = /\b(included|excluded|inclus|policy|cancel|note|info|highlight|dive\s*sites?|getting\s*there|transport|pickup|preparation|pricing|price|booking|contact)\b/i;
-const TH_NON_DAY_KEYWORDS = [
+const NON_DAY_HEADING_RE = /\b(included|excluded|inclus|policy|cancel|note|info|highlight|dive\s*sites?|getting\s*there|transport|pickup|preparation|pricing|price|booking|contact|nicht\s*inklusive|inklusive|optionen|points\s*forts|включено)\b/i;
+const NON_DAY_KEYWORDS_MULTILANG = [
+  // th
   "รวมในราคา", "ไม่รวมในราคา", "รวมในแพ็กเกจ", "ไม่รวมในแพ็กเกจ", "รวม", "ไม่รวม",
   "บริการเสริม", "การรับ–ส่ง", "การรับส่ง", "ข้อมูลท่าเรือ", "ข้อควรทราบ", "หมายเหตุ",
   "นโยบาย", "การชำระเงิน", "เงื่อนไข", "ติดต่อ", "ไฮไลท์", "จุดดำน้ำ",
+  // cn
+  "亮点", "费用包含", "费用不含", "包含", "不包含", "额外服务", "额外", "注意",
+  "联系", "政策", "取消", "支付", "交通", "接送",
+  // ja
+  "ハイライト", "料金に含まれるもの", "料金に含まれないもの", "含まれるもの", "含まれないもの",
+  "オプション", "注意事項", "ご注意", "お問い合わせ", "キャンセル", "送迎",
+  // ko
+  "하이라이트", "포함 사항", "불포함 사항", "포함", "불포함", "추가 옵션",
+  "추가", "유의사항", "주의", "취소", "연락", "픽업",
+  // de
+  "Highlights", "Inklusive", "Nicht inklusive", "Im Preis enthalten",
+  "Zusätzliche Optionen", "Hinweise", "Stornierung", "Kontakt", "Transfer",
+  // fr
+  "Points forts", "Inclus", "Non inclus", "Options supplémentaires",
+  "Notes", "Annulation", "Contact", "Transfert",
+  // ru
+  "Особенности", "Особенности тура", "Включено", "Не включено",
+  "Дополнительные опции", "Примечания", "Отмена", "Контакты", "Трансфер",
 ];
 
 function headingIsSchedule(text: string): boolean {
   if (!text) return false;
   const t = text.trim().toLowerCase();
   if (SCHEDULE_HEADING_RE.test(t)) return true;
-  return TH_SCHEDULE_KEYWORDS.some(k => text.includes(k));
+  return SCHEDULE_KEYWORDS_MULTILANG.some(k => text.includes(k));
 }
 
 function headingIsNonDay(text: string): boolean {
   if (!text) return false;
   if (NON_DAY_HEADING_RE.test(text.toLowerCase())) return true;
-  return TH_NON_DAY_KEYWORDS.some(k => text.includes(k));
+  return NON_DAY_KEYWORDS_MULTILANG.some(k => text.includes(k));
 }
 
 const H2_BLOCK_RE = /<h2\b[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2\b|$)/gi;
