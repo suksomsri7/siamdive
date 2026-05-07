@@ -649,19 +649,35 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
         </div>
       </div>
       {pickerOpen && (
-        <TripSchedulePicker
-          boatId={trip.boatId}
-          title={trip.title}
-          slug={trip.slug}
-          type={trip.type}
-          area={trip.area}
-          cover={trip.cover}
-          lang={lang}
-          defaultDate={sched.departureDate?.slice(0, 10)}
-          swap={{ planId, tripIndex: originalIdx }}
-          onClose={() => setPickerOpen(false)}
-          onAdded={() => setPickerOpen(false)}
-        />
+        <div
+          onClick={() => setPickerOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}
+          >
+            <TripSchedulePicker
+              boatId={trip.boatId}
+              title={trip.title}
+              slug={trip.slug}
+              type={trip.type}
+              area={trip.area}
+              cover={trip.cover}
+              lang={lang}
+              defaultDate={sched.departureDate?.slice(0, 10)}
+              swap={{ planId, tripIndex: originalIdx }}
+              onClose={() => setPickerOpen(false)}
+              onAdded={() => setPickerOpen(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

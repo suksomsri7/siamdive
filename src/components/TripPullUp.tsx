@@ -462,12 +462,13 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
         if (price > 0) allPrices.push(price);
       }
     }
+    const boatType = boat?.type || trip.type;
     const scheduleData: PlanTripSchedule | undefined = sched?.departureDate ? {
       scheduleId: sched.id,
       departureDate: sched.departureDate,
       returnDate: sched.returnDate,
       title: schedTr?.title || "",
-      route: schedTr?.route || "",
+      route: schedTr?.route || (boatType === "DAYTRIP" ? schedTr?.title || "" : ""),
       itinerary: schedTr?.itinerary || "",
       excerpt: schedTr?.excerpt || "",
       content: schedTr?.content || "",
@@ -819,8 +820,10 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
               );
             })()}
 
-            {/* Liveaboard — schedule list (date range + min price), no packages */}
-            {usesMonthPicker && boat && (
+            {/* Schedule list with "+" add-to-plan button — shown for both
+                liveaboard (month picker) and daytrip/snorkeling (date picker)
+                so users can add a schedule to plan from any boat detail page. */}
+            {(usesMonthPicker || usesDatePicker) && boat && (
               matchingSchedules.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "32px 0", color: "#555", fontSize: 13, background: "#0f0f0f", border: "1px dashed #1f1f1f", borderRadius: 12 }}>
                   ไม่มี Schedule ในเดือนที่เลือก ลองเลือกเดือนอื่น
