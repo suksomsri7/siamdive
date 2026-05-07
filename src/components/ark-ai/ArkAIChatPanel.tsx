@@ -208,10 +208,19 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     const picks = readPendingPicks();
     if (picks.length === 0) return;
     if (messages.length > 0) return;
-    const titles = picks.map(p => p.title).join(", ");
+    const fmtDateShort = (iso: string) =>
+      new Date(iso + "T00:00:00").toLocaleDateString(
+        lang === "th" ? "th-TH" : "en-GB",
+        { day: "numeric", month: "short", year: "2-digit" },
+      );
+    const labels = picks.map(p => {
+      const d = p.schedule?.departureDate?.slice(0, 10);
+      if (!d) return p.title;
+      return lang === "th" ? `ทริปวันที่ ${fmtDateShort(d)}` : `the trip on ${fmtDateShort(d)}`;
+    });
     const text = lang === "th"
-      ? `สนใจ ${titles} อยากให้ผมช่วยจัดเข้า plan ใช่ไหมครับ?`
-      : `Interested in ${titles} — want me to help shape this into a plan?`;
+      ? `สนใจ${labels.join(", ")} ช่วยจัดการ Plan ให้หน่อยครับ`
+      : `Interested in ${labels.join(", ")} — help me shape this into a plan`;
     sendRef.current?.(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
