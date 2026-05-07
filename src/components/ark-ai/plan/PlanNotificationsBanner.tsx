@@ -86,7 +86,7 @@ export default function PlanNotificationsBanner({
               <p style={{ fontSize: 12, fontWeight: 700, color: tone.fg, lineHeight: 1.4 }}>
                 {n.title}
               </p>
-              <p style={{ fontSize: 11, color: "#cbd5e1", marginTop: 2, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", marginTop: 2, lineHeight: 1.5 }}>
                 {n.body}
               </p>
               {link && (
@@ -106,7 +106,7 @@ export default function PlanNotificationsBanner({
               style={{
                 background: "none",
                 border: "none",
-                color: "#666",
+                color: "var(--plan-fg-subtle)",
                 cursor: "pointer",
                 padding: 2,
                 fontSize: 16,

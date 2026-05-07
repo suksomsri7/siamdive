@@ -48,8 +48,8 @@ export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
 
   return (
     <div style={{
-      background: "linear-gradient(135deg, rgba(59,130,246,0.04), rgba(168,85,247,0.04))",
-      border: "1px solid rgba(96,165,250,0.18)",
+      background: "var(--plan-surface)",
+      border: "1px solid var(--plan-border-soft)",
       borderRadius: 12,
       marginBottom: 16,
       overflow: "hidden",
@@ -67,22 +67,22 @@ export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
       >
         <span style={{
           width: 28, height: 28, borderRadius: 8,
-          background: "rgba(96,165,250,0.15)",
+          background: "var(--plan-surface-alt)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 16, flexShrink: 0,
         }}>
           🎒
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 800, color: "#dbeafe", margin: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", margin: 0 }}>
             {isTh ? HEADER.th : HEADER.en}
           </p>
-          <p style={{ fontSize: 11, color: "#7a8aa8", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {isTh ? SUBLINE.th : SUBLINE.en}
           </p>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a8aa8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0, color: "var(--plan-fg-subtle)" }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
@@ -93,12 +93,12 @@ export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
             {tpl.prepare.map((item, i) => (
               <li key={i} style={{
                 display: "flex", alignItems: "flex-start", gap: 8,
-                fontSize: 13, color: "#dbeafe", lineHeight: 1.5,
+                fontSize: 13, color: "var(--plan-fg-muted)", lineHeight: 1.5,
               }}>
                 <span style={{
                   flexShrink: 0, width: 16, height: 16, marginTop: 2,
-                  borderRadius: 4, border: "1.5px solid rgba(96,165,250,0.5)",
-                  background: "rgba(0,0,0,0.2)",
+                  borderRadius: 4, border: "1.5px solid var(--plan-border-soft)",
+                  background: "var(--plan-surface-alt)",
                 }} />
                 <span>{isTh ? item.th : item.en}</span>
               </li>

@@ -210,12 +210,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   ];
 
   const tabsBar = (
-    <div style={{ display: "flex", borderBottom: "1px solid #1a1a1a", padding: "0 16px", flexShrink: 0 }}>
+    <div style={{ display: "flex", borderBottom: "1px solid var(--plan-border-soft)", padding: "0 16px", flexShrink: 0 }}>
       {tabs.map((t) => (
         <button key={t.key} onClick={() => setTab(t.key)} style={{
           flex: 1, padding: "10px 0", background: "none", border: "none",
-          borderBottom: tab === t.key ? "2px solid #f5f5f5" : "2px solid transparent",
-          color: tab === t.key ? "#f5f5f5" : "#555",
+          borderBottom: tab === t.key ? "2px solid var(--plan-fg)" : "2px solid transparent",
+          color: tab === t.key ? "var(--plan-fg)" : "var(--plan-fg-subtle)",
           fontSize: 11, fontWeight: 600, cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
           transition: "color 0.15s",
@@ -223,7 +223,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           <span>{t.icon}</span>
           <span>{t.label}</span>
           {t.count !== undefined && t.count > 0 && (
-            <span style={{ fontSize: 9, background: tab === t.key ? "#222" : "#1a1a1a", color: tab === t.key ? "#f5f5f5" : "#555", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
+            <span style={{ fontSize: 9, background: "var(--plan-surface-alt)", color: tab === t.key ? "var(--plan-fg)" : "var(--plan-fg-subtle)", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
               {t.count}
             </span>
           )}
@@ -272,12 +272,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         <>
         <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
           {/* Hero */}
-          <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "#111" }}>
+          <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "var(--plan-surface-alt)" }}>
             {cover && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             )}
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0a0a0a 0%, transparent 60%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, var(--plan-bg) 0%, transparent 60%)" }} />
             {isOwner && (
               <button
                 onClick={() => coverInputRef.current?.click()}
@@ -285,13 +285,13 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                 style={{
                   position: "absolute", top: 10, right: 10,
                   width: 34, height: 34, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.5)", border: "1px solid #333",
+                  background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.3)",
                   color: "#fff", cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 {uploadingCover ? (
-                  <div style={{ width: 16, height: 16, border: "2px solid #555", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                 ) : (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
@@ -301,8 +301,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
               </button>
             )}
             <div style={{ position: "absolute", bottom: 12, left: 16, right: 16 }}>
-              <p style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{plan.name}</p>
-              <p style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+              <p style={{ fontSize: 20, fontWeight: 900, color: "var(--plan-fg)" }}>{plan.name}</p>
+              <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", marginTop: 2 }}>
                 {trips.length} {isTh ? "ทริป" : "trips"} · {plan.members.length + 1} {isTh ? "สมาชิก" : "members"}
               </p>
             </div>
@@ -310,19 +310,19 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
           {/* Members strip */}
           <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#e5e5e5", border: "2px solid #333" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--plan-fg)", border: "2px solid var(--plan-border-soft)" }}>
               {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
             </div>
             {plan.members.slice(0, 5).map((m) => (
-              <div key={m.id} style={{ width: 28, height: 28, borderRadius: "50%", background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "#888", border: "2px solid #333" }}>
+              <div key={m.id} style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "var(--plan-fg-muted)", border: "2px solid var(--plan-border-soft)" }}>
                 {(m.name || m.email)[0].toUpperCase()}
               </div>
             ))}
             {isOwner && (
               <button onClick={() => plan.owner.email ? setShowMembers(true) : setEmailGateAction("members")} style={{
                 width: 28, height: 28, borderRadius: "50%", background: "transparent",
-                border: "2px dashed #333", display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "#555", fontSize: 14,
+                border: "2px dashed var(--plan-border-soft)", display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: "var(--plan-fg-subtle)", fontSize: 14,
               }}>
                 +
               </button>
@@ -340,7 +340,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
               <div>
                 {trips.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "40px 16px" }}>
-                    <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
+                    <p style={{ fontSize: 14, color: "var(--plan-fg-subtle)", marginBottom: 16 }}>
                       {isTh ? "ยังไม่มีทริปในแพลน" : "No trips yet"}
                     </p>
                     <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}

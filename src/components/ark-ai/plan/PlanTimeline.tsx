@@ -138,7 +138,7 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
 
       {unscheduled.length > 0 && (
         <div style={{ marginTop: sortedScheduled.length > 0 ? 20 : 0 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "var(--plan-fg-subtle)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
             {isTh ? "ยังไม่กำหนดวัน" : "Unscheduled"}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -261,8 +261,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
       {/* Main trip card — date column dropped; the day-bucket header above this card carries the date. */}
       <div style={{ position: "relative" }}>
         <div style={{
-          background: "#111",
-          border: overlap ? "1px solid rgba(239,68,68,0.35)" : "1px solid #1a1a1a",
+          background: "var(--plan-surface)",
+          border: overlap ? "1px solid rgba(239,68,68,0.35)" : "1px solid var(--plan-border-soft)",
           borderRadius: 12, overflow: "hidden",
         }}>
           {/* Header */}
@@ -271,14 +271,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               // eslint-disable-next-line @next/next/no-img-element
               <img src={trip.cover} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
             ) : (
-              <div style={{ width: 48, height: 36, background: "#161616", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+              <div style={{ width: 48, height: 36, background: "var(--plan-surface-alt)", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
                 {TYPE_EMOJI[trip.type] || "🤿"}
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              {trip.area && <p style={{ fontSize: 10, color: "#666", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>{trip.area}</p>}
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#e5e5e5", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
-              <p style={{ fontSize: 12, color: "#555", margin: "2px 0 0" }}>
+              {trip.area && <p style={{ fontSize: 10, color: "var(--plan-fg-subtle)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>{trip.area}</p>}
+              <p style={{ fontSize: 15, fontWeight: 700, color: "var(--plan-fg)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
+              <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
                 {TYPE_LABEL[trip.type] || trip.type}
                 {sched.returnDate && ` · ${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`}
                 {isMultiDay && ` · ${dayDates.length} ${isTh ? "วัน" : "days"}`}
@@ -286,7 +286,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
             {canEdit && (
               <button onClick={handleRemove}
-                style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #222", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--plan-surface-alt)", background: "transparent", color: "var(--plan-fg-subtle)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 ✕
               </button>
             )}
@@ -344,10 +344,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
           {/* Route (collapsed) */}
           {!expanded && sched.route && (
             <div style={{ padding: "0 12px 8px", display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
-              <p style={{ fontSize: 12, color: "#888", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <p style={{ fontSize: 12, color: "var(--plan-fg-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {sched.route.replace(/<[^>]+>/g, "").slice(0, 80)}
               </p>
             </div>
@@ -358,14 +358,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                final price after the booking inquiry goes through. */}
           {(sched.priceMin ?? 0) > 0 && (
             <div style={{ padding: "0 12px 10px" }}>
-              <p style={{ fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>
+              <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>
                 {isTh ? "ราคาเริ่มต้น" : "Starting price"}
               </p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", margin: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: 0 }}>
                 {sched.priceMax && sched.priceMax > (sched.priceMin ?? 0)
                   ? `฿${sched.priceMin!.toLocaleString()} — ฿${sched.priceMax.toLocaleString()}`
                   : `฿${sched.priceMin!.toLocaleString()}`}
-                <span style={{ fontSize: 11, color: "#666", fontWeight: 600, marginLeft: 4 }}>
+                <span style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 600, marginLeft: 4 }}>
                   {isTh ? "/คน" : "/person"}
                 </span>
               </p>
@@ -374,7 +374,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 
           {/* Itinerary timeline — day-by-day for liveaboards, hour-by-hour for daytrips */}
           {itineraryDays.length > 0 && (
-            <div style={{ borderTop: "1px solid #1a1a1a" }}>
+            <div style={{ borderTop: "1px solid var(--plan-border-soft)" }}>
               <button
                 type="button"
                 onClick={() => setShowItinerary(s => !s)}
@@ -382,7 +382,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                   width: "100%", padding: "10px 12px",
                   background: showItinerary ? "rgba(30,58,138,0.12)" : "transparent",
                   border: "none",
-                  color: showItinerary ? "#dbeafe" : "#a3a3a3",
+                  color: showItinerary ? "#dbeafe" : "var(--plan-fg-muted)",
                   fontSize: 12, fontWeight: 700, cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 6,
                   fontFamily: "inherit",
@@ -404,10 +404,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               {showItinerary && (
                 <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
                   <style>{`
-                    .trip-itin-body { font-size: 13px; color: #b5b5b5; line-height: 1.65; }
+                    .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.65; }
                     .trip-itin-body p { margin: 0 0 6px; }
                     .trip-itin-body p:last-child { margin-bottom: 0; }
-                    .trip-itin-body strong, .trip-itin-body b { color: #e5e5e5; font-weight: 700; }
+                    .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg); font-weight: 700; }
                     .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
                     .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
                     .trip-itin-body li { margin-bottom: 3px; }
@@ -424,7 +424,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                           position: "absolute", left: 0, top: 4,
                           width: 16, height: 16, borderRadius: "50%",
                           background: isMultiDay ? "#1e3a8a" : "#3b82f6",
-                          border: "2px solid #060606",
+                          border: "2px solid var(--plan-bg)",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 9, fontWeight: 900, color: "#dbeafe",
                           zIndex: 2,
@@ -443,14 +443,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                         {isMultiDay ? (
                           <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                             {isTh ? `วันที่ ${i + 1}` : `Day ${i + 1}`}
-                            {dayDate && <span style={{ color: "#666", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
+                            {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
                           </p>
                         ) : null}
                         {d.heading && (
                           <p style={{
                             fontSize: isMultiDay ? 13 : 12,
                             fontWeight: 800,
-                            color: isMultiDay ? "#e5e5e5" : "#dbeafe",
+                            color: isMultiDay ? "var(--plan-fg)" : "#dbeafe",
                             margin: "0 0 4px",
                           }}>
                             {d.heading}
@@ -472,8 +472,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             onClick={handleToggle}
             style={{
               width: "100%", padding: "8px 12px",
-              background: "transparent", border: "none", borderTop: "1px solid #1a1a1a",
-              color: "#666", fontSize: 11, fontWeight: 600, cursor: "pointer",
+              background: "transparent", border: "none", borderTop: "1px solid var(--plan-border-soft)",
+              color: "var(--plan-fg-subtle)", fontSize: 11, fontWeight: 600, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
             }}
           >
@@ -490,15 +490,15 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
           {expanded && (
             <div style={{
               overflow: "hidden",
-              borderTop: "1px solid #1a1a1a",
+              borderTop: "1px solid var(--plan-border-soft)",
               padding: "12px",
             }}>
               <style>{`
-                .rich-content { font-size: 15px; color: #bbb; line-height: 1.8; }
+                .rich-content { font-size: 15px; color: var(--plan-fg-muted); line-height: 1.8; }
                 .rich-content p { margin: 0 0 14px; }
                 .rich-content p:last-child { margin-bottom: 0; }
                 .rich-content h1, .rich-content h2, .rich-content h3, .rich-content h4 {
-                  color: #f5f5f5; font-weight: 800; margin: 22px 0 10px; line-height: 1.3;
+                  color: var(--plan-fg); font-weight: 800; margin: 22px 0 10px; line-height: 1.3;
                 }
                 .rich-content h1 { font-size: 22px; }
                 .rich-content h2 { font-size: 19px; }
@@ -507,14 +507,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 .rich-content ul, .rich-content ol { margin: 0 0 14px; padding-left: 22px; }
                 .rich-content li { margin-bottom: 6px; }
                 .rich-content a { color: #60a5fa; text-decoration: underline; }
-                .rich-content strong, .rich-content b { color: #e5e5e5; font-weight: 700; }
+                .rich-content strong, .rich-content b { color: var(--plan-fg); font-weight: 700; }
                 .rich-content em, .rich-content i { font-style: italic; }
                 .rich-content blockquote {
                   margin: 14px 0; padding: 10px 16px; border-left: 3px solid #3b82f6;
-                  background: #1a1a1a; color: #ccc; border-radius: 0 8px 8px 0;
+                  background: var(--plan-border-soft); color: var(--plan-fg-muted); border-radius: 0 8px 8px 0;
                 }
                 .rich-content img { max-width: 100%; border-radius: 10px; margin: 12px 0; }
-                .rich-content hr { border: none; border-top: 1px solid #262626; margin: 18px 0; }
+                .rich-content hr { border: none; border-top: 1px solid var(--plan-border); margin: 18px 0; }
                 @keyframes spin { to { transform: rotate(360deg); } }
               `}</style>
               {detailLoading && <ScheduleDetailSkeleton lang={lang} />}
@@ -529,7 +529,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 const sContentTrimmed = stripScheduleFromContent(s?.content);
                 const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || sContentTrimmed);
                 if (!hasAny) return (
-                  <p style={{ fontSize: 12, color: "#555", textAlign: "center", padding: "8px 0" }}>
+                  <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
                     {isTh ? "ไม่มีรายละเอียดเพิ่มเติม" : "No additional details available"}
                   </p>
                 );
@@ -548,7 +548,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     {/* Schedule-specific content (per-departure info) */}
                     {s?.excerpt && (
                       <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                           {label("excerpt")}
                         </p>
                         <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.excerpt }} />
@@ -556,7 +556,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     )}
                     {s?.route && (
                       <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                           {label("route")}
                         </p>
                         <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.route }} />
@@ -564,7 +564,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     )}
                     {sContentTrimmed && (
                       <div>
-                        <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
                           {label("content")}
                         </p>
                         <div className="rich-content" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
@@ -575,7 +575,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               })()}
 
               {!detailLoading && !detail && (
-                <p style={{ fontSize: 12, color: "#555", textAlign: "center", padding: "8px 0" }}>
+                <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
                   {isTh ? "ไม่สามารถโหลดรายละเอียดได้" : "Could not load details"}
                 </p>
               )}
@@ -604,24 +604,24 @@ function UnscheduledCard({ trip, originalIdx, planId, lang, canEdit, onRemoved }
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
-      background: "#111", border: "1px solid #1a1a1a", borderRadius: 12, padding: 12,
+      background: "var(--plan-surface)", border: "1px solid var(--plan-border-soft)", borderRadius: 12, padding: 12,
     }}>
       {trip.cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={trip.cover} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 48, height: 36, background: "#1a1a2e", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+        <div style={{ width: 48, height: 36, background: "var(--plan-surface-alt)", borderRadius: 8, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
           {TYPE_EMOJI[trip.type] || "🤿"}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         {trip.area && <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", margin: 0 }}>{trip.area}</p>}
-        <p style={{ fontSize: 14, fontWeight: 700, color: "#e5e5e5", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
-        <p style={{ fontSize: 11, color: "#555", margin: "2px 0 0" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
+        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
+        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>{TYPE_LABEL[trip.type] || trip.type}</p>
       </div>
       {canEdit && (
         <button onClick={handleRemove}
-          style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #262626", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--plan-border)", background: "transparent", color: "var(--plan-fg-subtle)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           ✕
         </button>
       )}
