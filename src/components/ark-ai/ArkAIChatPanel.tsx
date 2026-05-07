@@ -216,10 +216,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     const labels = picks.map(p => {
       const d = p.schedule?.departureDate?.slice(0, 10);
       if (!d) return p.title;
-      return lang === "th" ? `ทริปวันที่ ${fmtDateShort(d)}` : `the trip on ${fmtDateShort(d)}`;
+      return lang === "th"
+        ? `${p.title} วันที่ ${fmtDateShort(d)}`
+        : `${p.title} on ${fmtDateShort(d)}`;
     });
     const text = lang === "th"
-      ? `สนใจ${labels.join(", ")} ช่วยจัดการ Plan ให้หน่อยครับ`
+      ? `สนใจทริป ${labels.join(", ")} ช่วยจัดการ Plan ให้หน่อยครับ`
       : `Interested in ${labels.join(", ")} — help me shape this into a plan`;
     sendRef.current?.(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
