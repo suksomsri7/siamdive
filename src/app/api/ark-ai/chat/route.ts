@@ -634,10 +634,10 @@ export async function POST(req: NextRequest) {
     // stream). Same pivot pattern as the date-hint regex above.
     const m = lastUserMsg.toLowerCase();
     const fromKeyword: string[] = [];
-    if (/liveaboard|live-aboard|ค้างคืน|เรือนอน/.test(m)) fromKeyword.push("LIVEABOARD", "DIVE_RESORT");
-    if (/day\s*trip|เดย์ทริป|day-trip/.test(m)) fromKeyword.push("DAYTRIP");
-    if (/snorkel|สนอร์เกิล|ดำผิวน้ำ/.test(m)) fromKeyword.push("SNORKELING");
-    if (/land\s*tour|ทัวร์บก|land-tour/.test(m)) fromKeyword.push("LAND_TOUR");
+    if (/liveaboard|live[\s-]?aboard|ค้างคืน|เรือ\s*นอน|นอน\s*บน\s*เรือ|multi[\s-]?day|ลิฟ(?:เวอร์)?บอร์ด/.test(m)) fromKeyword.push("LIVEABOARD", "DIVE_RESORT");
+    if (/day[\s-]?trip|เดย์\s*ทริป|ดำน้ำ\s*วันเดียว|ไป[\s-]?กลับ/.test(m)) fromKeyword.push("DAYTRIP");
+    if (/snorkel|สนอร์เกิล|ดำ\s*ผิว\s*น้ำ/.test(m)) fromKeyword.push("SNORKELING");
+    if (/land[\s-]?tour|ทัวร์บก|เที่ยว\s*บก/.test(m)) fromKeyword.push("LAND_TOUR");
     if (fromKeyword.length) return [...new Set(fromKeyword)];
     // No keyword in the latest turn → fall back to the persisted slot.
     const fromSlot = (effectiveSlots.categories || [])

@@ -280,7 +280,11 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               <p style={{ fontSize: 15, fontWeight: 700, color: "var(--plan-fg)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
               <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
                 {TYPE_LABEL[trip.type] || trip.type}
-                {sched.returnDate && ` · ${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`}
+                {sched.departureDate && (
+                  sched.returnDate && sched.returnDate !== sched.departureDate
+                    ? ` · ${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
+                    : ` · ${fmtDate(sched.departureDate, lang)}`
+                )}
                 {isMultiDay && ` · ${dayDates.length} ${isTh ? "วัน" : "days"}`}
               </p>
             </div>
@@ -450,7 +454,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                           <p style={{
                             fontSize: isMultiDay ? 13 : 12,
                             fontWeight: 800,
-                            color: isMultiDay ? "var(--plan-fg)" : "#dbeafe",
+                            color: "var(--plan-fg)",
                             margin: "0 0 4px",
                           }}>
                             {d.heading}
