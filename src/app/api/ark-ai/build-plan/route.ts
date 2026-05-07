@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
         departureDate: s.departureDate?.toISOString().slice(0, 10) || "",
         returnDate: s.returnDate?.toISOString().slice(0, 10) || null,
         title: st?.title || bt?.title || s.boat.name,
-        route: st?.route || (s.boat.type === "DAYTRIP" ? areaTrans?.name || "" : ""),
+        route: st?.route || (s.boat.type === "DAYTRIP" ? st?.title || "" : ""),
         itinerary: st?.itinerary || "",
         excerpt: st?.excerpt || "",
         // schedule.content carries the operator's <h2>กำหนดการ</h2> block —

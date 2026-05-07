@@ -139,7 +139,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
         departureDate: schedule.departureDate!,
         returnDate: schedule.returnDate,
         title: st?.title || "",
-        route: st?.route || (type === "DAYTRIP" ? area : ""),
+        route: st?.route || (type === "DAYTRIP" ? st?.title || "" : ""),
         itinerary: st?.itinerary || "",
         excerpt: st?.excerpt || "",
         content: st?.content || "",
