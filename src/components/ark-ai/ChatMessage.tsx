@@ -188,7 +188,7 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
   }
 
   const parts = parseStructured(content);
-  const hasFeedbackTarget = parts.some(p => p.type === "trip" || p.type === "build");
+  const hasFeedbackTarget = parts.some(p => p.type === "build");
 
   const allTrips = parts.filter((p): p is ParsedPart & { type: "trip" } => p.type === "trip").map(p => p.data);
   const rendered: React.ReactNode[] = [];
