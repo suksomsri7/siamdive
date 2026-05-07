@@ -262,7 +262,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
       <div style={{ position: "relative" }}>
         <div style={{
           background: "var(--plan-surface)",
-          border: overlap ? "1px solid rgba(239,68,68,0.35)" : "1px solid var(--plan-border-soft)",
+          border: overlap ? "2px solid #dc2626" : "1px solid var(--plan-border-soft)",
           borderRadius: 12, overflow: "hidden",
         }}>
           {/* Header */}
@@ -298,16 +298,16 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               margin: "0 12px 10px",
               padding: "10px 12px",
               borderRadius: 8,
-              background: "rgba(239,68,68,0.08)",
-              border: "1px solid rgba(239,68,68,0.3)",
+              background: "#dc2626",
+              border: "1px solid #991b1b",
               display: "flex", alignItems: "flex-start", gap: 8,
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, fontWeight: 800, color: "#fca5a5", margin: "0 0 4px" }}>
+                <p style={{ fontSize: 12, fontWeight: 800, color: "#fff", margin: "0 0 4px" }}>
                   {isTh ? "วันชนกับทริปอื่น" : "Date conflict with another trip"}
                 </p>
                 {conflicts.map((c, ci) => {
@@ -315,12 +315,12 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     ? fmtDate(c.from, lang)
                     : `${fmtDate(c.from, lang)} → ${fmtDate(c.to, lang)}`;
                   return (
-                    <p key={ci} style={{ fontSize: 12, color: "#fecaca", margin: "0 0 2px", lineHeight: 1.4 }}>
+                    <p key={ci} style={{ fontSize: 12, color: "#fee2e2", margin: "0 0 2px", lineHeight: 1.4 }}>
                       • <strong style={{ color: "#fff" }}>{c.title}</strong> ({range})
                     </p>
                   );
                 })}
-                <p style={{ fontSize: 11, color: "#a78c8c", margin: "6px 0 0", lineHeight: 1.4 }}>
+                <p style={{ fontSize: 11, color: "#fecaca", margin: "6px 0 0", lineHeight: 1.4 }}>
                   {isTh
                     ? "ดำน้ำ 2 ที่พร้อมกันในวันเดียวไม่ได้ — กดเลื่อนวันที่ของทริปนี้ หรือเอาออกถ้าไม่จำเป็น"
                     : "Can't be on two trips the same day — change this trip's date or remove it if not needed"}
@@ -330,9 +330,9 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 <button onClick={handleRemove}
                   style={{
                     padding: "4px 10px", borderRadius: 6,
-                    border: "1px solid rgba(239,68,68,0.4)",
-                    background: "rgba(239,68,68,0.12)",
-                    color: "#fca5a5", fontSize: 11, fontWeight: 700,
+                    border: "1px solid rgba(255,255,255,0.4)",
+                    background: "rgba(0,0,0,0.2)",
+                    color: "#fff", fontSize: 11, fontWeight: 700,
                     cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
                   }}>
                   {isTh ? "เอาออก" : "Remove"}

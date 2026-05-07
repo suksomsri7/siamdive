@@ -380,9 +380,9 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
       <div style={{
         width: "100%", maxWidth: 480,
         display: "flex", alignItems: "stretch",
-        background: "var(--plan-nav-bg)",
+        background: "linear-gradient(to top, rgba(8,8,8,0.98), rgba(13,13,13,0.95))",
         backdropFilter: "blur(20px) saturate(1.5)",
-        borderTop: "1px solid var(--plan-nav-border)",
+        borderTop: "1px solid rgba(255,255,255,0.06)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}>
         {/* Search */}
@@ -392,7 +392,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", gap: 3,
             padding: "10px 0 8px", border: "none", background: "transparent",
-            color: "var(--plan-icon-muted)", cursor: "pointer",
+            color: "rgba(255,255,255,0.4)", cursor: "pointer",
             animation: tapped === "search" ? "planNavPulse 0.3s ease" : "none",
             transition: "color 0.15s",
           }}
@@ -428,7 +428,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", gap: 3,
             padding: "10px 0 8px", border: "none", background: "transparent",
-            color: "var(--plan-icon-active)", cursor: "default",
+            color: "#fff", cursor: "default",
           }}
         >
           <div style={{ position: "relative" }}>

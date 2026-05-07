@@ -357,9 +357,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                           onClick={() => setCompareOpen(true)}
                           style={{
                             width: "100%", padding: "10px 14px", borderRadius: 10,
-                            background: "rgba(245,158,11,0.10)",
-                            border: "1px solid rgba(245,158,11,0.35)",
-                            color: "#fbbf24", fontSize: 13, fontWeight: 700,
+                            background: "#f59e0b",
+                            border: "1px solid #d97706",
+                            color: "#1f1300", fontSize: 13, fontWeight: 800,
                             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                             fontFamily: "inherit",
                           }}
