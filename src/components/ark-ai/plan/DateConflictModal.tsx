@@ -1,6 +1,7 @@
 "use client";
 
 import { type DateConflict } from "@/lib/plan-store";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Props = {
   conflicts: DateConflict[];
@@ -14,7 +15,7 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
 export default function DateConflictModal({ conflicts, lang, onConfirm, onCreateNewPlan, onClose }: Props) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   return (
     <>
@@ -39,10 +40,10 @@ export default function DateConflictModal({ conflicts, lang, onConfirm, onCreate
           </div>
           <div>
             <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", margin: 0 }}>
-              {isTh ? "วันที่ซ้อนทับ" : "Date Overlap"}
+              {L("dateOverlap")}
             </p>
             <p style={{ fontSize: 11, color: "#888", margin: "2px 0 0" }}>
-              {isTh ? "ทริปนี้มีวันที่ทับซ้อนกับทริปที่มีอยู่แล้ว" : "This trip overlaps with existing trips"}
+              {L("tripOverlapMessage")}
             </p>
           </div>
         </div>
@@ -82,7 +83,7 @@ export default function DateConflictModal({ conflicts, lang, onConfirm, onCreate
             background: "#b45309",
             color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer",
           }}>
-          {isTh ? "เพิ่มลงแพลนเดิม" : "Add to Same Plan"}
+          {L("addToSamePlan")}
         </button>
         <button onClick={onCreateNewPlan}
           style={{
@@ -95,11 +96,11 @@ export default function DateConflictModal({ conflicts, lang, onConfirm, onCreate
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          {isTh ? "สร้างแพลนใหม่" : "Create New Plan"}
+          {L("createNewPlan")}
         </button>
         <button onClick={onClose}
           style={{ width: "100%", padding: "10px 0", marginTop: 8, background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
-          {isTh ? "ยกเลิก" : "Cancel"}
+          {L("cancel")}
         </button>
       </div>
     </>

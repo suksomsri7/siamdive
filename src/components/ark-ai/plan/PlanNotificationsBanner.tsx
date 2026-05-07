@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { t } from "@/lib/ark-ai/i18n";
 
 // Sprint 3 B5 — surface auto-improve cron findings as a small banner stack
 // above the trip timeline. Each banner is dismissible (POST /dismiss). Read
@@ -58,7 +59,7 @@ export default function PlanNotificationsBanner({
 
   if (!loaded || items.length === 0) return null;
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   return (
     <div style={{ padding: "0 16px", marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -96,13 +97,13 @@ export default function PlanNotificationsBanner({
                   rel="noopener noreferrer"
                   style={{ fontSize: 11, color: "#60a5fa", marginTop: 4, display: "inline-block", textDecoration: "underline" }}
                 >
-                  {isTh ? "อ่านบทความ →" : "Read article →"}
+                  {L("readArticle")}
                 </a>
               )}
             </div>
             <button
               onClick={() => dismiss(n.id)}
-              aria-label={isTh ? "ปิด" : "Dismiss"}
+              aria-label={L("dismiss")}
               style={{
                 background: "none",
                 border: "none",

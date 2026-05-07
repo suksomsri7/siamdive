@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { t } from "@/lib/ark-ai/i18n";
 
 type ChatMessage = {
   id: string; authorEmail: string; authorName: string;
@@ -25,7 +26,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastTimestampRef = useRef<string | null>(null);
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const fetchMessages = useCallback(async (after?: string) => {
     try {
@@ -114,7 +115,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return isTh ? "เมื่อกี้" : "now";
+    if (diffMin < 1) return L("now");
     if (diffMin < 60) return `${diffMin}m`;
     const diffHr = Math.floor(diffMin / 60);
     if (diffHr < 24) return `${diffHr}h`;
@@ -143,7 +144,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
           <div style={{ textAlign: "center", padding: "40px 16px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💬</div>
             <p style={{ fontSize: 14, color: "#555" }}>
-              {isTh ? "เริ่มแชทกับเพื่อนร่วมทริป" : "Start chatting with your trip crew"}
+              {L("startChattingCrew")}
             </p>
           </div>
         ) : (
@@ -197,7 +198,7 @@ export default function PlanChatTab({ planId, deviceId, lang }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder={isTh ? "พิมพ์ข้อความ..." : "Type a message..."}
+          placeholder={L("typeMessage")}
           style={{
             flex: 1, padding: "10px 14px", borderRadius: 20, background: "#1a1a1a",
             border: "1px solid #262626", color: "#f5f5f5", fontSize: 13,

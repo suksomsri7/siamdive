@@ -1,6 +1,7 @@
 "use client";
 
 import { type UserPlan, type PlanTrip } from "@/lib/plan-store";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Props = {
   plans: UserPlan[];
@@ -11,7 +12,7 @@ type Props = {
 };
 
 export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart }: Props) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   if (plans.length === 0) {
     return (
@@ -24,12 +25,10 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
           </svg>
         </div>
         <p style={{ fontSize: 18, fontWeight: 700, color: "var(--plan-fg)", marginBottom: 6 }}>
-          {isTh ? "เริ่มวางแผนทริปแรก" : "Start your first trip plan"}
+          {L("startFirstTripPlan")}
         </p>
         <p style={{ fontSize: 13, color: "var(--plan-fg-muted)", lineHeight: 1.6, maxWidth: 280, marginBottom: 24 }}>
-          {isTh
-            ? "สร้างแพลน เพิ่มทริป ชวนเพื่อน แชร์รูป วางแผนดำน้ำด้วยกัน"
-            : "Create a plan, add trips, invite friends, share photos — plan your dive trip together"}
+          {L("emptyPlansSubtext")}
         </p>
         <button onClick={onCreateStart}
           style={{
@@ -37,7 +36,7 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
             background: "#1e40af", color: "#fff",
             fontSize: 15, fontWeight: 600, cursor: "pointer",
           }}>
-          {isTh ? "+ สร้างแพลนใหม่" : "+ Create New Plan"}
+          {L("createPlanCta")}
         </button>
       </div>
     );
@@ -60,7 +59,7 @@ export default function PlanList({ plans, lang, onOpen, onDelete, onCreateStart 
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--plan-fg-muted)" }}>
-            {isTh ? "สร้างแพลนใหม่" : "New Plan"}
+            {L("newPlan")}
           </span>
         </button>
       </div>
@@ -73,7 +72,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
 }) {
   const trips = plan.trips as PlanTrip[];
   const cover = plan.coverUrl || trips.find((t) => t.cover)?.cover;
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   return (
     <div
@@ -141,7 +140,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
           {plan.name}
         </p>
         <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", marginTop: 2 }}>
-          {trips.length} {isTh ? "ทริป" : "trips"}
+          {trips.length} {L("tripsLower")}
         </p>
       </div>
     </div>

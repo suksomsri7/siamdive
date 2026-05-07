@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { attachEmail, recoverByEmail, getSavedEmail } from "@/lib/plan-store";
+import { t, connectedToLabel } from "@/lib/ark-ai/i18n";
 
 type Props = {
   open: boolean;
@@ -17,7 +18,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const savedEmail = getSavedEmail();
 
   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -33,7 +34,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
         setDone(true);
         setTimeout(onClose, 1500);
       } else {
-        setError(isTh ? "เกิดข้อผิดพลาด ลองใหม่" : "Something went wrong, try again");
+        setError(L("somethingWentWrong"));
       }
     } else {
       const plans = await recoverByEmail(email);
@@ -44,7 +45,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
           window.dispatchEvent(new CustomEvent("myplan-change"));
         }, 1000);
       } else {
-        setError(isTh ? "ไม่พบแพลนจากอีเมลนี้" : "No plans found for this email");
+        setError(L("noPlansFound"));
       }
     }
 
@@ -72,27 +73,21 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <p style={{ fontSize: 32, marginBottom: 8 }}>✓</p>
             <p style={{ fontSize: 15, fontWeight: 700, color: "#4ade80" }}>
-              {mode === "save"
-                ? (isTh ? "บันทึกอีเมลแล้ว!" : "Email saved!")
-                : (isTh ? "กู้คืนแพลนสำเร็จ!" : "Plans restored!")}
+              {mode === "save" ? L("emailSaved") : L("plansRestored")}
             </p>
           </div>
         ) : (
           <>
             <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginBottom: 4 }}>
-              {mode === "save"
-                ? (isTh ? "บันทึกแพลนถาวร" : "Save your plans")
-                : (isTh ? "กู้คืนแพลน" : "Restore your plans")}
+              {mode === "save" ? L("saveYourPlans") : L("restorePlans")}
             </p>
             <p style={{ fontSize: 13, color: "#888", lineHeight: 1.5, marginBottom: 16 }}>
-              {mode === "save"
-                ? (isTh ? "ใส่อีเมลเพื่อเข้าถึงแพลนจากทุกเครื่อง" : "Enter your email to access plans from any device")
-                : (isTh ? "ใส่อีเมลที่เคยบันทึกไว้" : "Enter the email you saved before")}
+              {mode === "save" ? L("enterEmailToAccess") : L("enterPriorEmail")}
             </p>
 
             {savedEmail && mode === "save" && (
               <p style={{ fontSize: 12, color: "#4ade80", marginBottom: 12 }}>
-                {isTh ? `เชื่อมต่อกับ ${savedEmail} แล้ว` : `Connected to ${savedEmail}`}
+                {connectedToLabel(lang, savedEmail)}
               </p>
             )}
 
@@ -100,7 +95,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError(null); }}
-              placeholder={isTh ? "อีเมลของคุณ" : "Your email"}
+              placeholder={L("yourEmail")}
               onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
               style={{
                 width: "100%", padding: "14px 16px", borderRadius: 10,
@@ -125,11 +120,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
                 marginTop: 12, transition: "background 0.2s, color 0.2s",
               }}
             >
-              {loading
-                ? "..."
-                : mode === "save"
-                  ? (isTh ? "บันทึก" : "Save")
-                  : (isTh ? "กู้คืน" : "Restore")}
+              {loading ? "..." : (mode === "save" ? L("save") : L("restore"))}
             </button>
 
             {/* Toggle mode */}
@@ -141,9 +132,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
                 color: "#60a5fa", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              {mode === "save"
-                ? (isTh ? "มีแพลนอยู่แล้ว? กู้คืน" : "Have existing plans? Restore")
-                : (isTh ? "ต้องการบันทึกแพลนใหม่?" : "Want to save new plans?")}
+              {mode === "save" ? L("havePlansRestore") : L("wantToSaveNewPlans")}
             </button>
 
             <button onClick={onClose}
@@ -152,7 +141,7 @@ export default function EmailPrompt({ open, onClose, lang, mode: initialMode }: 
                 background: "none", border: "none",
                 color: "#555", fontSize: 12, cursor: "pointer",
               }}>
-              {isTh ? "ข้าม" : "Skip"}
+              {L("skip")}
             </button>
           </>
         )}

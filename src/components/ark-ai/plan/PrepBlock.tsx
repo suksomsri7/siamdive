@@ -10,17 +10,21 @@ type Props = {
   lang: string;
 };
 
-const HEADER = {
+const HEADER: Record<string, string> = {
   th: "การเตรียมตัว", en: "Prepare for the trip",
   cn: "行前准备", de: "Vorbereitung", fr: "Préparation",
   ru: "Подготовка", ko: "준비물", ja: "持ち物・準備",
 };
-const SUBLINE = {
+const SUBLINE: Record<string, string> = {
   th: "เช็กลิสต์ก่อนเดินทาง — ปรับตามประเภททริปและระดับ cert ที่ให้ไว้",
   en: "Pre-trip checklist — tuned to your trip type and cert level",
+  cn: "出行前检查清单 — 根据行程类型和证书级别调整",
+  ja: "出発前のチェックリスト — ツアー種別と認定レベルに最適化",
+  ko: "출발 전 체크리스트 — 투어 유형과 자격 레벨에 맞춤",
+  de: "Pre-Trip-Checkliste — abgestimmt auf Tourtyp und Cert-Level",
+  fr: "Checklist pré-voyage — adaptée au type et au niveau de certification",
+  ru: "Чек-лист перед поездкой — с учётом типа тура и уровня сертификата",
 };
-const TOGGLE_HIDE = { th: "ซ่อน", en: "Hide" };
-const TOGGLE_SHOW = { th: "เปิด", en: "Show" };
 
 /** Pick the most "demanding" trip in the plan so we surface the union of
  *  packing items needed across the vacation. Liveaboard wins over daytrip
@@ -40,6 +44,8 @@ function pickRepresentativeTrip(trips: PlanTrip[]): PlanTrip | null {
 export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isTh = lang === "th";
+  const headerText = HEADER[lang] || HEADER.en;
+  const sublineText = SUBLINE[lang] || SUBLINE.en;
 
   const rep = useMemo(() => pickRepresentativeTrip(trips), [trips]);
   const tpl = useMemo(() => (rep ? getTripTemplate(rep.type, cert) : null), [rep, cert]);
@@ -75,10 +81,10 @@ export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", margin: 0 }}>
-            {isTh ? HEADER.th : HEADER.en}
+            {headerText}
           </p>
           <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {isTh ? SUBLINE.th : SUBLINE.en}
+            {sublineText}
           </p>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { t } from "@/lib/ark-ai/i18n";
 
 type MediaItem = {
   id: string; url: string; thumbUrl: string | null; type: string;
@@ -21,7 +22,7 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
   const [progress, setProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
   const [viewer, setViewer] = useState<MediaItem | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const uploadFile = (form: FormData): Promise<string | null> => {
     return new Promise((resolve) => {
@@ -91,10 +92,10 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
         <div style={{ textAlign: "center", padding: "40px 16px" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>📷</div>
           <p style={{ fontSize: 14, color: "#555" }}>
-            {isTh ? "ยังไม่มีรูปในแพลน" : "No photos yet"}
+            {L("noPhotosYet")}
           </p>
           <p style={{ fontSize: 12, color: "#333", marginTop: 4 }}>
-            {isTh ? "เร็วๆ นี้" : "Coming soon"}
+            {L("comingSoon")}
           </p>
         </div>
       ) : (
@@ -134,7 +135,7 @@ export default function PlanMediaTab({ planId, deviceId, lang, media, canEdit, o
               {canEdit && (
                 <button onClick={(e) => { e.stopPropagation(); handleDelete(viewer.id); }}
                   style={{ background: "none", border: "none", color: "#ef4444", fontSize: 12, cursor: "pointer", padding: 4 }}>
-                  {isTh ? "ลบ" : "Delete"}
+                  {L("delete")}
                 </button>
               )}
             </div>

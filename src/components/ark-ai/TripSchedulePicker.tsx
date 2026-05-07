@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getPlans, type PlanTrip } from "@/lib/plan-store";
 import { addPendingPick, readPendingPicks } from "@/lib/pending-picks";
 import { updateTripSchedule } from "@/lib/plan-store";
+import { t } from "@/lib/ark-ai/i18n";
 
 type SchedulePackage = {
   packageId: string;
@@ -72,7 +73,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   const [loading, setLoading] = useState(true);
 
   const usesDatePicker = type === "DAYTRIP" || type === "SNORKELING";
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const tomorrowISO = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); };
   const currentMonthISO = () => new Date().toISOString().slice(0, 7);
@@ -269,8 +270,8 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
                 {usesDatePicker
-                  ? (isTh ? "เลือกวันที่" : "Select date")
-                  : (isTh ? "เลือกเดือน" : "Select month")}
+                  ? L("selectDate")
+                  : L("selectMonth")}
               </label>
               <input
                 type={usesDatePicker ? "date" : "month"}
@@ -289,7 +290,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                 }}
               />
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>
-                {schedules.length} {isTh ? "รอบ" : "trips"}
+                {schedules.length} {L("rounds")}
               </span>
             </div>
 
@@ -400,7 +401,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                   ? (isTh
                       ? "ไม่มีรอบในวันที่เลือก ลองเปลี่ยนวันด้านบน"
                       : "No trips on this date — try a different date above")
-                  : (isTh ? "ไม่มี Schedule ที่กำลังจะมา" : "No upcoming schedules")}
+                  : L("noUpcomingSchedules")}
               </div>
             )}
 

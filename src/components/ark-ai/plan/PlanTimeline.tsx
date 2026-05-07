@@ -5,6 +5,7 @@ import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 import { ScheduleDetailSkeleton } from "../Skeletons";
 import TripSchedulePicker from "../TripSchedulePicker";
+import { t, dayLabel, schedulesDailyLabel, schedulesStopsLabel } from "@/lib/ark-ai/i18n";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -56,7 +57,7 @@ const fmtDayHeader = (iso: string, lang: string) =>
   });
 
 export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved }: Props) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   // Trip-first rendering — one card per trip in chronological order. The
   // earlier "Day 1 / Day 2 / ..." outer-bucket structure proved confusing for
@@ -140,7 +141,7 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
       {unscheduled.length > 0 && (
         <div style={{ marginTop: sortedScheduled.length > 0 ? 20 : 0 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: "var(--plan-fg-subtle)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-            {isTh ? "ยังไม่กำหนดวัน" : "Unscheduled"}
+            {L("unscheduled")}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {unscheduled.map(({ trip, originalIdx }) => (
@@ -176,7 +177,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const sched = trip.schedule!;
   const dayDates = generateDayDates(sched.departureDate, sched.returnDate);
   const isMultiDay = dayDates.length > 1;
@@ -287,7 +288,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                       {' · '}
                       <button
                         onClick={() => setPickerOpen(true)}
-                        title={isTh ? "คลิกเพื่อเปลี่ยนวัน" : "Click to change date"}
+                        title={L("clickToChangeDate")}
                         style={{
                           background: "transparent", border: "none", padding: 0, margin: 0,
                           font: "inherit", color: "var(--plan-fg)",
@@ -305,7 +306,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                       : ` · ${fmtDate(sched.departureDate, lang)}`
                   )
                 )}
-                {isMultiDay && ` · ${dayDates.length} ${isTh ? "วัน" : "days"}`}
+                {isMultiDay && ` · ${dayDates.length} ${L("daysLower")}`}
               </p>
             </div>
             {canEdit && (
@@ -332,7 +333,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               </svg>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 12, fontWeight: 800, color: "#fff", margin: "0 0 4px" }}>
-                  {isTh ? "วันชนกับทริปอื่น" : "Date conflict with another trip"}
+                  {L("dateConflictTitle")}
                 </p>
                 {conflicts.map((c, ci) => {
                   const range = c.from === c.to
@@ -345,9 +346,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                   );
                 })}
                 <p style={{ fontSize: 11, color: "#fecaca", margin: "6px 0 0", lineHeight: 1.4 }}>
-                  {isTh
-                    ? "ดำน้ำ 2 ที่พร้อมกันในวันเดียวไม่ได้ — กดเลื่อนวันที่ของทริปนี้ หรือเอาออกถ้าไม่จำเป็น"
-                    : "Can't be on two trips the same day — change this trip's date or remove it if not needed"}
+                  {L("cantBeOnTwoTrips")}
                 </p>
               </div>
               {canEdit && (
@@ -359,7 +358,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     color: "#fff", fontSize: 11, fontWeight: 700,
                     cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
                   }}>
-                  {isTh ? "เอาออก" : "Remove"}
+                  {L("remove")}
                 </button>
               )}
             </div>
@@ -387,14 +386,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
           {(sched.priceMin ?? 0) > 0 && (
             <div style={{ padding: "0 12px 10px" }}>
               <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 2px" }}>
-                {isTh ? "ราคาเริ่มต้น" : "Starting price"}
+                {L("startingPrice")}
               </p>
               <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: 0 }}>
                 {sched.priceMax && sched.priceMax > (sched.priceMin ?? 0)
                   ? `฿${sched.priceMin!.toLocaleString()} — ฿${sched.priceMax.toLocaleString()}`
                   : `฿${sched.priceMin!.toLocaleString()}`}
                 <span style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 600, marginLeft: 4 }}>
-                  {isTh ? "/คน" : "/person"}
+                  {L("perPerson")}
                 </span>
               </p>
             </div>
@@ -423,10 +422,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 </svg>
                 <span>
                   {showItinerary
-                    ? (isTh ? "ซ่อนกำหนดการ" : "Hide itinerary")
+                    ? L("hideItinerary")
                     : (isMultiDay
-                        ? (isTh ? `กำหนดการรายวัน (${itineraryDays.length} วัน)` : `Day-by-day itinerary (${itineraryDays.length} days)`)
-                        : (isTh ? `กำหนดการ (${itineraryDays.length} ช่วง)` : `Schedule (${itineraryDays.length} stops)`))}
+                        ? schedulesDailyLabel(lang, itineraryDays.length)
+                        : schedulesStopsLabel(lang, itineraryDays.length))}
                 </span>
               </button>
               {showItinerary && (
@@ -470,7 +469,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                         {/* Day label */}
                         {isMultiDay ? (
                           <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {isTh ? `วันที่ ${i + 1}` : `Day ${i + 1}`}
+                            {dayLabel(lang, i + 1)}
                             {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
                           </p>
                         ) : null}
@@ -528,8 +527,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               <polyline points="6 9 12 15 18 9"/>
             </svg>
             {expanded
-              ? (isTh ? "ซ่อนรายละเอียด" : "Hide details")
-              : (isTh ? "ดูรายละเอียด" : "View details")}
+              ? L("hideDetails")
+              : L("viewDetails")}
           </button>
 
           {/* Expanded schedule detail — fetched from API */}
@@ -576,7 +575,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || sContentTrimmed);
                 if (!hasAny) return (
                   <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
-                    {isTh ? "ไม่มีรายละเอียดเพิ่มเติม" : "No additional details available"}
+                    {L("noAdditionalDetails")}
                   </p>
                 );
                 return (
@@ -622,7 +621,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 
               {!detailLoading && !detail && (
                 <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
-                  {isTh ? "ไม่สามารถโหลดรายละเอียดได้" : "Could not load details"}
+                  {L("cantLoadDetails")}
                 </p>
               )}
 
@@ -643,7 +642,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     style={{ transform: "rotate(180deg)" }}>
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
-                  {isTh ? "ซ่อนรายละเอียด" : "Hide details"}
+                  {L("hideDetails")}
                 </button>
               )}
             </div>
@@ -688,12 +687,10 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 
 // ── Unscheduled card ─────────────────────────────────────────────────────────
 
-function UnscheduledCard({ trip, originalIdx, planId, lang, canEdit, onRemoved }: {
+function UnscheduledCard({ trip, originalIdx, planId, canEdit, onRemoved }: {
   trip: PlanTrip; originalIdx: number; planId: string; lang: string; canEdit: boolean;
   onRemoved?: () => void;
 }) {
-  const isTh = lang === "th";
-
   const handleRemove = () => {
     removeTripByIndex(planId, originalIdx);
     onRemoved?.();

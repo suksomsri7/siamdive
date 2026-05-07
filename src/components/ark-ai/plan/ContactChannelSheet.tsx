@@ -2,6 +2,7 @@
 
 import React from "react";
 import { trackPlanContact } from "@/lib/analytics/client";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Channel = { key: string; label: string; color: string; icon: string; url: string };
 
@@ -54,7 +55,7 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
 };
 
 export default function ContactChannelSheet({ planId, message, lang, onClose }: Props) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const channels = buildChannels(message);
 
   return (
@@ -68,12 +69,12 @@ export default function ContactChannelSheet({ planId, message, lang, onClose }: 
         <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #1a1a1a" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", margin: 0 }}>
-              {isTh ? "ติดต่อสอบถาม" : "Contact Us"}
+              {L("contactUs")}
             </p>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", fontSize: 20, cursor: "pointer", padding: 4 }}>✕</button>
           </div>
           <p style={{ fontSize: 12, color: "#666", margin: "4px 0 0" }}>
-            {isTh ? "เลือกช่องทางที่สะดวก" : "Choose your preferred channel"}
+            {L("chooseChannel")}
           </p>
         </div>
 

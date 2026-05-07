@@ -17,6 +17,7 @@ import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
+import { t, compareInPlanLabel } from "@/lib/ark-ai/i18n";
 
 type PlanData = {
   id: string; shortId: string; name: string; coverUrl: string | null;
@@ -59,7 +60,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [compareOpen, setCompareOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const fetchPlan = useCallback(async () => {
     let data: PlanData | null = null;
@@ -166,7 +167,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         await navigator.share({ title: plan.name, text: `${plan.name} — SiamDive`, url });
       } else {
         await navigator.clipboard.writeText(url);
-        alert(isTh ? "คัดลอกลิงก์แล้ว!" : "Link copied!");
+        alert(L("linkCopied"));
       }
     } catch {} finally {
       setSharing(false);
@@ -207,7 +208,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const canEdit = plan.role === "OWNER" || plan.role === "EDITOR";
 
   const tabs: { key: Tab; label: string; icon: string; count?: number }[] = [
-    { key: "itinerary", label: isTh ? "ทริป" : "Trips", icon: "🗺", count: trips.length },
+    { key: "itinerary", label: L("trips"), icon: "🗺", count: trips.length },
   ];
 
   const tabsBar = (
@@ -305,7 +306,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             <div style={{ position: "absolute", bottom: 12, left: 16, right: 16 }}>
               <p style={{ fontSize: 20, fontWeight: 900, color: "var(--plan-fg)" }}>{plan.name}</p>
               <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", marginTop: 2 }}>
-                {trips.length} {isTh ? "ทริป" : "trips"} · {plan.members.length + 1} {isTh ? "สมาชิก" : "members"}
+                {trips.length} {L("tripsLower")} · {plan.members.length + 1} {L("membersLower")}
               </p>
             </div>
           </div>
@@ -343,11 +344,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                 {trips.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "40px 16px" }}>
                     <p style={{ fontSize: 14, color: "var(--plan-fg-subtle)", marginBottom: 16 }}>
-                      {isTh ? "ยังไม่มีทริปในแพลน" : "No trips yet"}
+                      {L("noTripsYet")}
                     </p>
                     <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
                       style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-                      {isTh ? "ทริปจาก AI" : "Recommended trips from AI"}
+                      {L("recommendedTripsFromAi")}
                     </button>
                   </div>
                 ) : (
@@ -366,7 +367,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                             fontFamily: "inherit",
                           }}
                         >
-                          {isTh ? `⚖️ เปรียบเทียบทริปในแพลน (${trips.length})` : `⚖️ Compare trips in plan (${trips.length})`}
+                          {compareInPlanLabel(lang, trips.length)}
                         </button>
                       </div>
                     )}

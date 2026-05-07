@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trackPlanInvite } from "@/lib/analytics/client";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Member = {
   id: string; email: string; name: string | null; role: string; certLevel: string | null;
@@ -23,12 +24,12 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
   const [error, setError] = useState("");
   const [localMembers, setLocalMembers] = useState(members);
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const handleInvite = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !trimmed.includes("@")) {
-      setError(isTh ? "กรุณากรอก email ที่ถูกต้อง" : "Please enter a valid email");
+      setError(L("invalidEmail"));
       return;
     }
     setSending(true);
@@ -41,7 +42,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
       });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error === "forbidden" ? (isTh ? "เฉพาะเจ้าของแพลนเท่านั้น" : "Owner only") : "Error");
+        setError(data.error === "forbidden" ? L("ownerOnly") : "Error");
         return;
       }
       const newMember = await res.json();
@@ -69,9 +70,9 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
   };
 
   const ROLE_LABEL: Record<string, string> = {
-    OWNER: isTh ? "เจ้าของ" : "Owner",
-    EDITOR: isTh ? "แก้ไขได้" : "Editor",
-    VIEWER: isTh ? "ดูอย่างเดียว" : "Viewer",
+    OWNER: L("owner"),
+    EDITOR: L("editorRole"),
+    VIEWER: L("viewerRole"),
   };
 
   return (
@@ -86,7 +87,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
         <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>
-              {isTh ? "สมาชิก" : "Members"}
+              {L("members")}
             </p>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", fontSize: 20, cursor: "pointer", padding: 4 }}>✕</button>
           </div>
@@ -101,7 +102,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {owner.name || owner.email || (isTh ? "คุณ" : "You")}
+                {owner.name || owner.email || L("you")}
               </p>
               {owner.email && <p style={{ fontSize: 11, color: "#555" }}>{owner.email}</p>}
             </div>
@@ -137,7 +138,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
         {/* Invite form */}
         <div style={{ padding: "16px 20px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #1a1a1a", flexShrink: 0 }}>
           <p style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 8 }}>
-            {isTh ? "เชิญสมาชิก" : "Invite Member"}
+            {L("inviteMember")}
           </p>
           <div style={{ marginBottom: 8 }}>
             <input
@@ -167,7 +168,7 @@ export default function PlanMembers({ planId, deviceId, lang, owner, members, on
                 cursor: email.trim() ? "pointer" : "default",
               }}
             >
-              {sending ? "..." : (isTh ? "เชิญ" : "Invite")}
+              {sending ? "..." : L("invite")}
             </button>
           </div>
           {error && <p style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>{error}</p>}

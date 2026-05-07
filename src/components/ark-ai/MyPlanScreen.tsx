@@ -5,6 +5,7 @@ import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 import ThemeToggle from "./plan/ThemeToggle";
+import { t, planDeletePermanentLabel } from "@/lib/ark-ai/i18n";
 
 type Props = {
   open: boolean;
@@ -63,7 +64,7 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
     const onError = (e: Event) => {
       const detail = (e as CustomEvent<{ reasons?: string[] }>).detail;
       setBuilding(false);
-      setBuildError(detail?.reasons?.length ? detail.reasons : [lang === "th" ? "สร้าง plan ไม่สำเร็จ" : "Couldn't build the plan"]);
+      setBuildError(detail?.reasons?.length ? detail.reasons : [t(lang, "buildPlanFailed")]);
     };
     window.addEventListener("myplan-build-done", onDone);
     window.addEventListener("myplan-build-error", onError);
@@ -121,7 +122,7 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
 
   if (!open) return null;
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   return (
     <>
@@ -211,10 +212,8 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
 }
 
 function BuildingOverlay({ lang }: { lang: string }) {
-  const isTh = lang === "th";
-  const steps = isTh
-    ? ["กำลังหาเรือที่ตรงกับวัน...", "ตรวจ schedule และ package...", "เลือกทริปที่ดีที่สุด...", "เกือบเสร็จแล้ว..."]
-    : ["Searching boats for your dates...", "Checking schedules and packages...", "Picking the best fit...", "Almost ready..."];
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
+  const steps = [L("buildingStepSearch"), L("buildingStepSchedules"), L("buildingStepPicking"), L("buildingStepAlmost")];
   const [stepIdx, setStepIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1200);
@@ -236,12 +235,10 @@ function BuildingOverlay({ lang }: { lang: string }) {
         <img src="/ai-mask.png" alt="" width={36} height={36} style={{ filter: "brightness(1.15)" }} />
       </div>
       <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f5f5", marginBottom: 6 }}>
-        {isTh ? "AI กำลังสร้าง plan ให้..." : "AI is building your plan..."}
+        {L("aiBuildingPlan")}
       </p>
       <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 28, lineHeight: 1.5, maxWidth: 320 }}>
-        {isTh
-          ? "ระบบกำลังจับคู่ความต้องการกับทริปที่มี schedule ตรง ใช้เวลาประมาณ 2-3 วินาที"
-          : "Matching your preferences against live trip schedules. Takes about 2-3 seconds."}
+        {L("matchingPreferences")}
       </p>
       <div style={{
         width: "100%", maxWidth: 320,
@@ -281,7 +278,7 @@ function BuildingOverlay({ lang }: { lang: string }) {
 }
 
 function BuildErrorState({ lang, reasons, onRetryInChat, onDismiss }: { lang: string; reasons: string[]; onRetryInChat: () => void; onDismiss: () => void }) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   return (
     <div style={{
       flex: 1, display: "flex", flexDirection: "column",
@@ -290,7 +287,7 @@ function BuildErrorState({ lang, reasons, onRetryInChat, onDismiss }: { lang: st
     }}>
       <div style={{ fontSize: 44, marginBottom: 14 }}>🤔</div>
       <p style={{ fontSize: 17, fontWeight: 800, color: "#f5f5f5", marginBottom: 10 }}>
-        {isTh ? "ยังสร้าง plan ไม่ได้" : "Can't build the plan yet"}
+        {L("cantBuildPlan")}
       </p>
       <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", maxWidth: 340 }}>
         {reasons.map((r, i) => (
@@ -306,19 +303,19 @@ function BuildErrorState({ lang, reasons, onRetryInChat, onDismiss }: { lang: st
         background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
         marginBottom: 8,
       }}>
-        {isTh ? "กลับไปคุยกับ AI" : "Back to AI chat"}
+        {L("backToAiChat")}
       </button>
       <button onClick={onDismiss} style={{
         padding: "8px 16px", background: "none", border: "none", color: "#888", fontSize: 13, cursor: "pointer",
       }}>
-        {isTh ? "ดูแพลนทั้งหมด" : "See all plans"}
+        {L("seeAllPlans")}
       </button>
     </div>
   );
 }
 
 function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: string; planName: string; onConfirm: () => void; onClose: () => void }) {
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1400, background: "rgba(0,0,0,0.7)" }} />
@@ -329,12 +326,10 @@ function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: stri
         textAlign: "center",
       }}>
         <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginBottom: 8 }}>
-          {isTh ? "ลบแพลนนี้?" : "Delete this plan?"}
+          {L("deleteThisPlan")}
         </p>
         <p style={{ fontSize: 13, color: "#888", marginBottom: 20, lineHeight: 1.5 }}>
-          {isTh
-            ? `"${planName}" จะถูกลบถาวร ไม่สามารถกู้คืนได้`
-            : `"${planName}" will be permanently deleted and cannot be recovered`}
+          {planDeletePermanentLabel(lang, planName)}
         </p>
         <button onClick={onConfirm}
           style={{
@@ -342,11 +337,11 @@ function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: stri
             background: "#dc2626", color: "#fff",
             fontSize: 15, fontWeight: 700, cursor: "pointer",
           }}>
-          {isTh ? "ลบแพลน" : "Delete Plan"}
+          {L("deletePlan")}
         </button>
         <button onClick={onClose}
           style={{ width: "100%", padding: "10px 0", marginTop: 8, background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
-          {isTh ? "ยกเลิก" : "Cancel"}
+          {L("cancel")}
         </button>
       </div>
     </>
@@ -457,7 +452,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
 
 function CreatePlanModal({ lang, onCreate, onClose }: { lang: string; onCreate: (name: string) => void; onClose: () => void }) {
   const [name, setName] = useState("");
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   return (
     <>
@@ -468,13 +463,13 @@ function CreatePlanModal({ lang, onCreate, onClose }: { lang: string; onCreate: 
         padding: "24px 20px", paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
       }}>
         <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginBottom: 16 }}>
-          {isTh ? "สร้างแพลนใหม่" : "Create New Plan"}
+          {L("createNewPlan")}
         </p>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={isTh ? "ชื่อแพลน เช่น สิมิลัน มีนา 2026" : "Plan name, e.g. Similan March 2026"}
+          placeholder={L("planNamePlaceholder")}
           onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) onCreate(name.trim()); }}
           style={{
             width: "100%", padding: "14px 16px", borderRadius: 10,
@@ -494,11 +489,11 @@ function CreatePlanModal({ lang, onCreate, onClose }: { lang: string; onCreate: 
             marginTop: 12,
           }}
         >
-          {isTh ? "สร้างแพลน" : "Create Plan"}
+          {L("createPlan")}
         </button>
         <button onClick={onClose}
           style={{ width: "100%", padding: "10px 0", marginTop: 8, background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
-          {isTh ? "ยกเลิก" : "Cancel"}
+          {L("cancel")}
         </button>
       </div>
     </>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { attachEmail } from "@/lib/plan-store";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Props = {
   lang: string;
@@ -15,12 +16,12 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const handleSubmit = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError(isTh ? "กรุณากรอกอีเมลที่ถูกต้อง" : "Please enter a valid email");
+      setError(L("invalidEmailFull"));
       return;
     }
     setSaving(true);
@@ -29,7 +30,7 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
     if (ok) {
       onSuccess(trimmed, name.trim() || null);
     } else {
-      setError(isTh ? "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง" : "Something went wrong. Please try again.");
+      setError(L("somethingWentWrongLong"));
       setSaving(false);
     }
   };
@@ -44,22 +45,20 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>
-            {isTh ? "เชื่อมอีเมลของคุณ" : "Link Your Email"}
+            {L("linkYourEmail")}
           </p>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", fontSize: 20, cursor: "pointer", padding: 4 }}>✕</button>
         </div>
 
         <p style={{ fontSize: 13, color: "#888", lineHeight: 1.6, marginBottom: 20 }}>
-          {isTh
-            ? "เชื่อมอีเมลเพื่อเชิญเพื่อนร่วมทริป และกู้แพลนคืนได้ทุกเครื่อง"
-            : "Link your email to invite friends and recover your plan on any device"}
+          {L("linkEmailReason")}
         </p>
 
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={isTh ? "ชื่อที่ใช้เรียก" : "Your name"}
+          placeholder={L("yourName")}
           style={{
             width: "100%", padding: "12px 14px", borderRadius: 10,
             background: "#0a0a0a", border: "1px solid #262626",
@@ -72,7 +71,7 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-          placeholder={isTh ? "อีเมลของคุณ" : "Your email"}
+          placeholder={L("yourEmail")}
           type="email"
           style={{
             width: "100%", padding: "12px 14px", borderRadius: 10,
@@ -94,7 +93,7 @@ export default function EmailGateModal({ lang, onSuccess, onClose }: Props) {
             color: email.trim() ? "#fff" : "#555",
           }}
         >
-          {saving ? "..." : (isTh ? "ยืนยัน" : "Confirm")}
+          {saving ? "..." : L("confirm")}
         </button>
       </div>
     </>

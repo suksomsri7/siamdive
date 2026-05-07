@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/lib/ark-ai/i18n";
+
 const SHIMMER_KEYFRAMES = `
   @keyframes ark-shimmer {
     0% { background-position: -200% 0; }
@@ -19,7 +21,6 @@ const SHIMMER_STYLE = {
 } as const;
 
 export function ChatThinkingSkeleton({ lang }: { lang: string }) {
-  const isTh = lang === "th";
   return (
     <div style={{ padding: "4px 0" }}>
       <style>{SHIMMER_KEYFRAMES}</style>
@@ -33,7 +34,7 @@ export function ChatThinkingSkeleton({ lang }: { lang: string }) {
           ))}
         </span>
         <span style={{ fontSize: 12, color: "#666", fontWeight: 600 }}>
-          {isTh ? "กำลังคิด…" : "Thinking…"}
+          {t(lang, "thinking")}
         </span>
       </div>
       {/* Two fake text rows */}
@@ -87,12 +88,11 @@ export function PlanDetailSkeleton() {
 }
 
 export function ScheduleDetailSkeleton({ lang }: { lang: string }) {
-  const isTh = lang === "th";
   return (
     <div style={{ padding: "10px 0" }}>
       <style>{SHIMMER_KEYFRAMES}</style>
       <div style={{ fontSize: 11, color: "#555", marginBottom: 8, fontWeight: 600 }}>
-        {isTh ? "กำลังโหลดรายละเอียด…" : "Loading details…"}
+        {t(lang, "loadingDetails")}
       </div>
       <div style={{ height: 12, borderRadius: 3, ...SHIMMER_STYLE, width: "92%", marginBottom: 6 }} />
       <div style={{ height: 12, borderRadius: 3, ...SHIMMER_STYLE, width: "75%", marginBottom: 6 }} />

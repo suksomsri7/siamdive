@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getPlans, createPlan } from "@/lib/plan-store";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Props = {
   lang: string;
@@ -14,7 +15,7 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
   const [plans] = useState(() => getPlans());
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState(suggestedName || "");
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const handleCreate = () => {
     if (!name.trim()) return;
@@ -35,10 +36,10 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
         display: "flex", flexDirection: "column",
       }}>
         <p style={{ fontSize: 15, fontWeight: 800, color: "#f5f5f5", marginBottom: 4 }}>
-          {isTh ? "เพิ่มลงแพลนไหน?" : "Add to which plan?"}
+          {L("selectPlanForTrip")}
         </p>
         <p style={{ fontSize: 11, color: "#666", marginBottom: 14 }}>
-          {isTh ? "เลือกแพลนที่ต้องการเพิ่มทริปนี้" : "Select a plan to add this trip to"}
+          {L("selectPlanHint")}
         </p>
 
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
@@ -70,7 +71,7 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
                   {plan.name}
                 </p>
                 <p style={{ fontSize: 11, color: "#555", margin: "2px 0 0" }}>
-                  {plan.trips.length} {isTh ? "ทริป" : "trips"}
+                  {plan.trips.length} {L("tripsLower")}
                 </p>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +92,7 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) handleCreate(); }}
-                placeholder={isTh ? "ชื่อแพลน" : "Plan name"}
+                placeholder={L("planName")}
                 style={{
                   flex: 1, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(148,163,184,0.12)",
                   borderRadius: 8, color: "#f5f5f5", fontSize: 13, padding: "8px 10px",
@@ -109,7 +110,7 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
                   flexShrink: 0,
                 }}
               >
-                {isTh ? "สร้าง" : "Create"}
+                {L("create")}
               </button>
             </div>
           ) : (
@@ -127,14 +128,14 @@ export default function PlanSelectorSheet({ lang, suggestedName, onSelect, onClo
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              {isTh ? "สร้างแพลนใหม่" : "Create New Plan"}
+              {L("createNewPlan")}
             </button>
           )}
         </div>
 
         <button onClick={onClose}
           style={{ width: "100%", padding: "10px 0", background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
-          {isTh ? "ยกเลิก" : "Cancel"}
+          {L("cancel")}
         </button>
       </div>
     </>

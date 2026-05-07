@@ -6,6 +6,7 @@ import {
   removeTrip, clearPlan,
   type UserPlan, type PlanTrip,
 } from "@/lib/plan-store";
+import { t, planNumberedLabel } from "@/lib/ark-ai/i18n";
 
 type Props = {
   lang: string;
@@ -45,7 +46,7 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
     }
   }, [renaming]);
 
-  const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   const handleSwitch = (id: string) => {
     switchPlan(id);
@@ -55,7 +56,7 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
 
   const handleCreate = () => {
     const count = plans.length + 1;
-    createPlan(isTh ? `แพลน ${count}` : `Plan ${count}`);
+    createPlan(planNumberedLabel(lang, count));
     setShowSelector(false);
     refresh();
   };
@@ -112,7 +113,7 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
         {activePlan && activePlan.trips.length > 0 && (
           <button onClick={handleClear}
             style={{ background: "none", border: "1px solid #333", color: "#666", padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer" }}>
-            {isTh ? "ล้าง" : "Clear"}
+            {L("clear")}
           </button>
         )}
       </div>
@@ -170,7 +171,7 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
               border: "1px dashed rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.05)",
               color: "#60a5fa", fontSize: 12, fontWeight: 700, cursor: "pointer",
             }}>
-            + {isTh ? "สร้างแพลนใหม่" : "New Plan"}
+            + {L("newPlan")}
           </button>
         </div>
       )}
@@ -184,16 +185,14 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 16px", textAlign: "center" }}>
           <p style={{ fontSize: 40, marginBottom: 12 }}>📋</p>
           <p style={{ fontSize: 15, fontWeight: 700, color: "#e5e5e5", marginBottom: 4 }}>
-            {isTh ? "ยังไม่มีทริปในแพลน" : "No trips in your plan"}
+            {L("noTripsInPlan")}
           </p>
           <p style={{ fontSize: 12, color: "#666", lineHeight: 1.5, maxWidth: 260 }}>
-            {isTh
-              ? 'กด "+" บนทริปที่สนใจเพื่อเพิ่มเข้าแพลน'
-              : 'Tap "+" on trips you like to add them to your plan'}
+            {L("noTripsHint")}
           </p>
           <button onClick={onSwitchToChat}
             style={{ marginTop: 20, padding: "10px 24px", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-            {isTh ? "ไปแชทหาทริป" : "Chat to find trips"}
+            {L("goChatFindTrips")}
           </button>
         </div>
       </div>
@@ -215,7 +214,7 @@ export default function MyPlanPanel({ lang, onSwitchToChat }: Props) {
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         <button onClick={onSwitchToChat}
           style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #1e40af", background: "transparent", color: "#60a5fa", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          + {isTh ? "เพิ่มทริป" : "Add more trips"}
+          + {L("addMoreTrips")}
         </button>
       </div>
 

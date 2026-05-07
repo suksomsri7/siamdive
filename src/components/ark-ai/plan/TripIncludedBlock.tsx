@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { getTripTemplate, type CertLevel } from "@/lib/ark-ai/trip-prep-templates";
+import { t } from "@/lib/ark-ai/i18n";
 
 type Props = {
   tripType: string;
@@ -13,17 +14,24 @@ type Props = {
   lang: string;
 };
 
-const HEADER_INCLUDED = {
+const HEADER_INCLUDED: Record<string, string> = {
   th: "รวมในราคา", en: "Included", cn: "包含", de: "Im Preis", fr: "Inclus", ru: "Включено", ko: "포함사항", ja: "含まれるもの",
 };
-const HEADER_NOT_INCLUDED = {
+const HEADER_NOT_INCLUDED: Record<string, string> = {
   th: "ไม่รวม", en: "Not Included", cn: "不包含", de: "Nicht inbegriffen", fr: "Non inclus", ru: "Не включено", ko: "불포함", ja: "含まれないもの",
 };
-const TOGGLE_HIDE = { th: "ซ่อน", en: "Hide" };
-const TOGGLE_SHOW = { th: "ดู", en: "Show" };
-const FALLBACK_NOTE = {
+const TOGGLE_HIDE: Record<string, string> = {
+  th: "ซ่อน", en: "Hide", cn: "隐藏", ja: "隠す", ko: "숨기기", de: "Ausblenden", fr: "Masquer", ru: "Скрыть",
+};
+const FALLBACK_NOTE: Record<string, string> = {
   th: "* รายการมาตรฐาน — ผู้ประกอบการอาจปรับตามทริปจริง",
   en: "* Standard list — operator may adjust per trip",
+  cn: "* 标准清单 — 经营者可能根据实际行程调整",
+  ja: "* 標準リスト — 事業者が実際のツアーに合わせて調整する場合があります",
+  ko: "* 기본 목록 — 운영사가 실제 투어에 맞춰 조정할 수 있습니다",
+  de: "* Standardliste — Anbieter kann je nach Tour anpassen",
+  fr: "* Liste standard — l'opérateur peut ajuster selon le voyage",
+  ru: "* Стандартный список — оператор может корректировать",
 };
 
 function operatorMentionsIncluded(html: string | null | undefined): boolean {
@@ -39,6 +47,11 @@ export default function TripIncludedBlock({ tripType, cert = "ow", operatorConte
   // they hunt for behind a toggle.
   const [expanded, setExpanded] = useState(true);
   const isTh = lang === "th";
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
+  const headerIncluded = HEADER_INCLUDED[lang] || HEADER_INCLUDED.en;
+  const headerNotIncluded = HEADER_NOT_INCLUDED[lang] || HEADER_NOT_INCLUDED.en;
+  const toggleHide = TOGGLE_HIDE[lang] || TOGGLE_HIDE.en;
+  const fallbackNote = FALLBACK_NOTE[lang] || FALLBACK_NOTE.en;
 
   const showFallback = !operatorMentionsIncluded(operatorContentHtml);
   const tpl = useMemo(() => (showFallback ? getTripTemplate(tripType, cert) : null), [showFallback, tripType, cert]);
@@ -67,25 +80,25 @@ export default function TripIncludedBlock({ tripType, cert = "ow", operatorConte
         </svg>
         <span>
           {expanded
-            ? `${isTh ? TOGGLE_HIDE.th : TOGGLE_HIDE.en} ${isTh ? "รวม / ไม่รวม" : "Included / Not Included"}`
-            : (isTh ? "รวม / ไม่รวมอะไรบ้าง" : "What's Included / Not Included")}
+            ? `${toggleHide} ${L("includedNotIncluded")}`
+            : L("whatsIncludedTitle")}
         </span>
       </button>
 
       {expanded && (
         <div style={{ padding: "0 14px 12px", display: "flex", flexDirection: "column", gap: 14 }}>
           <ChecklistGroup
-            title={isTh ? HEADER_INCLUDED.th : HEADER_INCLUDED.en}
+            title={headerIncluded}
             items={tpl.included.map(i => isTh ? i.th : i.en)}
             tone="included"
           />
           <ChecklistGroup
-            title={isTh ? HEADER_NOT_INCLUDED.th : HEADER_NOT_INCLUDED.en}
+            title={headerNotIncluded}
             items={tpl.notIncluded.map(i => isTh ? i.th : i.en)}
             tone="excluded"
           />
           <p style={{ fontSize: 10, color: "#555", margin: 0, fontStyle: "italic" }}>
-            {isTh ? FALLBACK_NOTE.th : FALLBACK_NOTE.en}
+            {fallbackNote}
           </p>
         </div>
       )}

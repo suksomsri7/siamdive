@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { t } from "@/lib/ark-ai/i18n";
 
 type ChecklistItem = {
   id: string; category: string; item: string;
@@ -84,6 +85,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
   const [newCategory, setNewCategory] = useState("");
   const [newItem, setNewItem] = useState("");
 
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const isTh = lang === "th";
 
   const handleToggle = async (item: ChecklistItem) => {
@@ -160,7 +162,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontSize: 12, color: "#888" }}>
-              {checkedCount}/{items.length} {isTh ? "เสร็จแล้ว" : "completed"}
+              {checkedCount}/{items.length} {L("completedLower")}
             </span>
             <span style={{ fontSize: 12, color: checkedCount === items.length ? "#22c55e" : "#555" }}>
               {items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}%
@@ -181,7 +183,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
         <div style={{ textAlign: "center", padding: "40px 16px" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
           <p style={{ fontSize: 14, color: "#555", marginBottom: 16 }}>
-            {isTh ? "ยังไม่มีรายการเตรียมตัว" : "No checklist items yet"}
+            {L("noChecklistYet")}
           </p>
           {canEdit && (
             <button onClick={() => setShowTemplate(true)} style={{
@@ -189,7 +191,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
               background: "#1e40af", color: "#fff",
               fontSize: 14, fontWeight: 600, cursor: "pointer",
             }}>
-              {isTh ? "เลือกจาก Template" : "Use Template"}
+              {L("useTemplate")}
             </button>
           )}
         </div>
@@ -227,7 +229,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
                           value={item.assignedTo || ""}
                           onChange={(e) => handleAssign(item.id, e.target.value || null)}
                           style={{ width: 20, height: 20, opacity: 0.5, background: "transparent", border: "none", color: "#888", fontSize: 10, cursor: "pointer", padding: 0 }}
-                          title={isTh ? "มอบหมาย" : "Assign"}
+                          title={L("assign")}
                         >
                           <option value="">—</option>
                           {members.map((m) => (
@@ -256,13 +258,13 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
             flex: 1, padding: "10px 0", borderRadius: 8, border: "1px dashed #333",
             background: "transparent", color: "#666", fontSize: 12, fontWeight: 600, cursor: "pointer",
           }}>
-            + {isTh ? "เพิ่มรายการ" : "Add Item"}
+            + {L("addItem")}
           </button>
           <button onClick={() => setShowTemplate(true)} style={{
             padding: "10px 16px", borderRadius: 8, border: "1px solid #262626",
             background: "transparent", color: "#888", fontSize: 12, fontWeight: 600, cursor: "pointer",
           }}>
-            {isTh ? "Template" : "Template"}
+            {L("templateLabel")}
           </button>
         </div>
       )}
@@ -274,14 +276,14 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
             <input
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
-              placeholder={isTh ? "หมวด (เช่น Gear)" : "Category (e.g. Gear)"}
+              placeholder={L("category")}
               style={{ width: 120, padding: "8px 10px", borderRadius: 6, background: "#111", border: "1px solid #262626", color: "#f5f5f5", fontSize: 12, fontFamily: "inherit", outline: "none" }}
             />
             <input
               autoFocus
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
-              placeholder={isTh ? "รายการ" : "Item name"}
+              placeholder={L("itemName")}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddItem(); }}
               style={{ flex: 1, padding: "8px 10px", borderRadius: 6, background: "#111", border: "1px solid #262626", color: "#f5f5f5", fontSize: 12, fontFamily: "inherit", outline: "none" }}
             />
@@ -292,10 +294,10 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
               background: newItem.trim() ? "#1e40af" : "#222", color: newItem.trim() ? "#fff" : "#555",
               fontSize: 12, fontWeight: 700, cursor: newItem.trim() ? "pointer" : "default",
             }}>
-              {isTh ? "เพิ่ม" : "Add"}
+              {L("add")}
             </button>
             <button onClick={() => setAddingItem(false)} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "transparent", color: "#555", fontSize: 12, cursor: "pointer" }}>
-              {isTh ? "ยกเลิก" : "Cancel"}
+              {L("cancel")}
             </button>
           </div>
         </div>
@@ -311,7 +313,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
             padding: "20px", paddingBottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
           }}>
             <p style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", marginBottom: 16 }}>
-              {isTh ? "เลือก Template" : "Choose Template"}
+              {L("chooseTemplate")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {Object.entries(TEMPLATES).map(([key, tpl]) => (
@@ -323,7 +325,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 700 }}>{isTh ? tpl.th : tpl.en}</p>
                     <p style={{ fontSize: 11, color: "#555", marginTop: 2 }}>
-                      {tpl.items.length} {isTh ? "รายการ" : "items"}
+                      {tpl.items.length} {L("itemsLower")}
                     </p>
                   </div>
                   <span style={{ fontSize: 18 }}>
@@ -336,7 +338,7 @@ export default function PlanChecklistTab({ planId, deviceId, lang, checklists, m
               width: "100%", padding: "10px 0", marginTop: 12, background: "none",
               border: "none", color: "#555", fontSize: 13, cursor: "pointer",
             }}>
-              {isTh ? "ยกเลิก" : "Cancel"}
+              {L("cancel")}
             </button>
           </div>
         </>

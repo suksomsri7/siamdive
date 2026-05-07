@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { t } from "@/lib/ark-ai/i18n";
 
 // CompareSheet works on the minimum trip surface: anything with boatId/title/
 // type/area/cover and an optional schedule with departureDate/returnDate/
@@ -72,6 +73,7 @@ type Props = {
 };
 
 export default function CompareSheet({ picks, lang, onClose }: Props) {
+  const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const isTh = lang === "th";
 
   // When user has more than 2 picks, let them pick which 2 to compare.
@@ -105,37 +107,38 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
     const longerHighlight: "a" | "b" | null =
       aDays !== bDays ? (aDays > bDays ? "a" : "b") : null;
 
+    const dayWord = (n: number) => lang === "en" ? (n === 1 ? "day" : "days") : t(lang, "daysLower");
     return [
       buildRow(
-        isTh ? "ประเภท" : "Type",
+        L("type"),
         `${TYPE_EMOJI[left.type] || "🤿"} ${TYPE_LABEL[left.type]?.[isTh ? "th" : "en"] || left.type}`,
         `${TYPE_EMOJI[right.type] || "🤿"} ${TYPE_LABEL[right.type]?.[isTh ? "th" : "en"] || right.type}`,
       ),
-      buildRow(isTh ? "พื้นที่" : "Area", left.area || "-", right.area || "-"),
+      buildRow(L("area"), left.area || "-", right.area || "-"),
       buildRow(
-        isTh ? "วันที่" : "Departure",
+        L("departure"),
         fmtDate(left.schedule?.departureDate, lang),
         fmtDate(right.schedule?.departureDate, lang),
       ),
       buildRow(
-        isTh ? "ระยะเวลา" : "Duration",
-        aDays ? `${aDays} ${isTh ? "วัน" : aDays === 1 ? "day" : "days"}` : "-",
-        bDays ? `${bDays} ${isTh ? "วัน" : bDays === 1 ? "day" : "days"}` : "-",
+        L("duration"),
+        aDays ? `${aDays} ${dayWord(aDays)}` : "-",
+        bDays ? `${bDays} ${dayWord(bDays)}` : "-",
         longerHighlight,
       ),
       buildRow(
-        isTh ? "เริ่มต้น/คน" : "Starting price",
+        L("startingPricePerPerson"),
         fmtRange(left.schedule?.priceMin, left.schedule?.priceMax),
         fmtRange(right.schedule?.priceMin, right.schedule?.priceMax),
         cheaperHighlight,
       ),
       buildRow(
-        isTh ? "เส้นทาง" : "Route",
+        L("route"),
         (left.schedule?.route || "").replace(/<[^>]+>/g, "").slice(0, 90) || "-",
         (right.schedule?.route || "").replace(/<[^>]+>/g, "").slice(0, 90) || "-",
       ),
     ];
-  }, [left, right, lang, isTh]);
+  }, [left, right, lang, isTh, L]);
 
   if (picks.length < 2) return null;
 
@@ -162,11 +165,11 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h3 style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5", margin: 0 }}>
-            {isTh ? "เปรียบเทียบ 2 ทริป" : "Compare 2 trips"}
+            {L("compareTwoTrips")}
           </h3>
           <button
             onClick={onClose}
-            aria-label={isTh ? "ปิด" : "Close"}
+            aria-label={L("close")}
             style={{
               width: 28, height: 28, borderRadius: "50%",
               border: "1px solid rgba(255,255,255,0.08)",
@@ -186,7 +189,7 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
               return (
                 <div key={side} style={{ flex: 1 }}>
                   <label style={{ display: "block", fontSize: 10, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                    {side === "left" ? (isTh ? "ทริปซ้าย" : "Left") : (isTh ? "ทริปขวา" : "Right")}
+                    {side === "left" ? L("leftTrip") : L("rightTrip")}
                   </label>
                   <select
                     value={value}
@@ -210,7 +213,7 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
 
         {!left || !right ? (
           <p style={{ fontSize: 13, color: "#888", textAlign: "center", padding: "20px 0" }}>
-            {isTh ? "เลือก 2 ทริปเพื่อเปรียบเทียบ" : "Pick 2 trips to compare"}
+            {L("pickTwoToCompare")}
           </p>
         ) : (
           <>
@@ -278,9 +281,7 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
             </div>
 
             <p style={{ fontSize: 10.5, color: "#555", margin: "10px 0 0", textAlign: "center", lineHeight: 1.5 }}>
-              {isTh
-                ? "✨ ตัวเลขสีเขียว = ตัวเลือกที่ถูกกว่า / นานกว่า"
-                : "✨ Green = cheaper / longer option"}
+              {L("greenIsCheaper")}
             </p>
           </>
         )}
