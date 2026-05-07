@@ -7,14 +7,14 @@ type L = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
 const T = {
   title: {
-    en: "Plan Your Trip",
-    th: "วางแผนทริปของคุณ",
-    cn: "规划你的旅程",
-    ja: "あなたの旅を計画",
-    ko: "당신의 여행을 계획하세요",
-    de: "Planen Sie Ihre Reise",
-    fr: "Planifiez votre voyage",
-    ru: "Спланируйте свою поездку",
+    en: "Design Your Trip",
+    th: "ออกแบบทริปของคุณ",
+    cn: "定制你的旅程",
+    ja: "あなたの旅をデザイン",
+    ko: "당신의 여행을 디자인하세요",
+    de: "Gestalten Sie Ihre Reise",
+    fr: "Concevez votre voyage",
+    ru: "Создайте свою поездку",
   },
   subtitle: {
     en: "With AI that understands the sea",
