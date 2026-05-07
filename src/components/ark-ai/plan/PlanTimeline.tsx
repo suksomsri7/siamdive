@@ -450,16 +450,34 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                             {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
                           </p>
                         ) : null}
-                        {d.heading && (
-                          <p style={{
-                            fontSize: isMultiDay ? 13 : 12,
-                            fontWeight: 800,
-                            color: "var(--plan-fg)",
-                            margin: "0 0 4px",
-                          }}>
-                            {d.heading}
-                          </p>
-                        )}
+                        {d.heading && (() => {
+                          // For DAYTRIP rows the heading is "07:00 — รับที่โรงแรม"
+                          // — keep the time prefix bold but render the
+                          // description after it in regular weight, per user
+                          // feedback that the all-bold style was too heavy.
+                          // LIVEABOARD (isMultiDay) headings are day titles
+                          // ("Day 1 — Sail Rock") and stay fully bold.
+                          const timeMatch = !isMultiDay
+                            ? d.heading.match(/^(\s*\d{1,2}[:.]\d{2}\s*[—–\-:]?\s*)(.+)$/)
+                            : null;
+                          return (
+                            <p style={{
+                              fontSize: isMultiDay ? 13 : 12,
+                              fontWeight: isMultiDay ? 800 : 500,
+                              color: "var(--plan-fg)",
+                              margin: "0 0 4px",
+                            }}>
+                              {timeMatch ? (
+                                <>
+                                  <span style={{ fontWeight: 800 }}>{timeMatch[1].trim()}</span>{" "}
+                                  <span style={{ fontWeight: 400 }}>{timeMatch[2]}</span>
+                                </>
+                              ) : (
+                                d.heading
+                              )}
+                            </p>
+                          );
+                        })()}
                         {d.bodyHtml && (
                           <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
                         )}
