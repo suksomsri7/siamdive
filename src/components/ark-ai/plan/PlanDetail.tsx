@@ -12,6 +12,7 @@ import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
+import ThemeToggle from "./ThemeToggle";
 import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
@@ -259,6 +260,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           </p>
         )}
 
+        <ThemeToggle />
       </div>
 
       <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={handleCoverUpload} />
