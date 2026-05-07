@@ -579,6 +579,27 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                   {isTh ? "ไม่สามารถโหลดรายละเอียดได้" : "Could not load details"}
                 </p>
               )}
+
+              {/* Bottom collapse — saves the user a long scroll back up
+                  after reading a multi-screen operator description. */}
+              {!detailLoading && (
+                <button
+                  onClick={handleToggle}
+                  style={{
+                    width: "100%", marginTop: 14, padding: "8px 12px",
+                    background: "transparent", border: "1px solid var(--plan-border-soft)", borderRadius: 8,
+                    color: "var(--plan-fg-subtle)", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: "rotate(180deg)" }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                  {isTh ? "ซ่อนรายละเอียด" : "Hide details"}
+                </button>
+              )}
             </div>
           )}
 
