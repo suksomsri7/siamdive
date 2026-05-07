@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getPlans, type PlanTrip } from "@/lib/plan-store";
 import { addPendingPick, readPendingPicks } from "@/lib/pending-picks";
+import { updateTripSchedule } from "@/lib/plan-store";
 
 type SchedulePackage = {
   packageId: string;
@@ -50,6 +51,10 @@ type Props = {
   // the slot extractor, pass it down so the picker opens on that date instead
   // of falling back to "tomorrow" / current month.
   defaultDate?: string;
+  /** When set, the picker swaps the chosen schedule into an existing plan
+   *  trip (in-place) instead of staging via pendingPicks. Used by MyPlan
+   *  trip cards for the "click date to change it" flow. */
+  swap?: { planId: string; tripIndex: number };
   onClose: () => void;
   onAdded: (info?: { boatId: string; boatTitle: string; scheduleDate: string; scheduleId: string; area: string; type: string }) => void;
 };
@@ -62,7 +67,7 @@ const fmtDate = (iso: string) =>
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function TripSchedulePicker({ boatId, title, slug, type, area, cover, lang, defaultDate, onClose, onAdded }: Props) {
+export default function TripSchedulePicker({ boatId, title, slug, type, area, cover, lang, defaultDate, swap, onClose, onAdded }: Props) {
   const [boat, setBoat] = useState<BoatData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -159,6 +164,11 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
   // equipment, special needs) before the user explicitly fires $$BUILD$$.
   const handleAddSchedule = (schedule: Schedule) => {
     const trip = buildEnrichedTrip(schedule);
+    if (swap && trip.schedule) {
+      updateTripSchedule(swap.planId, swap.tripIndex, trip.schedule);
+      onClose();
+      return;
+    }
     addPendingPick(trip);
     if (trip.schedule?.scheduleId) {
       setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));

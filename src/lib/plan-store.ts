@@ -465,6 +465,20 @@ export function updateTripNote(planId: string, tripIndex: number, note: string) 
   scheduleSync();
 }
 
+export function updateTripSchedule(
+  planId: string,
+  tripIndex: number,
+  schedule: PlanTripSchedule,
+): void {
+  const plans = readPlans();
+  const plan = plans.find((p) => p.id === planId);
+  if (!plan || !plan.trips[tripIndex]) return;
+  plan.trips[tripIndex] = { ...plan.trips[tripIndex], schedule };
+  plan.updatedAt = new Date().toISOString();
+  writePlans(plans);
+  scheduleSync();
+}
+
 export function clearPlan() {
   const plans = readPlans();
   const plan = plans.find((p) => p.id === getActivePlanId()) || plans[0];

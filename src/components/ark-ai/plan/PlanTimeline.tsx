@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 import { ScheduleDetailSkeleton } from "../Skeletons";
+import TripSchedulePicker from "../TripSchedulePicker";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -174,6 +175,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   const [showItinerary, setShowItinerary] = useState(true);
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const isTh = lang === "th";
   const sched = trip.schedule!;
   const dayDates = generateDayDates(sched.departureDate, sched.returnDate);
@@ -281,9 +283,28 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
                 {TYPE_LABEL[trip.type] || trip.type}
                 {sched.departureDate && (
-                  sched.returnDate && sched.returnDate !== sched.departureDate
-                    ? ` · ${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
-                    : ` · ${fmtDate(sched.departureDate, lang)}`
+                  canEdit ? (
+                    <>
+                      {' · '}
+                      <button
+                        onClick={() => setPickerOpen(true)}
+                        title={isTh ? "คลิกเพื่อเปลี่ยนวัน" : "Click to change date"}
+                        style={{
+                          background: "transparent", border: "none", padding: 0, margin: 0,
+                          font: "inherit", color: "var(--plan-fg)",
+                          cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2,
+                        }}
+                      >
+                        {sched.returnDate && sched.returnDate !== sched.departureDate
+                          ? `${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
+                          : fmtDate(sched.departureDate, lang)}
+                      </button>
+                    </>
+                  ) : (
+                    sched.returnDate && sched.returnDate !== sched.departureDate
+                      ? ` · ${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
+                      : ` · ${fmtDate(sched.departureDate, lang)}`
+                  )
                 )}
                 {isMultiDay && ` · ${dayDates.length} ${isTh ? "วัน" : "days"}`}
               </p>
@@ -627,6 +648,21 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 
         </div>
       </div>
+      {pickerOpen && (
+        <TripSchedulePicker
+          boatId={trip.boatId}
+          title={trip.title}
+          slug={trip.slug}
+          type={trip.type}
+          area={trip.area}
+          cover={trip.cover}
+          lang={lang}
+          defaultDate={sched.departureDate?.slice(0, 10)}
+          swap={{ planId, tripIndex: originalIdx }}
+          onClose={() => setPickerOpen(false)}
+          onAdded={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
