@@ -246,7 +246,16 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     }));
     scored.sort((a, b) => b.score - a.score);
 
-    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)\n**Available areas: ${availableAreas.join(", ") || "none"}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.\n\n` + scored.map(({ b, score }) => {
+    // Area constraint line — only emit it when we ACTUALLY know the areas
+    // for the boats. If every boat's area is blank (data not backfilled),
+    // saying "Available areas: none" makes the AI refuse every area request.
+    // When area data is missing, hand the boats to the AI WITHOUT a fake
+    // "no areas exist" hint — the system prompt's rule 3 handles this.
+    const areaHint = availableAreas.length
+      ? `\n**Available areas: ${availableAreas.join(", ")}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.`
+      : `\n**Note:** boats below have no area tag in the database — DO NOT refuse the user just because area is blank. Apply system prompt rule 3 (recommend boats anyway with the "operating area to be confirmed at booking" caveat for Andaman destinations).`;
+
+    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)${areaHint}\n\n` + scored.map(({ b, score }) => {
       let line = `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`;
       if (b.excerpt) line += `\n  Summary: ${b.excerpt}`;
       if (b.details) line += `\n  Details: ${b.details}`;
