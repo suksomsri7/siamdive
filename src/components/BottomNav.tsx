@@ -1,9 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { tripCount } from "@/lib/plan-store";
 
+type L = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
+
+const NAV_T = {
+  search: { en: "Search", th: "ค้นหา", cn: "搜索",   ja: "検索",   ko: "검색",     de: "Suchen", fr: "Recherche", ru: "Поиск" },
+  myPlan: { en: "My Plan", th: "แผนของฉัน", cn: "我的行程", ja: "マイプラン", ko: "내 여정", de: "Mein Plan", fr: "Mon plan", ru: "Мой план" },
+} as const;
+
 export default function BottomNav() {
+  const pathname = usePathname();
+  const rawLang = pathname?.split("/")[1] || "en";
+  const lang: L = (["en","th","cn","ja","ko","de","fr","ru"].includes(rawLang) ? rawLang : "en") as L;
   const [planBadge, setPlanBadge] = useState(0);
   const [active, setActive] = useState<string | null>(null);
 
@@ -48,7 +59,7 @@ export default function BottomNav() {
         }}>
           <NavItem
             id="search"
-            label="Search"
+            label={NAV_T.search[lang] ?? NAV_T.search.en}
             active={active === "search"}
             onClick={() => handleTap("search", () => window.dispatchEvent(new CustomEvent("open-search")))}
             icon={
@@ -80,7 +91,7 @@ export default function BottomNav() {
 
           <NavItem
             id="plan"
-            label="My Plan"
+            label={NAV_T.myPlan[lang] ?? NAV_T.myPlan.en}
             badge={planBadge}
             active={active === "plan"}
             onClick={() => handleTap("plan", () => window.dispatchEvent(new CustomEvent("open-myplan")))}

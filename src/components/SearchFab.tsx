@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { trackSearch, trackSearchResultClick } from "@/lib/analytics/client";
 
 type TripType = "DAYTRIP" | "LIVEABOARD";
+type L = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
 type Pkg = {
   id: string;
@@ -38,15 +39,45 @@ type Area = { id: string; name: string };
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const thisMonthISO = () => new Date().toISOString().slice(0, 7);
 
-const fmtDate = (iso: string | null) => {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
+const DATE_LOCALE: Record<L, string> = {
+  en: "en", th: "th", cn: "zh-CN", ja: "ja", ko: "ko", de: "de", fr: "fr", ru: "ru",
 };
+
+const fmtDate = (iso: string | null, lang: L) => {
+  if (!iso) return "";
+  const locale = DATE_LOCALE[lang] ?? "en";
+  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "2-digit" });
+};
+
+const T = {
+  searchTrips:    { en: "Search Trips",      th: "ค้นหาทริป",     cn: "搜索行程",        ja: "ツアーを検索",       ko: "투어 검색",        de: "Touren suchen",      fr: "Rechercher",            ru: "Поиск туров" },
+  scubaDay:       { en: "Scuba Day Trips",   th: "ดำน้ำลึกแบบวันเดียว", cn: "潜水一日游",      ja: "デイトリップ",       ko: "당일 다이빙",       de: "Tagestauchtouren",   fr: "Plongée à la journée",  ru: "Дайв-туры на день" },
+  liveaboard:     { en: "Liveaboard",        th: "เรือนอน",        cn: "船宿",            ja: "リブアボード",       ko: "라이브어보드",      de: "Tauchsafari",        fr: "Croisière plongée",     ru: "Дайв-сафари" },
+  searchAgain:    { en: "Edit search ▾",     th: "ค้นหาใหม่ ▾",   cn: "重新搜索 ▾",      ja: "再検索 ▾",          ko: "다시 검색 ▾",      de: "Neu suchen ▾",       fr: "Modifier ▾",            ru: "Изменить ▾" },
+  date:           { en: "Date",              th: "วันที่",         cn: "日期",            ja: "日付",               ko: "날짜",              de: "Datum",              fr: "Date",                  ru: "Дата" },
+  monthYear:      { en: "Month / Year",      th: "เดือน / ปี",     cn: "月份 / 年",       ja: "月 / 年",           ko: "월 / 년",          de: "Monat / Jahr",       fr: "Mois / année",          ru: "Месяц / год" },
+  location:       { en: "Location",          th: "พื้นที่ให้บริการ", cn: "服务区域",       ja: "エリア",             ko: "지역",              de: "Servicegebiet",      fr: "Zone de service",       ru: "Регион" },
+  allAreas:       { en: "— All areas —",     th: "— ทุกพื้นที่ —",  cn: "— 全部区域 —",   ja: "— すべての地域 —",  ko: "— 전체 지역 —",   de: "— Alle Gebiete —",   fr: "— Toutes les zones —",  ru: "— Все регионы —" },
+  searching:      { en: "Searching...",      th: "กำลังค้นหา...",  cn: "搜索中...",       ja: "検索中...",          ko: "검색 중...",        de: "Suche läuft...",     fr: "Recherche...",          ru: "Поиск..." },
+  search:         { en: "Search",            th: "ค้นหา",         cn: "搜索",            ja: "検索",               ko: "검색",              de: "Suchen",             fr: "Rechercher",            ru: "Найти" },
+  opening:        { en: "Opening trip...",   th: "กำลังเปิดข้อมูลทริป...", cn: "正在打开行程...", ja: "ツアーを開いています...", ko: "여정 정보 여는 중...", de: "Tour wird geöffnet...", fr: "Ouverture du voyage...", ru: "Открываем поездку..." },
+  pickDateThenSearch:  { en: "Pick a date, then search.",   th: "เลือกวันที่ แล้วกดค้นหา",   cn: "选择日期后搜索",       ja: "日付を選んで検索",        ko: "날짜를 선택 후 검색",      de: "Datum wählen, dann suchen",     fr: "Choisissez une date, puis cherchez",  ru: "Выберите дату и нажмите поиск" },
+  pickMonthThenSearch: { en: "Pick a month, then search.",  th: "เลือกเดือน แล้วกดค้นหา",   cn: "选择月份后搜索",       ja: "月を選んで検索",          ko: "월을 선택 후 검색",        de: "Monat wählen, dann suchen",     fr: "Choisissez un mois, puis cherchez",  ru: "Выберите месяц и нажмите поиск" },
+  noTripsFound:   { en: "No trips found for this period.", th: "ไม่พบทริปในช่วงเวลานี้", cn: "此时段未找到行程", ja: "この期間のツアーは見つかりません", ko: "해당 기간에 투어가 없습니다", de: "Keine Touren für diesen Zeitraum.", fr: "Aucun voyage pour cette période.", ru: "Туров на этот период нет." },
+  foundBoats:     { en: "Found",             th: "พบ",            cn: "找到",            ja: "見つかりました",     ko: "발견",              de: "Gefunden",           fr: "Trouvé",                ru: "Найдено" },
+  boats:          { en: "boats",             th: "เรือ",          cn: "艘船",            ja: "隻",                 ko: "척",                de: "Boote",              fr: "bateaux",               ru: "лодок" },
+  trips:          { en: "trips",             th: "รอบ",           cn: "班次",            ja: "便",                 ko: "회차",              de: "Fahrten",            fr: "départs",               ru: "рейсов" },
+  tripsThisMonth: { en: "trips this month",  th: "รอบในเดือนนี้",  cn: "本月班次",        ja: "今月の便",            ko: "이번 달 회차",       de: "Fahrten in diesem Monat", fr: "départs ce mois-ci",     ru: "рейсов в этом месяце" },
+  startsFrom:     { en: "From",              th: "เริ่ม",          cn: "起",              ja: "から",                ko: "부터",              de: "Ab",                 fr: "Dès",                   ru: "от" },
+  seats:          { en: "seats",             th: "ที่นั่ง",        cn: "座位",            ja: "席",                  ko: "좌석",              de: "Plätze",             fr: "places",                ru: "мест" },
+} as const;
 
 export default function SearchFab() {
   const router = useRouter();
   const pathname = usePathname();
-  const lang = pathname?.split("/")[1] || "en";
+  const rawLang = pathname?.split("/")[1] || "en";
+  const lang: L = (["en","th","cn","ja","ko","de","fr","ru"].includes(rawLang) ? rawLang : "en") as L;
+  const t = (key: keyof typeof T) => T[key][lang] ?? T[key].en;
 
   const [open,         setOpen]         = useState(false);
   const [type,         setType]         = useState<TripType>("DAYTRIP");
@@ -166,7 +197,7 @@ export default function SearchFab() {
               </div>
 
               <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", borderBottom: "1px solid #1a1a1a" }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>ค้นหาทริป</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#f5f5f5" }}>{t("searchTrips")}</div>
                 <div style={{ flex: 1 }} />
                 <button onClick={() => setOpen(false)}
                   style={{ background: "#1a1a1a", border: "1px solid #262626", color: "#aaa", width: 28, height: 28, borderRadius: "50%", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
@@ -187,10 +218,10 @@ export default function SearchFab() {
                   </svg>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {type === "DAYTRIP"
-                      ? `Scuba Day Trips · ${date}${areaId ? ` · ${areas.find(a => a.id === areaId)?.name || ""}` : ""}`
-                      : `Liveaboard · ${month}`}
+                      ? `${t("scubaDay")} · ${date}${areaId ? ` · ${areas.find(a => a.id === areaId)?.name || ""}` : ""}`
+                      : `${t("liveaboard")} · ${month}`}
                   </span>
-                  <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, flexShrink: 0 }}>ค้นหาใหม่ ▾</span>
+                  <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, flexShrink: 0 }}>{t("searchAgain")}</span>
                 </button>
               )}
 
@@ -206,7 +237,7 @@ export default function SearchFab() {
                           padding: "10px 0", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
                           background: active ? "#3b82f6" : "transparent", color: active ? "#fff" : "#666",
                         }}>
-                        {t === "DAYTRIP" ? "🤿 Scuba Day Trips" : "🚢 Liveaboard"}
+                        {t === "DAYTRIP" ? `🤿 ${T.scubaDay[lang] ?? T.scubaDay.en}` : `🚢 ${T.liveaboard[lang] ?? T.liveaboard.en}`}
                       </button>
                     );
                   })}
@@ -214,7 +245,7 @@ export default function SearchFab() {
 
                 <div>
                   <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
-                    {type === "DAYTRIP" ? "วันที่" : "เดือน / ปี"}
+                    {type === "DAYTRIP" ? t("date") : t("monthYear")}
                   </label>
                   {type === "DAYTRIP" ? (
                     <input type="date" value={date} min={todayISO()} onChange={e => setDate(e.target.value)}
@@ -229,11 +260,11 @@ export default function SearchFab() {
                 {type === "DAYTRIP" && (
                   <div>
                     <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
-                      Location (พื้นที่ให้บริการ)
+                      {t("location")}
                     </label>
                     <select value={areaId} onChange={e => setAreaId(e.target.value)}
                       style={{ width: "100%", background: "#161616", border: "1px solid #262626", borderRadius: 10, color: "#f5f5f5", fontSize: 14, padding: "10px 14px", outline: "none", colorScheme: "dark", boxSizing: "border-box" }}>
-                      <option value="">— ทุกพื้นที่ —</option>
+                      <option value="">{t("allAreas")}</option>
                       {areas.map(a => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
@@ -246,7 +277,7 @@ export default function SearchFab() {
                     width: "100%", background: "#3b82f6", border: "none", color: "#fff", fontWeight: 700, fontSize: 14,
                     padding: "13px 0", borderRadius: 10, cursor: loading ? "wait" : "pointer", opacity: loading ? 0.6 : 1,
                   }}>
-                  {loading ? "กำลังค้นหา..." : "ค้นหา"}
+                  {loading ? t("searching") : t("search")}
                 </button>
               </div>
               )}
@@ -268,7 +299,7 @@ export default function SearchFab() {
                         {navigating.boat.title}
                       </p>
                       <p style={{ fontSize: 11, color: "#666", margin: "2px 0 0" }}>
-                        {fmtDate(navigating.departureDate)}
+                        {fmtDate(navigating.departureDate, lang)}
                       </p>
                     </div>
                   </div>
@@ -277,7 +308,7 @@ export default function SearchFab() {
                     border: "2.5px solid #333", borderTopColor: "#3b82f6",
                     borderRadius: "50%", animation: "spin 0.8s linear infinite",
                   }} />
-                  <p style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>กำลังเปิดข้อมูลทริป...</p>
+                  <p style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{t("opening")}</p>
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
               )}
@@ -286,19 +317,19 @@ export default function SearchFab() {
               {!navigating && <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 28px", minHeight: 120 }}>
                 {results === null ? (
                   <p style={{ fontSize: 12, color: "#444", textAlign: "center", padding: "20px 0" }}>
-                    เลือก{type === "DAYTRIP" ? "วันที่" : "เดือน"} แล้วกดค้นหา
+                    {type === "DAYTRIP" ? t("pickDateThenSearch") : t("pickMonthThenSearch")}
                   </p>
                 ) : results.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "32px 0" }}>
                     <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
-                    <p style={{ fontSize: 13, color: "#555" }}>ไม่พบทริปในช่วงเวลานี้</p>
+                    <p style={{ fontSize: 13, color: "#555" }}>{t("noTripsFound")}</p>
                   </div>
                 ) : resultsType === "LIVEABOARD" ? (
-                  <LiveaboardResults results={results} openResult={openResult} />
+                  <LiveaboardResults results={results} openResult={openResult} lang={lang} />
                 ) : (
                   <>
                     <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
-                      พบ {results.length} เรือ
+                      {t("foundBoats")} {results.length} {t("boats")}
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {results.map(r => (
@@ -329,12 +360,12 @@ export default function SearchFab() {
                                 </p>
                               )}
                               <p style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
-                                {fmtDate(r.departureDate)}{r.returnDate ? ` → ${fmtDate(r.returnDate)}` : ""}
+                                {fmtDate(r.departureDate, lang)}{r.returnDate ? ` → ${fmtDate(r.returnDate, lang)}` : ""}
                               </p>
                             </div>
                             {r.boat.minPrice > 0 && (
                               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                                <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("startsFrom")}</p>
                                 <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa" }}>฿{r.boat.minPrice.toLocaleString()}</p>
                               </div>
                             )}
@@ -357,7 +388,7 @@ export default function SearchFab() {
                                       📦 {p.title}
                                       {p.availableSeats != null && (
                                         <span style={{ color: "#444", fontSize: 10, marginLeft: 6 }}>
-                                          ({p.availableSeats} ที่นั่ง)
+                                          ({p.availableSeats} {t("seats")})
                                         </span>
                                       )}
                                     </span>
@@ -395,11 +426,13 @@ export default function SearchFab() {
 
 // ── Liveaboard results: group by boat, show date ranges + min price ─────────
 function LiveaboardResults({
-  results, openResult,
+  results, openResult, lang,
 }: {
   results: Result[];
   openResult: (r: Result) => void;
+  lang: L;
 }) {
+  const t = (key: keyof typeof T) => T[key][lang] ?? T[key].en;
   // Group schedules by boat id; within each boat, dedupe by schedule id.
   const groups = new Map<string, { boat: Result["boat"]; schedules: Result[] }>();
   for (const r of results) {
@@ -412,7 +445,7 @@ function LiveaboardResults({
   return (
     <>
       <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "16px 0 10px" }}>
-        พบ {boats.length} เรือ · {results.length} รอบ
+        {t("foundBoats")} {boats.length} {t("boats")} · {results.length} {t("trips")}
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {boats.map(({ boat, schedules }) => {
@@ -434,11 +467,11 @@ function LiveaboardResults({
                     <p style={{ fontSize: 10, color: "#3b82f6", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{boat.area}</p>
                   )}
                   <p style={{ fontSize: 13, fontWeight: 700, color: "#e5e5e5", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{boat.title}</p>
-                  <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{schedules.length} รอบในเดือนนี้</p>
+                  <p style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{schedules.length} {t("tripsThisMonth")}</p>
                 </div>
                 {boatMin > 0 && (
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>เริ่ม</p>
+                    <p style={{ fontSize: 9, color: "#444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("startsFrom")}</p>
                     <p style={{ fontSize: 14, fontWeight: 900, color: "#60a5fa" }}>฿{boatMin.toLocaleString()}</p>
                   </div>
                 )}
@@ -460,7 +493,7 @@ function LiveaboardResults({
                       </svg>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ display: "block", fontSize: 12, color: "#ddd", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {fmtDate(s.departureDate)}{s.returnDate ? ` → ${fmtDate(s.returnDate)}` : ""}
+                          {fmtDate(s.departureDate, lang)}{s.returnDate ? ` → ${fmtDate(s.returnDate, lang)}` : ""}
                         </span>
                         {s.scheduleTitle && (
                           <span style={{ display: "block", fontSize: 11, color: "#666", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
