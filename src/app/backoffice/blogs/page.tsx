@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import BlogPreviewDrawer from "./BlogPreviewDrawer";
 import ImageEditorField from "@/components/PhotoEditor/ImageEditorField";
 import PhotoEditorComp from "@/components/PhotoEditor";
 import { buildMjPrompt } from "@/lib/mjPrompt";
@@ -491,6 +492,8 @@ export default function BlogsPage() {
   const [activeLang, setActiveLang] = useState<LangKey>("en");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [slugOverrides, setSlugOverrides] = useState<Set<LangKey>>(new Set());
+  const [previewBlogId, setPreviewBlogId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Load blogs
   const loadBlogs = useCallback(async () => {
@@ -644,7 +647,7 @@ export default function BlogsPage() {
       {/* Table */}
       <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as "touch" }}>
         <div style={{ background: "#0e0e0e", borderRadius: 10, border: "1px solid #1a1a1a", overflow: "hidden", minWidth: 460 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 80px", padding: "10px 16px", borderBottom: "1px solid #181818", fontSize: 10, fontWeight: 700, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 130px", padding: "10px 16px", borderBottom: "1px solid #181818", fontSize: 10, fontWeight: 700, color: "#2a2a2a", textTransform: "uppercase", letterSpacing: "0.1em" }}>
             <span>บทความ</span><span>ภาษา</span><span>สถานะ</span><span style={{ textAlign: "right" }}>Action</span>
           </div>
           {loading ? (
@@ -655,7 +658,7 @@ export default function BlogsPage() {
             const title = b.translations.find((t) => t.lang === "th")?.title ?? b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "(ไม่มีชื่อ)";
             const date = new Date(b.updatedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" });
             return (
-              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 80px", padding: "12px 16px", borderBottom: i < filtered.length - 1 ? "1px solid #161616" : "none", alignItems: "center", fontSize: 13 }}>
+              <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 130px", padding: "12px 16px", borderBottom: i < filtered.length - 1 ? "1px solid #161616" : "none", alignItems: "center", fontSize: 13 }}>
                 <div style={{ paddingRight: 12, overflow: "hidden" }}>
                   <p style={{ fontWeight: 500, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{title}</p>
                   <p style={{ fontSize: 10, color: "#2a2a2a" }}>{date}</p>
@@ -681,6 +684,9 @@ export default function BlogsPage() {
                   })()}
                 </span>
                 <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                  <button onClick={() => { setPreviewBlogId(b.id); setPreviewOpen(true); }}
+                    title="ดูพรีวิว"
+                    style={{ fontSize: 13, padding: "3px 7px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#888", cursor: "pointer", lineHeight: 1 }}>👁</button>
                   <button onClick={() => openEdit(b)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#666", cursor: "pointer" }}>แก้ไข</button>
                   <button onClick={() => handleDelete(b.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "#ef4444", cursor: "pointer" }}>ลบ</button>
                 </div>
@@ -881,6 +887,13 @@ export default function BlogsPage() {
           </div>
         </div>
       </>
+
+      <BlogPreviewDrawer
+        open={previewOpen}
+        blogId={previewBlogId}
+        onClose={() => setPreviewOpen(false)}
+        onStatusChanged={() => loadBlogs()}
+      />
     </div>
   );
 }
