@@ -33,6 +33,17 @@ function readBrowserId(key: string): string | null {
   try { return window.localStorage.getItem(key); } catch { return null; }
 }
 
+// Mirrors slots.ts TripCategory enum — picking a schedule from a card
+// implies the user wants this category, so we set it eagerly. DIVE_RESORT
+// rolls into "liveaboard" because that's the closest planning bucket.
+const TYPE_TO_CATEGORY: Record<string, "liveaboard" | "daytrip" | "snorkeling" | "land_tour"> = {
+  DAYTRIP:     "daytrip",
+  SNORKELING:  "snorkeling",
+  LIVEABOARD:  "liveaboard",
+  DIVE_RESORT: "liveaboard",
+  LAND_TOUR:   "land_tour",
+};
+
 const WELCOME_BASE: Record<string, string> = {
   th: "สวัสดีครับ! ผมเป็นผู้ช่วยหาทริปดำน้ำในประเทศไทย\n\nผมสามารถ:\n- **แนะนำทริป** เรือดำน้ำ, Liveaboard และ Day Trip\n- **เปรียบเทียบเรือ** ให้เลือกง่ายขึ้น\n- **ตอบคำถามเรื่องดำน้ำ** ฤดูกาล, cert, จุดดำน้ำ\n\nสนใจทริปไหน กด **+** เพิ่มเข้า My Plan ได้เลย!",
   en: "Hi! I'm your AI dive trip advisor for Thailand.\n\nI can:\n- **Recommend trips** — boats, liveaboards, and dive sites\n- **Compare boats** side by side\n- **Answer diving questions** — seasons, certs, dive spots\n\nLike a trip? Tap **+** to add it to your plan!",
@@ -812,7 +823,25 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 // — NOT generic packing tips. Phrasing matters: ask "what's
                 // missing for the plan?" not "what should I prepare?".
                 const dt = new Date(info.scheduleDate).toLocaleDateString(bcp47Locale(lang), { day: "numeric", month: "short", year: "numeric" });
-                sendMessage(addedToMyPlanMessage(lang, info.boatTitle, dt));
+                // Include the boat type so the AI sees the category and skips
+                // the "what kind of trip?" $$ASK$$ — picking from a daytrip
+                // card already implies daytrip. Also write the inferred
+                // category to the slot session in parallel so the server-side
+                // RAG can pre-filter even if the LLM forgets to extract.
+                sendMessage(addedToMyPlanMessage(lang, info.boatTitle, dt, info.type));
+                const cat = TYPE_TO_CATEGORY[info.type];
+                if (cat && !slots.categories?.includes(cat)) {
+                  const nextCategories = [...(slots.categories || []), cat];
+                  setSlots(prev => ({ ...prev, categories: nextCategories }));
+                  const deviceId = readBrowserId("sd_vid");
+                  if (deviceId) {
+                    fetch("/api/ark-ai/session", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ deviceId, set: { categories: nextCategories } }),
+                    }).catch(() => {});
+                  }
+                }
               }}
             />
           ))}

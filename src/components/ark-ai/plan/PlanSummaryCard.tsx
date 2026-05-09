@@ -21,6 +21,8 @@ type Props = {
   headcountAdults?: number;
   headcountKids?: number;
   lang: string;
+  canEdit?: boolean;
+  onRemoveTrip?: (originalIdx: number) => void;
 };
 
 const T: Record<string, Record<string, string>> = {
@@ -83,7 +85,7 @@ function extractMeetingPoint(itinerary: string, route: string): string | null {
   return null;
 }
 
-export default function PlanSummaryCard({ trips, logistics, headcountAdults, headcountKids, lang }: Props) {
+export default function PlanSummaryCard({ trips, logistics, headcountAdults, headcountKids, lang, canEdit, onRemoveTrip }: Props) {
   // Persist collapsed state per session — collapsed by default so the user
   // sees the timeline first when opening the plan.
   const [open, setOpen] = useState<boolean>(() => {
@@ -198,6 +200,23 @@ export default function PlanSummaryCard({ trips, logistics, headcountAdults, hea
                         </p>
                         <p style={{ fontSize: 9, color: "var(--plan-fg-subtle, #888)", margin: 0 }}>{L("perPerson", lang)}</p>
                       </div>
+                    )}
+                    {canEdit && onRemoveTrip && (
+                      <button
+                        onClick={() => onRemoveTrip(i)}
+                        aria-label="Remove trip"
+                        style={{
+                          width: 24, height: 24, borderRadius: 6,
+                          border: "1px solid var(--plan-border, rgba(255,255,255,0.12))",
+                          background: "transparent",
+                          color: "var(--plan-fg-subtle, #888)",
+                          fontSize: 12, cursor: "pointer",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        ✕
+                      </button>
                     )}
                   </li>
                 );

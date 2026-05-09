@@ -340,18 +340,37 @@ const PICK_DATE_LABEL_TPL: Record<ArkLang, (title: string, date: string) => stri
 export const pickDateLabel = (lang: string | undefined, title: string, date: string) =>
   PICK_DATE_LABEL_TPL[normalizeArkLang(lang)](title, date);
 
-const ADDED_TO_MYPLAN_TPL: Record<ArkLang, (boat: string, date: string) => string> = {
-  th: (b, d) => `เพิ่ม ${b} (${d}) เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`,
-  en: (b, d) => `Added ${b} (${d}) to MyPlan — what else is missing in the plan?`,
-  cn: (b, d) => `已将 ${b} (${d}) 添加到 MyPlan — 计划中还缺少什么信息?`,
-  ja: (b, d) => `${b} (${d}) を MyPlan に追加しました — プランで他に必要な情報は何ですか?`,
-  ko: (b, d) => `${b} (${d})을 MyPlan에 추가했습니다 — 플랜에 더 필요한 정보가 있나요?`,
-  de: (b, d) => `${b} (${d}) zum MyPlan hinzugefügt — was fehlt noch im Plan?`,
-  fr: (b, d) => `${b} (${d}) ajouté au MyPlan — qu'est-ce qui manque dans le plan ?`,
-  ru: (b, d) => `${b} (${d}) добавлено в MyPlan — чего ещё не хватает в плане?`,
+// Trip-type names emitted into the auto-message after a schedule pick. The
+// AI uses these as the category cue (system prompt: "Skip the category
+// $$ASK$$ when the message clearly names a category"). Keep the ALL-CAPS
+// boatType label inside parentheses so the LLM can pattern-match regardless
+// of language.
+const TRIP_TYPE_LABEL_TPL: Record<ArkLang, Record<string, string>> = {
+  th: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  en: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  cn: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  ja: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  ko: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  de: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  fr: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
+  ru: { DAYTRIP: "Day Trip", SNORKELING: "Snorkeling", LIVEABOARD: "Liveaboard", DIVE_RESORT: "Dive Resort", FREEDIVE: "Freedive", LAND_TOUR: "Land Tour" },
 };
-export const addedToMyPlanMessage = (lang: string | undefined, boat: string, date: string) =>
-  ADDED_TO_MYPLAN_TPL[normalizeArkLang(lang)](boat, date);
+
+const ADDED_TO_MYPLAN_TPL: Record<ArkLang, (boat: string, date: string, typeLabel: string) => string> = {
+  th: (b, d, t) => `เพิ่ม ${b} ${t ? `(${t}, ${d})` : `(${d})`} เข้า MyPlan แล้ว — ใน plan ยังขาดข้อมูลอะไรอีกครับ?`,
+  en: (b, d, t) => `Added ${b} ${t ? `(${t}, ${d})` : `(${d})`} to MyPlan — what else is missing in the plan?`,
+  cn: (b, d, t) => `已将 ${b} ${t ? `(${t}, ${d})` : `(${d})`} 添加到 MyPlan — 计划中还缺少什么信息?`,
+  ja: (b, d, t) => `${b} ${t ? `(${t}, ${d})` : `(${d})`} を MyPlan に追加しました — プランで他に必要な情報は何ですか?`,
+  ko: (b, d, t) => `${b} ${t ? `(${t}, ${d})` : `(${d})`}을 MyPlan에 추가했습니다 — 플랜에 더 필요한 정보가 있나요?`,
+  de: (b, d, t) => `${b} ${t ? `(${t}, ${d})` : `(${d})`} zum MyPlan hinzugefügt — was fehlt noch im Plan?`,
+  fr: (b, d, t) => `${b} ${t ? `(${t}, ${d})` : `(${d})`} ajouté au MyPlan — qu'est-ce qui manque dans le plan ?`,
+  ru: (b, d, t) => `${b} ${t ? `(${t}, ${d})` : `(${d})`} добавлено в MyPlan — чего ещё не хватает в плане?`,
+};
+export const addedToMyPlanMessage = (lang: string | undefined, boat: string, date: string, type?: string) => {
+  const l = normalizeArkLang(lang);
+  const typeLabel = type ? (TRIP_TYPE_LABEL_TPL[l][type] || "") : "";
+  return ADDED_TO_MYPLAN_TPL[l](boat, date, typeLabel);
+};
 
 const NOTIF_LOW_SEATS_BODY_TPL: Record<ArkLang, (seats: number) => string> = {
   th: (n) => `เหลือเพียง ${n} ที่ — รีบ confirm ก่อนเต็ม`,

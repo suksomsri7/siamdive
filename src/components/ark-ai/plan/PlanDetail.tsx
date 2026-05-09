@@ -360,6 +360,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       headcountAdults={slots?.headcount?.adults}
                       headcountKids={slots?.headcount?.kids}
                       lang={lang}
+                      canEdit={canEdit}
+                      onRemoveTrip={(idx) => {
+                        removeTripByIndex(planId, idx);
+                        handleTripRemoved();
+                      }}
                     />
                     {trips.length >= 2 && (
                       <div style={{ marginBottom: 12 }}>
