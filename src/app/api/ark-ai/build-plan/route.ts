@@ -30,11 +30,23 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "deviceId required" }, { status: 400 });
   }
 
-  const session = await prisma.aiPlanSession.findFirst({
+  // The chat route's slot write is fire-and-forget — the client may receive
+  // `complete: true` and click "Build my plan" before the DB row is updated.
+  // Retry once after a short wait so that race doesn't surface as "ขอข้อมูล
+  // เพิ่มอีกนิด" when the user already provided everything.
+  let session = await prisma.aiPlanSession.findFirst({
     where: { deviceId, status: "active", expiresAt: { gt: new Date() } },
     orderBy: { lastActiveAt: "desc" },
   });
-  const slots = (session?.slots && typeof session.slots === "object" ? session.slots : {}) as Slots;
+  let slots = (session?.slots && typeof session.slots === "object" ? session.slots : {}) as Slots;
+  if (!isComplete(slots)) {
+    await new Promise((r) => setTimeout(r, 400));
+    session = await prisma.aiPlanSession.findFirst({
+      where: { deviceId, status: "active", expiresAt: { gt: new Date() } },
+      orderBy: { lastActiveAt: "desc" },
+    });
+    slots = (session?.slots && typeof session.slots === "object" ? session.slots : {}) as Slots;
+  }
   if (!isComplete(slots)) {
     return Response.json({ error: "incomplete_slots", slots }, { status: 400 });
   }

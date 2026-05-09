@@ -398,7 +398,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                 lineHeight: 1.5,
               }}>
                 {(filterDate || filterMonth)
-                  ? (isTh
+                  ? (lang === "th"
                       ? "ไม่มีรอบในวันที่เลือก ลองเปลี่ยนวันด้านบน"
                       : "No trips on this date — try a different date above")
                   : L("noUpcomingSchedules")}
