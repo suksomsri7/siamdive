@@ -7,11 +7,13 @@ import SuggestionChips from "./SuggestionChips";
 import SlotTrackerChips from "./SlotTrackerChips";
 import TemplatePicker from "./TemplatePicker";
 import CompareSheet from "./CompareSheet";
+import PlanRouteSheet from "./PlanRouteSheet";
 import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
-import { addTrip, addTripToPlan, createPlan, getPlans, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
+import { addTrip, addTripToPlan, createPlan, getPlans, switchPlan, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
 import { readPendingPicks, clearPendingPicks, type PendingPick } from "@/lib/pending-picks";
+import { rankPlans, type PlanScore } from "@/lib/plan-routing";
 import {
   trackChatOpen,
   trackChatMessage,
@@ -208,6 +210,14 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // null = no animation in flight. The integer is the current step (0-based).
   const [buildStep, setBuildStep] = useState<number | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  // PlanRouteSheet state — open with picks to commit + ranked plans, then
+  // resolve via the routeSheetResolver callback so flushPicksToPlan can
+  // await the user's choice.
+  const [routeSheet, setRouteSheet] = useState<{
+    picks: PendingPick[];
+    ranked: PlanScore[];
+    resolve: (choice: { type: "existing"; planId: string } | { type: "new" } | null) => void;
+  } | null>(null);
   const [sessionFeedbackPrompt, setSessionFeedbackPrompt] = useState(false);
   const [sessionFeedbackReason, setSessionFeedbackReason] = useState("");
   const sessionFeedbackAskedRef = useRef(false);
@@ -593,38 +603,139 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // Flush pendingPicks → plan-store with a step animation. Used by the
   // fast path; the slow server-build path runs the animation in parallel
   // with the actual /api/ark-ai/build-plan request.
+  //
+  // Plan routing tiers:
+  //   0 plans  → silent create + toast "✓ สร้าง plan แล้ว"
+  //   1 plan   → silent add to that plan + toast with "เปลี่ยน plan" action
+  //   2+ plans → open PlanRouteSheet, await user choice (recommended,
+  //              another existing plan, or "+ create new")
   const flushPicksToPlan = useCallback(async (picks: PendingPick[]): Promise<string | null> => {
     if (picks.length === 0) return null;
+
+    let plans = getPlans();
+
+    // Resolve routing decision BEFORE the build animation so the sheet
+    // doesn't pop after the spinner is half-done. Sheet only opens when 2+
+    // existing plans make the choice ambiguous.
+    let routingChoice: { type: "existing"; planId: string } | { type: "new" };
+    if (plans.length === 0) {
+      routingChoice = { type: "new" };
+    } else if (plans.length === 1) {
+      routingChoice = { type: "existing", planId: plans[0].id };
+    } else {
+      const ranked = rankPlans(plans, picks);
+      const userChoice = await new Promise<{ type: "existing"; planId: string } | { type: "new" } | null>(
+        (resolve) => setRouteSheet({ picks, ranked, resolve }),
+      );
+      if (!userChoice) return null; // user dismissed the sheet
+      routingChoice = userChoice;
+    }
+
     const steps = buildSteps();
     for (let i = 0; i < steps.length; i++) {
       setBuildStep(i);
       await new Promise(r => setTimeout(r, i === steps.length - 1 ? 300 : 320));
     }
-    let plans = getPlans();
+
     let planId: string | null = null;
-    if (plans.length === 0) {
-      const first = picks[0];
-      const plan = createPlan(suggestPlanName(first));
+    let createdNewPlan = false;
+    if (routingChoice.type === "new") {
+      const plan = createPlan(suggestPlanName(picks[0]));
       planId = plan.id;
+      createdNewPlan = true;
     } else {
-      planId = plans[0].id;
+      planId = routingChoice.planId;
+      switchPlan(planId); // make user's choice the active plan for next time
     }
+
     if (planId) {
-      for (const pick of picks) {
-        addTripToPlan(planId, pick);
-      }
+      for (const pick of picks) addTripToPlan(planId, pick);
     } else {
-      // Fallback path — `createPlan` should always succeed, but defend
-      // against a corrupted localStorage by writing through `addTrip`,
-      // which auto-creates the active plan.
       for (const pick of picks) addTrip(pick);
       planId = (getPlans()[0] || null)?.id || null;
     }
+
     clearPendingPicks();
     setPendingPicks([]);
     setBuildStep(null);
+
+    // Toast: only fire for 0/1-plan flows. For 2+ the sheet itself was the
+    // confirmation surface — adding a toast on top is noise.
+    plans = getPlans();
+    const targetPlan = plans.find(p => p.id === planId) || null;
+    if (plans.length <= 1 || createdNewPlan) {
+      const message = createdNewPlan
+        ? `✓ สร้าง plan "${targetPlan?.name || ""}" แล้ว`
+        : `✓ เพิ่ม ${picks.length} ทริปเข้า "${targetPlan?.name || ""}" แล้ว`;
+      // Show "เปลี่ยน plan" undo when the user has *another* plan they could
+      // have routed to. Skips when there's only one plan (nothing to switch
+      // to) and when we just created the very first plan.
+      const otherPlansExist = plans.length > 1;
+      const detail: Record<string, unknown> = { message };
+      if (otherPlansExist && !createdNewPlan) {
+        detail.actionLabel = "เปลี่ยน plan";
+        detail.actionEvent = "ark-ai-undo-plan-route";
+        detail.actionDetail = { picks, prevPlanId: planId };
+      }
+      window.dispatchEvent(new CustomEvent("plan-toast", { detail }));
+    }
     return planId;
   }, [buildSteps]);
+
+  // Undo handler — called when the toast "เปลี่ยน plan" is tapped. Removes
+  // the just-added picks from the destination plan and re-stages them so
+  // the next build cycle can show the route sheet.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail as { picks: PendingPick[]; prevPlanId: string } | undefined;
+      if (!d?.picks?.length || !d.prevPlanId) return;
+      // Remove each just-added trip by matching on (boatId, scheduleId).
+      // We can't undo via index because the user may have raced edits.
+      try {
+        const KEY = "siamdive:plans";
+        const raw = localStorage.getItem(KEY);
+        if (raw) {
+          const plans: UserPlan[] = JSON.parse(raw);
+          const plan = plans.find(p => p.id === d.prevPlanId);
+          if (plan) {
+            for (const pick of d.picks) {
+              const idx = plan.trips.findIndex(t =>
+                t.boatId === pick.boatId &&
+                (t.schedule?.scheduleId || "") === (pick.schedule?.scheduleId || ""),
+              );
+              if (idx >= 0) plan.trips.splice(idx, 1);
+            }
+            localStorage.setItem(KEY, JSON.stringify(plans));
+            window.dispatchEvent(new Event("myplan-change"));
+          }
+        }
+      } catch {}
+      // Re-stage picks + force the route sheet on the next build by setting
+      // up a fake build immediately.
+      const ranked = rankPlans(getPlans(), d.picks);
+      setRouteSheet({
+        picks: d.picks,
+        ranked,
+        resolve: (choice) => {
+          setRouteSheet(null);
+          if (!choice) return;
+          // Inline-flush — same as flushPicksToPlan but without animation.
+          let planId: string;
+          if (choice.type === "new") {
+            const np = createPlan(suggestPlanName(d.picks[0]));
+            planId = np.id;
+          } else {
+            planId = choice.planId;
+            switchPlan(planId);
+          }
+          for (const pick of d.picks) addTripToPlan(planId, pick);
+          window.dispatchEvent(new CustomEvent("plan-toast", { detail: { message: "✓ ย้ายเข้า plan ใหม่แล้ว" } }));
+        },
+      });
+    };
+    window.addEventListener("ark-ai-undo-plan-route", handler);
+    return () => window.removeEventListener("ark-ai-undo-plan-route", handler);
+  }, []);
 
   const buildPlan = useCallback(async () => {
     const deviceId = readBrowserId("sd_vid");
@@ -1008,6 +1119,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           picks={pendingPicks}
           lang={lang}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+      {routeSheet && (
+        <PlanRouteSheet
+          picks={routeSheet.picks}
+          ranked={routeSheet.ranked}
+          lang={lang}
+          onChoose={(choice) => {
+            const r = routeSheet.resolve;
+            setRouteSheet(null);
+            r(choice);
+          }}
+          onClose={() => {
+            const r = routeSheet.resolve;
+            setRouteSheet(null);
+            r(null);
+          }}
         />
       )}
       {sessionFeedbackPrompt && (
