@@ -851,6 +851,11 @@ model UserPlan {
   expiresAt  DateTime?
   source     String     @default("USER") // USER | ARK_AI | TEMPLATE
   aiPrompt   String?
+  // SHA256 of normalized slot fields — set by /api/ark-ai/build-plan so a
+  // repeat build with identical slots resolves to the existing plan instead
+  // of creating a duplicate. NULL for non-AI plans. Partial unique index
+  // (added in migration 20260509) enforces uniqueness only when set.
+  planSignature String?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -864,6 +869,7 @@ model UserPlan {
 
   @@index([userId])
   @@index([shortId])
+  @@index([userId, planSignature])
 }
 
 // ── PlanMember ───────────────────────────────────────────────────────────────

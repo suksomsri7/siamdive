@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isComplete, type Slots } from "@/lib/ark-ai/slots";
+import { buildPlanSignature } from "@/lib/ark-ai/plan-signature";
 import {
   regionMatchesArea,
   dateProximity,
@@ -51,12 +53,66 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "incomplete_slots", slots }, { status: 400 });
   }
 
-  // If the user has already curated trips through the chat picker, that
-  // IS their plan — don't auto-build a competing one. Return the most
-  // recent PLANNING plan with at least one trip and let the client open
-  // it directly. Stops the "MyPlan shows trips I didn't pick" complaint.
+  const planSignature = buildPlanSignature(slots);
+
+  const respondWithExisting = (existingPlan: {
+    id: string;
+    shortId: string;
+    name: string;
+    coverUrl: string | null;
+    trips: Prisma.JsonValue;
+    createdAt: Date;
+    updatedAt: Date;
+  }, reason: "signature" | "active-plan") => {
+    const existingTrips = Array.isArray(existingPlan.trips) ? existingPlan.trips : [];
+    return Response.json({
+      shortId: existingPlan.shortId,
+      name: existingPlan.name,
+      trips: existingTrips,
+      blogs: [],
+      warnings: [],
+      reused: true,
+      reusedReason: reason,
+      redirect: `/${lang}/plan/${existingPlan.shortId}`,
+      plan: {
+        id: existingPlan.id,
+        shortId: existingPlan.shortId,
+        name: existingPlan.name,
+        coverUrl: existingPlan.coverUrl,
+        startDate: null,
+        trips: existingTrips,
+        createdAt: existingPlan.createdAt.toISOString(),
+        updatedAt: existingPlan.updatedAt.toISOString(),
+      },
+    });
+  };
+
+  // Idempotency layer 1 — slot signature.
+  // User-reported bug 2026-05-09: clicking "Build my plan" on a stale chat
+  // thread created 3 duplicate plans. The signature hashes the slot
+  // fingerprint (dates + headcount + region + certs + categories + companions)
+  // so any repeat build with identical intent resolves to the existing plan.
+  // Skip COMPLETED plans — those are finished trips; user planning a similar
+  // future trip should get a fresh plan.
   const existingUser = await prisma.planUser.findUnique({ where: { deviceId } });
   if (existingUser) {
+    const sigMatch = await prisma.userPlan.findFirst({
+      where: {
+        userId: existingUser.id,
+        planSignature,
+        status: { not: "COMPLETED" },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (sigMatch) {
+      return respondWithExisting(sigMatch, "signature");
+    }
+
+    // Layer 2 — legacy "user already curated trips" guard. If they have an
+    // active PLANNING plan with at least one trip but no matching signature
+    // (predates this feature, or slot extraction differs), still reuse it
+    // rather than creating a competing plan. Stops the "MyPlan shows trips I
+    // didn't pick" complaint.
     const existingPlan = await prisma.userPlan.findFirst({
       where: { userId: existingUser.id, status: "PLANNING" },
       orderBy: { updatedAt: "desc" },
@@ -64,25 +120,7 @@ export async function POST(req: NextRequest) {
     if (existingPlan) {
       const existingTrips = Array.isArray(existingPlan.trips) ? existingPlan.trips : [];
       if (existingTrips.length > 0) {
-        return Response.json({
-          shortId: existingPlan.shortId,
-          name: existingPlan.name,
-          trips: existingTrips,
-          blogs: [],
-          warnings: [],
-          reused: true,
-          redirect: `/${lang}/plan/${existingPlan.shortId}`,
-          plan: {
-            id: existingPlan.id,
-            shortId: existingPlan.shortId,
-            name: existingPlan.name,
-            coverUrl: existingPlan.coverUrl,
-            startDate: null,
-            trips: existingTrips,
-            createdAt: existingPlan.createdAt.toISOString(),
-            updatedAt: existingPlan.updatedAt.toISOString(),
-          },
-        });
+        return respondWithExisting(existingPlan, "active-plan");
       }
     }
   }
@@ -336,20 +374,42 @@ export async function POST(req: NextRequest) {
   }
 
   const planName = buildPlanName(slots, lang);
-  const plan = await prisma.userPlan.create({
-    data: {
-      userId: user.id,
-      name: planName,
-      coverUrl: trips[0]?.cover ?? null,
-      trips: trips as never,
-      source: "ARK_AI",
-      aiPrompt: JSON.stringify(slots),
-      status: "PLANNING",
-    },
-  });
+  let plan;
+  try {
+    plan = await prisma.userPlan.create({
+      data: {
+        userId: user.id,
+        name: planName,
+        coverUrl: trips[0]?.cover ?? null,
+        trips: trips as never,
+        source: "ARK_AI",
+        aiPrompt: JSON.stringify(slots),
+        planSignature,
+        status: "PLANNING",
+      },
+    });
+  } catch (err) {
+    // Race: a concurrent request with the same slot signature won. Partial
+    // unique index ("UserPlan_userId_planSignature_unique") raised P2002.
+    // Re-fetch the winner and return it as reused — the client UX is
+    // identical to a normal idempotent reuse.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const winner = await prisma.userPlan.findFirst({
+        where: { userId: user.id, planSignature },
+        orderBy: { createdAt: "asc" },
+      });
+      if (winner) return respondWithExisting(winner, "signature");
+    }
+    throw err;
+  }
 
+  // Await the session-complete update so concurrent triple-clicks (which
+  // all read the active session before any of them commits) don't all
+  // sail past the `status: "active"` filter and re-enter the create path.
+  // Signature dedup catches the race anyway, but completing the session
+  // first means subsequent clicks short-circuit at the slot read.
   if (session) {
-    prisma.aiPlanSession
+    await prisma.aiPlanSession
       .update({ where: { id: session.id }, data: { status: "completed" } })
       .catch(err => console.error("[ark-ai/build-plan] session complete failed:", err));
   }

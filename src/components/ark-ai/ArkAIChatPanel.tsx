@@ -22,7 +22,7 @@ import {
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
-import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage } from "@/lib/ark-ai/i18n";
+import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel } from "@/lib/ark-ai/i18n";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -778,10 +778,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           return;
         }
         if (!res.ok) throw new Error(`build-plan ${res.status}`);
-        const data = await res.json() as { plan?: UserPlan; redirect?: string };
+        const data = await res.json() as { plan?: UserPlan; redirect?: string; reused?: boolean };
         if (data.plan?.id) {
           upsertServerPlan(data.plan);
           window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId: data.plan.id } }));
+          // Layer 2 — surface "already exists" so a stale-chat repeat click
+          // doesn't look like a silent no-op. Toast carries an "Open Plan"
+          // CTA that re-opens MyPlan on the existing plan.
+          if (data.reused && data.plan.name) {
+            window.dispatchEvent(new CustomEvent("plan-toast", {
+              detail: {
+                message: planReusedExistingLabel(lang, data.plan.name),
+                actionLabel: openPlanLabel(lang),
+                actionEvent: "open-myplan",
+                actionDetail: { planId: data.plan!.id },
+              },
+            }));
+          }
         } else if (data.redirect) {
           window.location.href = data.redirect;
         } else {

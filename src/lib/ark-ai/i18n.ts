@@ -458,3 +458,29 @@ const PLAN_DELETE_PERMANENT_TPL: Record<ArkLang, (name: string) => string> = {
 };
 export const planDeletePermanentLabel = (lang: string | undefined, name: string) =>
   PLAN_DELETE_PERMANENT_TPL[normalizeArkLang(lang)](name);
+
+const PLAN_REUSED_EXISTING_TPL: Record<ArkLang, (n: string) => string> = {
+  th: (n) => `ทริปนี้อยู่ใน "${n}" แล้ว`,
+  en: (n) => `This trip is already in "${n}"`,
+  cn: (n) => `此行程已在 "${n}" 中`,
+  ja: (n) => `このツアーは既に "${n}" に含まれています`,
+  ko: (n) => `이 투어는 이미 "${n}"에 있습니다`,
+  de: (n) => `Diese Tour ist bereits in "${n}"`,
+  fr: (n) => `Ce voyage est déjà dans "${n}"`,
+  ru: (n) => `Этот тур уже есть в "${n}"`,
+};
+export const planReusedExistingLabel = (lang: string | undefined, name: string) =>
+  PLAN_REUSED_EXISTING_TPL[normalizeArkLang(lang)](name);
+
+const OPEN_PLAN_TPL: Record<ArkLang, string> = {
+  th: "เปิด Plan",
+  en: "Open Plan",
+  cn: "打开计划",
+  ja: "プランを開く",
+  ko: "플랜 열기",
+  de: "Plan öffnen",
+  fr: "Ouvrir le plan",
+  ru: "Открыть план",
+};
+export const openPlanLabel = (lang: string | undefined) =>
+  OPEN_PLAN_TPL[normalizeArkLang(lang)];
