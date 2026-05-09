@@ -101,7 +101,9 @@ function triggerBackgroundCompute(vid: string, lang: string) {
 }
 
 async function returnCachedResults(boatIds: string[], lang: string) {
-  if (boatIds.length === 0) return NextResponse.json([]);
+  // Empty cache (AI returned nothing): fall back to popular so the row
+  // doesn't disappear silently.
+  if (boatIds.length === 0) return returnPopularFallback(lang);
 
   // Get 4 from AI cache + 1 random popular unseen
   const aiBoatIds = boatIds.slice(0, 4);
@@ -228,7 +230,9 @@ async function returnRuleBased(vid: string, lang: string, thirtyDaysAgo: Date) {
     LIMIT 20
   `;
 
-  if (viewEvents.length === 0) return NextResponse.json([]);
+  // No prior browsing — fall through to a generic "popular" list so the row
+  // still renders for first-time visitors.
+  if (viewEvents.length === 0) return returnPopularFallback(lang);
 
   const viewedBoatIds = viewEvents.map((e) => e.entityId);
 
@@ -300,6 +304,11 @@ async function returnRuleBased(vid: string, lang: string, thirtyDaysAgo: Date) {
   });
   scored.sort((a, b) => b.score - a.score);
 
+  // The user has already viewed every boat that matches their preferred type
+  // or area — candidates is empty. Fall back to popular boats overall so the
+  // row keeps rendering instead of disappearing.
+  if (scored.length === 0) return returnPopularFallback(lang);
+
   const pick = <T extends { lang: string }>(arr: T[]) =>
     arr.find((t) => t.lang === lang) || arr.find((t) => t.lang === "en") || arr[0];
 
@@ -326,5 +335,47 @@ async function returnRuleBased(vid: string, lang: string, thirtyDaysAgo: Date) {
 
   return NextResponse.json(result, {
     headers: { "Cache-Control": "private, max-age=300" },
+  });
+}
+
+// Last-resort fallback: top boats by TRIP_VIEW in the last 30 days, regardless
+// of who viewed them. Keeps "Recommended for You" populated for new visitors
+// and for power-users who have already seen the entire fleet.
+async function returnPopularFallback(lang: string) {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const popular = await prisma.$queryRaw<Array<{ entityId: string }>>`
+    SELECT e."entityId"
+    FROM "AnalyticsEvent" e
+    JOIN "AnalyticsSession" s ON s.id = e."sessionId"
+    JOIN "Boat" b ON b.id = e."entityId"
+    WHERE e.type = 'TRIP_VIEW'
+      AND e."entityType" = 'BOAT'
+      AND e."entityId" IS NOT NULL
+      AND e.ts >= ${thirtyDaysAgo}
+      AND s."isBot" = FALSE
+      AND b.status = 'PUBLISHED'
+    GROUP BY e."entityId"
+    ORDER BY COUNT(*) DESC
+    LIMIT 10
+  `;
+
+  // Analytics empty (cold catalog) — fall back further to newest published
+  // boats so the row still has cards.
+  let boatIds = popular.map((p) => p.entityId);
+  if (boatIds.length === 0) {
+    const recent = await prisma.boat.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true },
+    });
+    boatIds = recent.map((b) => b.id);
+  }
+
+  if (boatIds.length === 0) return NextResponse.json([]);
+
+  const result = await boatIdsToResponse(boatIds, lang);
+  return NextResponse.json(result, {
+    headers: { "Cache-Control": "public, max-age=300" },
   });
 }
