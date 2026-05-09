@@ -142,10 +142,15 @@ export default function Navbar() {
       >
         <nav style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-          {/* Logo */}
-          <Link href={`/${lang}`} style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em", flexShrink: 0, zIndex: 1 }}>
-            <span style={{ color: "#fff" }}>SIAM</span>
-            <span style={{ color: "#3b82f6" }}>DIVE</span>
+          {/* Logo — same mark as Ark AI Fab. Icon-only, scaled for the navbar. */}
+          <Link href={`/${lang}`} aria-label="SIAMDIVE" style={{ display: "flex", alignItems: "center", flexShrink: 0, zIndex: 1, color: "#3b82f6" }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8" opacity="0.5"/>
+              <path d="M4 13c2-2.5 4-2.5 6 0s4 2.5 6 0s4-2.5 6 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+              <circle cx="8" cy="8" r="1.5" fill="currentColor" opacity="0.7"/>
+              <circle cx="16" cy="7" r="1" fill="currentColor" opacity="0.5"/>
+              <circle cx="12" cy="5.5" r="0.8" fill="currentColor" opacity="0.4"/>
+            </svg>
           </Link>
 
           {/* Right: lang dropdown + chat icon */}
