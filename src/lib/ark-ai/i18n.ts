@@ -540,3 +540,114 @@ export const pickConfirmIntro = (lang: string | undefined) =>
   PICK_CONFIRM_INTRO_TPL[normalizeArkLang(lang)];
 export const pickConfirmHeadcountAsk = (lang: string | undefined) =>
   PICK_CONFIRM_HEADCOUNT_TPL[normalizeArkLang(lang)];
+
+// Toast labels emitted from flushPicksToPlan + the route-undo handler.
+// Until 2026-05-09 these were hardcoded Thai, leaving non-Thai users with
+// raw Thai strings on the success path (creating their first plan, adding
+// trips to an existing plan, undoing a wrong route).
+const PLAN_CREATED_TOAST_TPL: Record<ArkLang, (name: string) => string> = {
+  th: (n) => `✓ สร้าง plan "${n}" แล้ว`,
+  en: (n) => `✓ Created plan "${n}"`,
+  cn: (n) => `✓ 已创建计划 "${n}"`,
+  ja: (n) => `✓ プラン "${n}" を作成しました`,
+  ko: (n) => `✓ "${n}" 플랜을 만들었어요`,
+  de: (n) => `✓ Plan "${n}" erstellt`,
+  fr: (n) => `✓ Plan "${n}" créé`,
+  ru: (n) => `✓ План "${n}" создан`,
+};
+export const planCreatedToast = (lang: string | undefined, name: string) =>
+  PLAN_CREATED_TOAST_TPL[normalizeArkLang(lang)](name);
+
+const PLAN_ADDED_TRIPS_TOAST_TPL: Record<ArkLang, (n: number, name: string) => string> = {
+  th: (n, name) => `✓ เพิ่ม ${n} ทริปเข้า "${name}" แล้ว`,
+  en: (n, name) => `✓ Added ${n} ${n === 1 ? "trip" : "trips"} to "${name}"`,
+  cn: (n, name) => `✓ 已将 ${n} 个行程添加到 "${name}"`,
+  ja: (n, name) => `✓ ${n} 件のツアーを "${name}" に追加しました`,
+  ko: (n, name) => `✓ ${n}개 트립을 "${name}"에 추가했어요`,
+  de: (n, name) => `✓ ${n} ${n === 1 ? "Trip" : "Trips"} zu "${name}" hinzugefügt`,
+  fr: (n, name) => `✓ ${n} ${n === 1 ? "voyage ajouté" : "voyages ajoutés"} à "${name}"`,
+  ru: (n, name) => `✓ Добавлено ${n} ${n === 1 ? "поездка" : "поездок"} в "${name}"`,
+};
+export const planAddedTripsToast = (lang: string | undefined, n: number, name: string) =>
+  PLAN_ADDED_TRIPS_TOAST_TPL[normalizeArkLang(lang)](n, name);
+
+const SWITCH_PLAN_LABEL_TPL: Record<ArkLang, string> = {
+  th: "เปลี่ยน plan",
+  en: "Switch plan",
+  cn: "切换计划",
+  ja: "プラン変更",
+  ko: "플랜 변경",
+  de: "Plan wechseln",
+  fr: "Changer de plan",
+  ru: "Сменить план",
+};
+export const switchPlanLabel = (lang: string | undefined) =>
+  SWITCH_PLAN_LABEL_TPL[normalizeArkLang(lang)];
+
+const PLAN_MOVED_TO_NEW_TPL: Record<ArkLang, string> = {
+  th: "✓ ย้ายเข้า plan ใหม่แล้ว",
+  en: "✓ Moved to the new plan",
+  cn: "✓ 已移到新计划",
+  ja: "✓ 新しいプランに移動しました",
+  ko: "✓ 새 플랜으로 옮겼어요",
+  de: "✓ In den neuen Plan verschoben",
+  fr: "✓ Déplacé vers le nouveau plan",
+  ru: "✓ Перемещено в новый план",
+};
+export const planMovedToNewToast = (lang: string | undefined) =>
+  PLAN_MOVED_TO_NEW_TPL[normalizeArkLang(lang)];
+
+// Generic "added X to My Plan" toast — fired by the plan-store when a
+// trip is committed without going through the chat (e.g. legacy code paths
+// that didn't pass an explicit message). PlanToast falls back to these.
+const ADDED_TO_MYPLAN_FALLBACK_TPL: Record<ArkLang, (title: string) => string> = {
+  th: (t) => `เพิ่ม "${t}" ลง My Plan แล้ว`,
+  en: (t) => `Added "${t}" to My Plan`,
+  cn: (t) => `已将 "${t}" 添加到 My Plan`,
+  ja: (t) => `"${t}" を My Plan に追加しました`,
+  ko: (t) => `"${t}"을(를) My Plan에 추가했어요`,
+  de: (t) => `"${t}" zu My Plan hinzugefügt`,
+  fr: (t) => `"${t}" ajouté à My Plan`,
+  ru: (t) => `"${t}" добавлено в My Plan`,
+};
+export const addedToMyPlanFallback = (lang: string | undefined, title: string) =>
+  ADDED_TO_MYPLAN_FALLBACK_TPL[normalizeArkLang(lang)](title);
+
+const ADDED_TO_MYPLAN_GENERIC_TPL: Record<ArkLang, string> = {
+  th: "เพิ่มลง My Plan แล้ว",
+  en: "Added to My Plan",
+  cn: "已添加到 My Plan",
+  ja: "My Plan に追加しました",
+  ko: "My Plan에 추가했어요",
+  de: "Zu My Plan hinzugefügt",
+  fr: "Ajouté à My Plan",
+  ru: "Добавлено в My Plan",
+};
+export const addedToMyPlanGeneric = (lang: string | undefined) =>
+  ADDED_TO_MYPLAN_GENERIC_TPL[normalizeArkLang(lang)];
+
+const BOAT_LOAD_ERROR_TPL: Record<ArkLang, string> = {
+  th: "ไม่สามารถโหลดข้อมูลได้",
+  en: "Couldn't load data",
+  cn: "无法加载数据",
+  ja: "データを読み込めませんでした",
+  ko: "데이터를 불러올 수 없어요",
+  de: "Daten konnten nicht geladen werden",
+  fr: "Impossible de charger les données",
+  ru: "Не удалось загрузить данные",
+};
+export const boatLoadErrorLabel = (lang: string | undefined) =>
+  BOAT_LOAD_ERROR_TPL[normalizeArkLang(lang)];
+
+const NO_SCHEDULES_FOR_DATE_TPL: Record<ArkLang, string> = {
+  th: "ไม่มีรอบในวันที่เลือก ลองเปลี่ยนวันด้านบน",
+  en: "No trips on this date — try a different date above",
+  cn: "此日期无行程 — 请在上方选择其他日期",
+  ja: "この日にはツアーがありません — 別の日付を選択してください",
+  ko: "이 날짜에는 일정이 없어요 — 위에서 다른 날짜를 골라보세요",
+  de: "Keine Touren an diesem Datum — bitte oben anderes Datum wählen",
+  fr: "Aucun voyage à cette date — choisissez une autre date ci-dessus",
+  ru: "Нет рейсов на эту дату — выберите другую дату выше",
+};
+export const noSchedulesForDateLabel = (lang: string | undefined) =>
+  NO_SCHEDULES_FOR_DATE_TPL[normalizeArkLang(lang)];

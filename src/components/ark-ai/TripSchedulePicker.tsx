@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { PlanTrip } from "@/lib/plan-store";
 import { addPendingPick } from "@/lib/pending-picks";
 import { updateTripSchedule } from "@/lib/plan-store";
-import { t } from "@/lib/ark-ai/i18n";
+import { t, boatLoadErrorLabel, noSchedulesForDateLabel } from "@/lib/ark-ai/i18n";
 
 type SchedulePackage = {
   packageId: string;
@@ -230,7 +230,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
           </div>
         ) : !boat ? (
           <div style={{ padding: "20px 16px", textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
-            ไม่สามารถโหลดข้อมูลได้
+            {boatLoadErrorLabel(lang)}
           </div>
         ) : (
           <div style={{ padding: "10px 12px 12px" }}>
@@ -372,9 +372,7 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                 lineHeight: 1.5,
               }}>
                 {(filterDate || filterMonth)
-                  ? (lang === "th"
-                      ? "ไม่มีรอบในวันที่เลือก ลองเปลี่ยนวันด้านบน"
-                      : "No trips on this date — try a different date above")
+                  ? noSchedulesForDateLabel(lang)
                   : L("noUpcomingSchedules")}
               </div>
             )}

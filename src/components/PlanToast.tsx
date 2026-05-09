@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useParams } from "next/navigation";
+import { addedToMyPlanFallback, addedToMyPlanGeneric } from "@/lib/ark-ai/i18n";
 
 // plan-toast event payload — the dispatcher decides the message + optional
 // inline action(s). One-action variant is used by undo / "open existing
@@ -20,6 +22,8 @@ type ToastDetail = {
 };
 
 export default function PlanToast() {
+  const params = useParams();
+  const lang = typeof params?.lang === "string" ? params.lang : "th";
   const [detail, setDetail] = useState<ToastDetail | null>(null);
   const [phase, setPhase] = useState<"enter" | "visible" | "exit">("enter");
   const seqRef = useRef(0);
@@ -29,12 +33,15 @@ export default function PlanToast() {
       const d = (e as CustomEvent).detail as ToastDetail | undefined;
       seqRef.current += 1;
       setPhase("enter");
-      setDetail({ ...d, message: d?.message || (d?.title ? `เพิ่ม "${d.title}" ลง My Plan แล้ว` : "เพิ่มลง My Plan แล้ว") });
+      setDetail({
+        ...d,
+        message: d?.message || (d?.title ? addedToMyPlanFallback(lang, d.title) : addedToMyPlanGeneric(lang)),
+      });
       requestAnimationFrame(() => requestAnimationFrame(() => setPhase("visible")));
     };
     window.addEventListener("plan-toast", handler);
     return () => window.removeEventListener("plan-toast", handler);
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     if (!detail) return;

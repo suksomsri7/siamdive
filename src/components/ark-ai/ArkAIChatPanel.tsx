@@ -22,7 +22,7 @@ import {
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
-import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel, planRecentlyDeletedLabel, createNewLabel, pickConfirmIntro, pickConfirmHeadcountAsk } from "@/lib/ark-ai/i18n";
+import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel, planRecentlyDeletedLabel, createNewLabel, pickConfirmIntro, pickConfirmHeadcountAsk, planCreatedToast, planAddedTripsToast, switchPlanLabel, planMovedToNewToast } from "@/lib/ark-ai/i18n";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -806,22 +806,22 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     const targetPlan = plans.find(p => p.id === planId) || null;
     if (plans.length <= 1 || createdNewPlan) {
       const message = createdNewPlan
-        ? `✓ สร้าง plan "${targetPlan?.name || ""}" แล้ว`
-        : `✓ เพิ่ม ${picks.length} ทริปเข้า "${targetPlan?.name || ""}" แล้ว`;
-      // Show "เปลี่ยน plan" undo when the user has *another* plan they could
+        ? planCreatedToast(lang, targetPlan?.name || "")
+        : planAddedTripsToast(lang, picks.length, targetPlan?.name || "");
+      // Show "Switch plan" undo when the user has *another* plan they could
       // have routed to. Skips when there's only one plan (nothing to switch
       // to) and when we just created the very first plan.
       const otherPlansExist = plans.length > 1;
       const detail: Record<string, unknown> = { message };
       if (otherPlansExist && !createdNewPlan) {
-        detail.actionLabel = "เปลี่ยน plan";
+        detail.actionLabel = switchPlanLabel(lang);
         detail.actionEvent = "ark-ai-undo-plan-route";
         detail.actionDetail = { picks, prevPlanId: planId };
       }
       window.dispatchEvent(new CustomEvent("plan-toast", { detail }));
     }
     return planId;
-  }, [buildSteps]);
+  }, [buildSteps, lang]);
 
   // Undo handler — called when the toast "เปลี่ยน plan" is tapped. Removes
   // the just-added picks from the destination plan and re-stages them so
@@ -870,13 +870,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             switchPlan(planId);
           }
           for (const pick of d.picks) addTripToPlan(planId, pick);
-          window.dispatchEvent(new CustomEvent("plan-toast", { detail: { message: "✓ ย้ายเข้า plan ใหม่แล้ว" } }));
+          window.dispatchEvent(new CustomEvent("plan-toast", { detail: { message: planMovedToNewToast(lang) } }));
         },
       });
     };
     window.addEventListener("ark-ai-undo-plan-route", handler);
     return () => window.removeEventListener("ark-ai-undo-plan-route", handler);
-  }, []);
+  }, [lang]);
 
   const buildPlan = useCallback(async (force = false) => {
     const deviceId = readBrowserId("sd_vid");
