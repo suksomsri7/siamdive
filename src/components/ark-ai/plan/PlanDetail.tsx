@@ -6,6 +6,7 @@ import type { Slots } from "@/lib/ark-ai/slots";
 import PlanMembers from "./PlanMembers";
 import EmailGateModal from "./EmailGateModal";
 import PlanTimeline from "./PlanTimeline";
+import PlanSummaryCard from "./PlanSummaryCard";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
@@ -353,6 +354,13 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 ) : (
                   <div>
+                    <PlanSummaryCard
+                      trips={trips}
+                      logistics={plan.logistics}
+                      headcountAdults={slots?.headcount?.adults}
+                      headcountKids={slots?.headcount?.kids}
+                      lang={lang}
+                    />
                     {trips.length >= 2 && (
                       <div style={{ marginBottom: 12 }}>
                         <button
