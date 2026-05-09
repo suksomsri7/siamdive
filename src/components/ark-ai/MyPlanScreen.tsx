@@ -39,9 +39,23 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
     return () => window.removeEventListener("myplan-change", handler);
   }, [open, refresh]);
 
+  // Reset on every open: when initialPlanId is set (chat → specific plan)
+  // jump there; otherwise (BottomNav tap) always land on the list view.
   useEffect(() => {
-    if (open && initialPlanId) setActivePlanId(initialPlanId);
+    if (open) setActivePlanId(initialPlanId ?? null);
   }, [open, initialPlanId]);
+
+  // Direct listener for "open-myplan" so a BottomNav tap *always* snaps to
+  // the list view — even if the drawer was already open on a plan detail
+  // (in which case neither `open` nor `initialPlanId` would have changed).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      setActivePlanId(detail?.planId ?? null);
+    };
+    window.addEventListener("open-myplan", handler);
+    return () => window.removeEventListener("open-myplan", handler);
+  }, []);
 
   // Mirror the parent-supplied buildingPlan flag into local state so we
   // can clear it when the build resolves without bouncing the parent.
