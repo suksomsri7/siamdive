@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
-import { getPlans, addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
+import { addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
 import { addPendingPick } from "@/lib/pending-picks";
 import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
 import DateConflictModal from "./ark-ai/plan/DateConflictModal";
@@ -430,17 +430,6 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const [expandedSched, setExpandedSched] = useState<string | null>(null);
   const [showShare,    setShowShare]     = useState(false);
 
-  const [addedScheduleIds, setAddedScheduleIds] = useState<Set<string>>(() => {
-    if (!trip.boatId) return new Set();
-    const plans = getPlans();
-    const ids = new Set<string>();
-    for (const p of plans) {
-      for (const t of p.trips) {
-        if (t.boatId === trip.boatId && t.schedule?.scheduleId) ids.add(t.schedule.scheduleId);
-      }
-    }
-    return ids;
-  });
   const [pendingPlanTrip, setPendingPlanTrip] = useState<Omit<PlanTrip, "addedAt"> | null>(null);
   const [showPlanSelector, setShowPlanSelector] = useState(false);
   const [planConflicts, setPlanConflicts] = useState<DateConflict[]>([]);
@@ -487,10 +476,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   };
 
   const doAddToPlan = (planId: string, t: Omit<PlanTrip, "addedAt">) => {
-    const added = addTripToPlan(planId, t);
-    if (added) {
-      if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
-    }
+    addTripToPlan(planId, t);
     setPendingPlanTrip(null);
     setPlanTargetId(null);
     setPlanConflicts([]);
@@ -504,7 +490,6 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const handleAddToPlan = (sched: ScheduleData | null) => {
     const t = buildPlanTrip(sched);
     addPendingPick(t);
-    if (t.schedule?.scheduleId) setAddedScheduleIds(prev => new Set(prev).add(t.schedule!.scheduleId));
     onClose();
     setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100);
   };
@@ -897,31 +882,23 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                               </span>
                             )}
                           </button>
-                          {!allFull && (() => {
-                            const isAdded = addedScheduleIds.has(s.id);
-                            return (
-                              <button
-                                onClick={() => !isAdded && handleAddToPlan(s)}
-                                disabled={isAdded}
-                                style={{
-                                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginRight: 12,
-                                  background: isAdded ? "rgba(34,197,94,0.15)" : "linear-gradient(135deg, #3b82f6, #2563eb)",
-                                  border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
-                                  color: isAdded ? "#4ade80" : "#fff",
-                                  cursor: isAdded ? "default" : "pointer",
-                                  display: "flex", alignItems: "center", justifyContent: "center",
-                                  boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
-                                  transition: "all 0.2s ease",
-                                }}
-                              >
-                                {isAdded ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                ) : (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                )}
-                              </button>
-                            );
-                          })()}
+                          {!allFull && (
+                            <button
+                              onClick={() => handleAddToPlan(s)}
+                              style={{
+                                width: 34, height: 34, borderRadius: "50%", flexShrink: 0, marginRight: 12,
+                                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                                border: "1px solid rgba(147,197,253,0.2)",
+                                color: "#fff",
+                                cursor: "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                boxShadow: "0 2px 8px rgba(59,130,246,0.3)",
+                                transition: "all 0.2s ease",
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </button>
+                          )}
                         </div>
 
                         {/* Expanded detail */}

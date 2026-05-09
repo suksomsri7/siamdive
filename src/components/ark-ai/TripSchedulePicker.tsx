@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getPlans, type PlanTrip } from "@/lib/plan-store";
-import { addPendingPick, readPendingPicks } from "@/lib/pending-picks";
+import type { PlanTrip } from "@/lib/plan-store";
+import { addPendingPick } from "@/lib/pending-picks";
 import { updateTripSchedule } from "@/lib/plan-store";
 import { t } from "@/lib/ark-ai/i18n";
 
@@ -98,22 +98,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
     return currentMonthISO();
   });
 
-  // "Already added" badge sources from BOTH committed plans AND staged
-  // pendingPicks — once the user clicks "+" the schedule should look added
-  // even though the plan-store hasn't received it yet (deferred until $$BUILD$$).
-  const [addedScheduleIds, setAddedScheduleIds] = useState<Set<string>>(() => {
-    const ids = new Set<string>();
-    for (const plan of getPlans()) {
-      for (const trip of plan.trips) {
-        if (trip.boatId === boatId && trip.schedule?.scheduleId) ids.add(trip.schedule.scheduleId);
-      }
-    }
-    for (const pick of readPendingPicks()) {
-      if (pick.boatId === boatId && pick.schedule?.scheduleId) ids.add(pick.schedule.scheduleId);
-    }
-    return ids;
-  });
-
   useEffect(() => {
     fetch(`/api/public/boats/${boatId}`)
       .then(r => r.ok ? r.json() : null)
@@ -171,9 +155,6 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
       return;
     }
     addPendingPick(trip);
-    if (trip.schedule?.scheduleId) {
-      setAddedScheduleIds(prev => new Set(prev).add(trip.schedule!.scheduleId));
-    }
     onAdded(buildAddedInfo(trip));
   };
 
@@ -303,15 +284,8 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto", scrollbarWidth: "thin" }}>
                   {schedules.slice(0, 20).map(s => {
                     const allFull = s.status === "FULL" || (s.packages.length > 0 && s.packages.every(p => p.isFull));
-                    const isAdded = addedScheduleIds.has(s.id);
                     const st = pick(s.translations, lang);
                     const minPrice = getScheduleMinPrice(s);
-                    // Only block tapping when the schedule is actually full.
-                    // Already-added schedules keep the ✓ badge but stay
-                    // tappable so the user can route the same trip into
-                    // another plan (or get the "already in plan" toast)
-                    // — disabling the row killed that flow ("กดเพิ่มลง
-                    // plan อื่นไม่ได้").
                     const rowDisabled = allFull;
                     return (
                       <button
@@ -372,22 +346,16 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                           style={{
                             width: 32, height: 32,
                             borderRadius: "50%",
-                            background: isAdded
-                              ? "rgba(34,197,94,0.15)"
-                              : "linear-gradient(135deg, #3b82f6, #2563eb)",
-                            border: isAdded ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(147,197,253,0.2)",
-                            color: isAdded ? "#4ade80" : "#fff",
+                            background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                            border: "1px solid rgba(147,197,253,0.2)",
+                            color: "#fff",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             flexShrink: 0,
                             transition: "all 0.2s ease",
-                            boxShadow: isAdded ? "none" : "0 2px 8px rgba(59,130,246,0.3)",
+                            boxShadow: "0 2px 8px rgba(59,130,246,0.3)",
                           }}
                         >
-                          {isAdded ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          )}
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </div>
                       </button>
                     );

@@ -633,16 +633,53 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   //   1 plan   → silent add to that plan + toast with "เปลี่ยน plan" action
   //   2+ plans → open PlanRouteSheet, await user choice (recommended,
   //              another existing plan, or "+ create new")
-  const flushPicksToPlan = useCallback(async (picks: PendingPick[]): Promise<string | null> => {
+  const flushPicksToPlan = useCallback(async (picks: PendingPick[], force = false): Promise<string | null> => {
     if (picks.length === 0) return null;
 
     let plans = getPlans();
 
+    // Trip-set match check — if the user already has a plan whose trips are
+    // exactly these picks, surface a 2-button toast (Open existing / Create
+    // new) instead of silently merging into it. The "Create new" CTA fires
+    // ark-ai-flush-picks-force which retries with force=true so we skip this
+    // check on the second pass.
+    if (!force) {
+      const picksSig = picks
+        .map(p => `${p.boatId || ""}:${p.schedule?.scheduleId || ""}`)
+        .filter(s => s !== ":")
+        .sort()
+        .join("|");
+      const matchedPlan = picksSig
+        ? plans.find(plan => {
+            const planSig = plan.trips
+              .map(t => `${t.boatId || ""}:${t.schedule?.scheduleId || ""}`)
+              .filter(s => s !== ":")
+              .sort()
+              .join("|");
+            return planSig === picksSig;
+          })
+        : null;
+      if (matchedPlan) {
+        window.dispatchEvent(new CustomEvent("plan-toast", {
+          detail: {
+            message: planReusedExistingLabel(lang, matchedPlan.name),
+            actionLabel: openPlanLabel(lang),
+            actionEvent: "open-myplan",
+            actionDetail: { planId: matchedPlan.id },
+            actionLabel2: createNewLabel(lang),
+            actionEvent2: "ark-ai-flush-picks-force",
+          },
+        }));
+        return null;
+      }
+    }
+
     // Resolve routing decision BEFORE the build animation so the sheet
     // doesn't pop after the spinner is half-done. Sheet only opens when 2+
-    // existing plans make the choice ambiguous.
+    // existing plans make the choice ambiguous. force=true skips the
+    // sheet entirely — the user already chose "create new" via the toast.
     let routingChoice: { type: "existing"; planId: string } | { type: "new" };
-    if (plans.length === 0) {
+    if (force || plans.length === 0) {
       routingChoice = { type: "new" };
     } else if (plans.length === 1) {
       routingChoice = { type: "existing", planId: plans[0].id };
@@ -810,10 +847,14 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         }
       }
 
-      const planId = await flushPicksToPlan(stagedPicks);
+      const planId = await flushPicksToPlan(stagedPicks, force);
+      // null return = toast/sheet was surfaced and we're waiting for the
+      // user to choose. Don't close the chat or reopen MyPlan — the user
+      // hasn't actually committed to anything yet.
+      if (planId === null) return;
       onClose();
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("open-myplan", planId ? { detail: { planId } } : {}));
+        window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId } }));
       }, 80);
       return;
     }
