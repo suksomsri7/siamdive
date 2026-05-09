@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isComplete, type Slots } from "@/lib/ark-ai/slots";
 import { buildPlanSignature } from "@/lib/ark-ai/plan-signature";
