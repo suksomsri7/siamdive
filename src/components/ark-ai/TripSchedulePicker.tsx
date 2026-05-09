@@ -306,7 +306,13 @@ export default function TripSchedulePicker({ boatId, title, slug, type, area, co
                     const isAdded = addedScheduleIds.has(s.id);
                     const st = pick(s.translations, lang);
                     const minPrice = getScheduleMinPrice(s);
-                    const rowDisabled = isAdded || allFull;
+                    // Only block tapping when the schedule is actually full.
+                    // Already-added schedules keep the ✓ badge but stay
+                    // tappable so the user can route the same trip into
+                    // another plan (or get the "already in plan" toast)
+                    // — disabling the row killed that flow ("กดเพิ่มลง
+                    // plan อื่นไม่ได้").
+                    const rowDisabled = allFull;
                     return (
                       <button
                         key={s.id}
