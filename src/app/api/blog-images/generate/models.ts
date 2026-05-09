@@ -76,8 +76,8 @@ const ogAt1920x1008 = (prompt: string) => ({
 export const MODELS: ModelAdapter[] = [
   // ── Google ─────────────────────────────────────────────────────────────
   { id: "nano-banana-pro", endpoint: "fal-ai/nano-banana-pro",
-    label: "Nano Banana Pro (Google)", price: "$0.08",
-    blurb: "Google SOTA — realism + typography. แนะนำสำหรับ NatGeo",
+    label: "Nano Banana Pro (Google)", price: "$0.15",
+    blurb: "Google SOTA — realism + typography. แนะนำสำหรับ NatGeo ($0.30 @ 4K)",
     defaultAspect: "16:9", buildInput: withAspect },
   { id: "nano-banana-2", endpoint: "fal-ai/nano-banana-2",
     label: "Nano Banana 2 (Google)", price: "$0.04",
@@ -98,8 +98,8 @@ export const MODELS: ModelAdapter[] = [
 
   // ── FLUX family ────────────────────────────────────────────────────────
   { id: "flux-2-pro", endpoint: "fal-ai/flux-2-pro",
-    label: "FLUX.2 Pro", price: "$0.06",
-    blurb: "Flux รุ่น 2 — quality สูงสุดของ Flux",
+    label: "FLUX.2 Pro", price: "$0.045",
+    blurb: "Flux รุ่น 2 — $0.03 first MP + $0.015/extra MP (1920×1080 = $0.045)",
     defaultAspect: "16:9", buildInput: withAspect },
   { id: "flux-1.1-ultra-raw", endpoint: "fal-ai/flux-pro/v1.1-ultra",
     label: "FLUX 1.1 Ultra (raw)", price: "$0.06",
@@ -134,8 +134,8 @@ export const MODELS: ModelAdapter[] = [
     defaultAspect: "16:9", buildInput: withWH(2048),
     supportsExactDims: true, buildOgInput: ogAt1920x1008 },
   { id: "seedream-v5-lite", endpoint: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    label: "Seedream 5.0 Lite (ByteDance) ✓", price: "$0.02",
-    blurb: "Seedream รุ่นใหม่สุด (lite) — เร็ว + ถูก (OG perfect)",
+    label: "Seedream 5.0 Lite (ByteDance) ✓", price: "$0.035",
+    blurb: "Seedream รุ่นใหม่สุด — flat $0.035 ทุกขนาดถึง 3K (OG perfect)",
     defaultAspect: "16:9", buildInput: withWH(2048),
     supportsExactDims: true, buildOgInput: ogAt1920x1008 },
 

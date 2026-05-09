@@ -124,6 +124,9 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onPromptChange, onImage
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -178,6 +181,28 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onPromptChange, onImage
     }
   };
 
+  const handleImportUrl = async () => {
+    const url = importUrl.trim();
+    if (!url) { setError("paste a Midjourney image URL"); return; }
+    setImporting(true); setError(null);
+    try {
+      const res = await fetch("/api/blog-images/from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, modelLabel: "midjourney" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      onImageGenerated?.(data.id, data.coverUrl, data.ogUrl);
+      setImportUrl("");
+      setShowImport(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
@@ -208,8 +233,29 @@ function MidjourneyPrompt({ title, excerpt, savedPrompt, onPromptChange, onImage
             style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: "rgba(245,158,11,0.12)", color: "#f59e0b", transition: "all 0.2s" }}>
             Re-generate
           </button>
+          <button onClick={() => setShowImport((v) => !v)}
+            title="วาง URL รูปจาก Midjourney → import ตรง"
+            style={{ fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 16, border: "none", cursor: "pointer", background: showImport ? "rgba(236,72,153,0.22)" : "rgba(236,72,153,0.12)", color: "#f472b6", transition: "all 0.2s" }}>
+            📥 MJ URL
+          </button>
         </div>
       </div>
+      {showImport && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          <input value={importUrl} onChange={(e) => setImportUrl(e.target.value)}
+            onPaste={(e) => {
+              const v = e.clipboardData.getData("text").trim();
+              if (v) { setImportUrl(v); }
+            }}
+            placeholder="https://cdn.midjourney.com/..../0_0.png"
+            disabled={importing}
+            style={{ flex: 1, fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid #2a2a2a", background: "#0d0d0d", color: "#ddd", outline: "none" }} />
+          <button onClick={handleImportUrl} disabled={importing || !importUrl.trim()}
+            style={{ fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 8, border: "none", cursor: importing ? "wait" : "pointer", background: importing ? "rgba(236,72,153,0.08)" : "rgba(236,72,153,0.22)", color: "#f472b6", opacity: importing ? 0.6 : 1 }}>
+            {importing ? "Importing…" : "Import"}
+          </button>
+        </div>
+      )}
       {error && <p style={{ fontSize: 10, color: "#ef4444", marginBottom: 4 }}>❌ {error}</p>}
       <textarea value={prompt}
         onChange={(e) => onPromptChange(e.target.value)}

@@ -120,35 +120,26 @@ export type GenerateBlogCoverResult = {
   model: string;
 };
 
-export async function generateBlogCover(opts: GenerateBlogCoverOptions): Promise<GenerateBlogCoverResult> {
-  if (!FAL_KEY) throw new Error("FAL_KEY not configured");
-  if (!opts.prompt) throw new Error("prompt required");
-
-  const aspectRatio: AspectRatio = opts.aspectRatio && VALID_ASPECTS.has(opts.aspectRatio) ? opts.aspectRatio : "16:9";
-  const model = getModel(opts.modelId);
-  const cleanPrompt = stripMjFlags(opts.prompt);
+// Common pipeline: original buffer (+ optional separate OG source) → BlogImage row
+// (original/cover/og uploaded to Bunny) → optional attach to blog.
+// Used by both fal.ai generation path and external-URL import path (e.g. Midjourney).
+async function processCoverFromBuffer(buf: Buffer, opts: {
+  blogId?: string;
+  attachToBlog?: boolean;
+  ogSourceBuf?: Buffer;
+  modelLabel: string;
+}): Promise<GenerateBlogCoverResult> {
+  const meta = await sharp(buf).metadata();
   const attachToBlog = opts.attachToBlog !== false;
 
-  // 1) Generate via selected model
-  const imageUrl = await generateImage(model, cleanPrompt, aspectRatio);
-
-  // 2) Download
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) throw new Error(`Download failed: ${imgRes.status}`);
-  const buf = Buffer.from(await imgRes.arrayBuffer());
-  const meta = await sharp(buf).metadata();
-
-  // 3) BlogImage row (shell)
   const blogImage = await prisma.blogImage.create({
     data: { originalUrl: "", coverUrl: "", ogUrl: "", width: meta.width ?? 0, height: meta.height ?? 0 },
   });
 
-  // 4) Save original
   const originalFilename = `${blogImage.id}.jpg`;
   await saveFile(`/uploads/originals/${originalFilename}`, buf);
   const originalUrl = `/uploads/originals/${originalFilename}`;
 
-  // 5) Cover (1200w WebP) with watermark
   const rW = meta.width ?? 1200;
   const rH = meta.height ?? 675;
   const aspect = rW / rH;
@@ -160,16 +151,7 @@ export async function generateBlogCover(opts: GenerateBlogCoverOptions): Promise
   const coverBuf = await sharp(coverWithWm).webp({ quality: 85 }).toBuffer();
   await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
-  // 6) OG (1200×630 JPG). Prefer a second-pass 1920×1008 generation when the
-  // model supports it, so the crop-down has zero height loss.
-  let ogSourceBuf = buf;
-  try {
-    const ogUrlFal = await generateOgImage(model, cleanPrompt);
-    if (ogUrlFal) {
-      const ogRes = await fetch(ogUrlFal);
-      if (ogRes.ok) ogSourceBuf = Buffer.from(await ogRes.arrayBuffer());
-    }
-  } catch {}
+  const ogSourceBuf = opts.ogSourceBuf ?? buf;
   const ogFilename = `${blogImage.id}-og.jpg`;
   const ogRawBuf = await sharp(ogSourceBuf)
     .resize(1200, 630, { fit: "cover", position: "centre" })
@@ -207,6 +189,75 @@ export async function generateBlogCover(opts: GenerateBlogCoverOptions): Promise
     width: updated.width,
     height: updated.height,
     attachedToBlog: Boolean(opts.blogId && attachToBlog),
-    model: model.id,
+    model: opts.modelLabel,
   };
+}
+
+export async function generateBlogCover(opts: GenerateBlogCoverOptions): Promise<GenerateBlogCoverResult> {
+  if (!FAL_KEY) throw new Error("FAL_KEY not configured");
+  if (!opts.prompt) throw new Error("prompt required");
+
+  const aspectRatio: AspectRatio = opts.aspectRatio && VALID_ASPECTS.has(opts.aspectRatio) ? opts.aspectRatio : "16:9";
+  const model = getModel(opts.modelId);
+  const cleanPrompt = stripMjFlags(opts.prompt);
+
+  const imageUrl = await generateImage(model, cleanPrompt, aspectRatio);
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new Error(`Download failed: ${imgRes.status}`);
+  const buf = Buffer.from(await imgRes.arrayBuffer());
+
+  let ogSourceBuf: Buffer | undefined;
+  try {
+    const ogUrlFal = await generateOgImage(model, cleanPrompt);
+    if (ogUrlFal) {
+      const ogRes = await fetch(ogUrlFal);
+      if (ogRes.ok) ogSourceBuf = Buffer.from(await ogRes.arrayBuffer());
+    }
+  } catch {}
+
+  return processCoverFromBuffer(buf, {
+    blogId: opts.blogId,
+    attachToBlog: opts.attachToBlog,
+    ogSourceBuf,
+    modelLabel: model.id,
+  });
+}
+
+// External URL import (e.g. Midjourney CDN) — restricted to known image hosts
+// to mitigate SSRF. The cropping/watermark/OG pipeline is identical to fal.ai.
+const ALLOWED_IMPORT_HOSTS = new Set([
+  "cdn.midjourney.com",
+  "s.mj.run",
+  "cdn.discordapp.com",
+  "media.discordapp.net",
+]);
+
+export type CoverFromUrlOptions = {
+  url: string;
+  blogId?: string;
+  attachToBlog?: boolean;
+  modelLabel?: string;
+};
+
+export async function coverFromUrl(opts: CoverFromUrlOptions): Promise<GenerateBlogCoverResult> {
+  let parsed: URL;
+  try { parsed = new URL(opts.url); } catch { throw new Error("Invalid URL"); }
+  if (parsed.protocol !== "https:") throw new Error("URL must be https");
+  if (!ALLOWED_IMPORT_HOSTS.has(parsed.hostname)) {
+    throw new Error(`Host not allowed: ${parsed.hostname}. Allowed: ${[...ALLOWED_IMPORT_HOSTS].join(", ")}`);
+  }
+
+  const res = await fetch(opts.url);
+  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.startsWith("image/")) throw new Error(`Not an image (content-type: ${ct})`);
+  const len = Number(res.headers.get("content-length") ?? 0);
+  if (len > 25 * 1024 * 1024) throw new Error(`Image too large: ${len} bytes (max 25MB)`);
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  return processCoverFromBuffer(buf, {
+    blogId: opts.blogId,
+    attachToBlog: opts.attachToBlog,
+    modelLabel: opts.modelLabel ?? "url-import",
+  });
 }
