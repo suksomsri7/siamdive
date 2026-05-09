@@ -235,14 +235,25 @@ export async function POST(req: NextRequest) {
     .filter(({ score }) => Number.isFinite(score))
     .sort((a, b) => a.score - b.score || a.typeRank - b.typeRank);
 
+  // Daytrip stacking is only useful when the user gave us an actual date
+  // RANGE (e.g. "12-15 พ.ค." → fill the multi-day vacation with one trip
+  // per day). For a single-day request the stacking misfires: the ±3-day
+  // search window includes adjacent days, so the user got
+  // "Hug Ocean 11 May + 12 May + 13 May" when they only asked for 12 May.
+  // User-reported bug 2026-05-09 (multiple rounds): "ทำไมไปสร้าง hug ocean
+  // 3 ทริปติด". Cap to one pick when the request is a single day.
+  const isSingleDay = !dates.to || dates.to === dates.from;
+  const MAX_DAYTRIP_PICKS = isSingleDay ? 1 : 3;
+
   const topPicks: typeof ranked = [];
   for (const cand of ranked) {
     if (topPicks.length === 0) {
       topPicks.push(cand);
       if (cand.s.boat.type === "LIVEABOARD" || cand.s.boat.type === "DIVE_RESORT") break;
+      if (MAX_DAYTRIP_PICKS === 1) break;
       continue;
     }
-    if (topPicks.length >= 3) break;
+    if (topPicks.length >= MAX_DAYTRIP_PICKS) break;
     // Only stack additional DAYTRIPs and only on DISTINCT departure dates,
     // never alongside a liveaboard.
     if (cand.s.boat.type !== "DAYTRIP" && cand.s.boat.type !== "SNORKELING") continue;
