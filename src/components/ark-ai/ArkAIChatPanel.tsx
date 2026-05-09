@@ -257,53 +257,133 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     };
   }, []);
 
-  // When the chat opens with picks already staged (typically because the user
-  // clicked "+" on the boat-detail page just before this), inject the user's
-  // implicit greeting AND a deterministic assistant confirmation locally —
-  // do NOT round-trip through /api/ark-ai/chat for this turn.
+  // Acknowledge staged picks in chat — runs both on cold start (chat opens
+  // with picks already in sessionStorage) AND on every subsequent "+" tap
+  // while the chat is open. Without the second case, picking a schedule
+  // again from the home page just reopened a silent chat — the user said
+  // (2026-05-09) "ระบบเงียบ ... ควรจะคุยและแนะนำ".
   //
-  // Why: when we sent the auto-greet to the LLM, it sometimes denied the
-  // pick existed ("เรายังไม่มีทริปนี้บนเว็บตอนนี้") because the boat name in
-  // free-form Thai didn't fuzzy-match its RAG context strongly enough. The
-  // user just CLICKED + on this exact boat — there is nothing for the model
-  // to "decide". We render a $$TRIP$$ card straight from the staged pick
-  // (cover/area/type all known client-side, no by-ids round-trip needed)
-  // and ask the next slot question. The LLM picks up from the user's reply.
+  // Why a deterministic local injection instead of round-tripping through
+  // /api/ark-ai/chat: the LLM sometimes denied the pick existed
+  // ("เรายังไม่มีทริปนี้บนเว็บตอนนี้") because the boat name in free-form
+  // Thai didn't fuzzy-match its RAG context strongly enough. The user just
+  // CLICKED + on this exact boat — there's nothing for the model to decide.
+  // We render a $$TRIP$$ card straight from the staged pick (cover/area/type
+  // all known client-side) and ask the next slot question; the LLM picks up
+  // from the user's reply.
+  //
+  // Acked-pick tracking persists in sessionStorage so reopening the panel
+  // doesn't double-acknowledge already-rendered picks. We also drop entries
+  // that no longer match a current pick (Build clears pendingPicks → acked
+  // is cleaned up so the next + tap re-acknowledges).
+  const ACK_KEY = "siamdive:ark-ai-acked-picks";
   useEffect(() => {
     if (!open) return;
-    const picks = readPendingPicks();
-    if (picks.length === 0) return;
-    if (messages.length > 0) return;
-    const fmtDateShort = (iso: string) =>
-      new Date(iso + "T00:00:00").toLocaleDateString(
-        bcp47Locale(lang),
-        { day: "numeric", month: "short", year: "2-digit" },
-      );
-    const labels = picks.map(p => {
-      const d = p.schedule?.departureDate?.slice(0, 10);
-      if (!d) return p.title;
-      return pickDateLabel(lang, p.title, fmtDateShort(d));
-    });
-    const userText = pickGreetingMessage(lang, labels.join(", "));
-    const tripMarkers = picks.map(p => {
-      const tripCard = {
-        boatId: p.boatId,
-        title: p.title,
-        type: p.type,
-        area: p.area,
-        slug: p.slug,
-        cover: p.cover,
-        ...(p.schedule?.departureDate ? { departureDate: p.schedule.departureDate } : {}),
-      };
-      return `$$TRIP${JSON.stringify(tripCard)}$$`;
-    }).join("\n");
-    const assistantText = `${pickConfirmIntro(lang)}\n\n${tripMarkers}\n\n${pickConfirmHeadcountAsk(lang)}`;
-    setMessages([
-      { role: "user", content: userText },
-      { role: "assistant", content: assistantText },
-    ]);
+
+    const pickKey = (p: PendingPick) => `${p.boatId}:${p.schedule?.scheduleId || ""}`;
+    const readAcked = (): Set<string> => {
+      try {
+        const raw = sessionStorage.getItem(ACK_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return new Set<string>(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set<string>();
+      }
+    };
+    const writeAcked = (set: Set<string>) => {
+      try { sessionStorage.setItem(ACK_KEY, JSON.stringify([...set])); } catch {}
+    };
+
+    const acknowledgeNewPicks = () => {
+      const picks = readPendingPicks();
+      const currentKeys = new Set(picks.map(pickKey));
+      // Drop acked entries that are no longer in pendingPicks (e.g. Build
+      // ran and cleared everything) so re-adding the same trip later still
+      // gets a fresh acknowledgment.
+      const acked = new Set([...readAcked()].filter(k => currentKeys.has(k)));
+      const newPicks = picks.filter(p => !acked.has(pickKey(p)));
+      if (newPicks.length === 0) {
+        writeAcked(acked);
+        return;
+      }
+
+      const fmtDateShort = (iso: string) =>
+        new Date(iso + "T00:00:00").toLocaleDateString(
+          bcp47Locale(lang),
+          { day: "numeric", month: "short", year: "2-digit" },
+        );
+      const labels = newPicks.map(p => {
+        const d = p.schedule?.departureDate?.slice(0, 10);
+        if (!d) return p.title;
+        return pickDateLabel(lang, p.title, fmtDateShort(d));
+      });
+      const userText = pickGreetingMessage(lang, labels.join(", "));
+      const tripMarkers = newPicks.map(p => {
+        const tripCard = {
+          boatId: p.boatId,
+          title: p.title,
+          type: p.type,
+          area: p.area,
+          slug: p.slug,
+          cover: p.cover,
+          ...(p.schedule?.departureDate ? { departureDate: p.schedule.departureDate } : {}),
+        };
+        return `$$TRIP${JSON.stringify(tripCard)}$$`;
+      }).join("\n");
+
+      // Duplicate detection — if any new pick is already in one of the
+      // user's plans, surface that in the assistant message so the user
+      // doesn't accidentally end up with two copies of the same booking.
+      const userPlans = getPlans();
+      const dupNames = new Set<string>();
+      for (const pick of newPicks) {
+        const dupPlan = userPlans.find(plan =>
+          plan.trips.some(t =>
+            t.boatId === pick.boatId &&
+            (t.schedule?.scheduleId || "") === (pick.schedule?.scheduleId || ""),
+          ),
+        );
+        if (dupPlan) dupNames.add(dupPlan.name);
+      }
+
+      let intro = pickConfirmIntro(lang);
+      if (dupNames.size > 0) {
+        const namesList = [...dupNames].map(n => `"${n}"`).join(", ");
+        intro = lang === "th"
+          ? `ทริปนี้คุณมีอยู่ใน ${namesList} แล้วนะ — ตอบคำถามต่อเพื่อสร้าง plan ใหม่ หรือกดเปิด plan เดิมได้`
+          : lang === "cn"
+            ? `此行程已在 ${namesList} 中 — 继续回答创建新计划，或打开原计划`
+            : lang === "ja"
+              ? `このツアーは既に ${namesList} にあります — 質問に答えて新規作成するか、既存を開いてください`
+              : lang === "ko"
+                ? `이 투어는 이미 ${namesList}에 있어요 — 새로 만들려면 답변을 계속하거나 기존 플랜을 여세요`
+                : lang === "de"
+                  ? `Diese Tour ist bereits in ${namesList} — Antworte weiter für einen neuen Plan oder öffne den vorhandenen`
+                  : lang === "fr"
+                    ? `Ce voyage est déjà dans ${namesList} — continuez à répondre pour un nouveau plan ou ouvrez l'existant`
+                    : lang === "ru"
+                      ? `Этот тур уже есть в ${namesList} — ответьте на вопросы для нового плана или откройте существующий`
+                      : `This trip is already in ${namesList} — keep answering to start a new plan, or open the existing one`;
+      }
+
+      const assistantText = `${intro}\n\n${tripMarkers}\n\n${pickConfirmHeadcountAsk(lang)}`;
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: userText },
+        { role: "assistant", content: assistantText },
+      ]);
+
+      const newAcked = new Set(acked);
+      for (const p of newPicks) newAcked.add(pickKey(p));
+      writeAcked(newAcked);
+    };
+
+    acknowledgeNewPicks();
+    const handler = () => acknowledgeNewPicks();
+    window.addEventListener("pending-picks-changed", handler);
+    return () => window.removeEventListener("pending-picks-changed", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, lang]);
 
   // Hydrate slot chips from the most-recent active session so the user can
   // resume across refreshes. Cold-start visitors get an empty {} (no flicker).

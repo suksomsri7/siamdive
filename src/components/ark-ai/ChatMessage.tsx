@@ -263,8 +263,11 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
         const defaultLabel = pendingPicksCount
           ? buildMyPlanWithCountLabel(lang || "en", pendingPicksCount)
           : t(lang || "en", "buildMyPlan");
-        const showCompare = pendingPicksCount >= 2 && !!onCompare;
-        const orMoreHint = t(lang || "en", "orPickAnotherToCompare");
+        // Compare button hidden by user request (2026-05-09): they found it
+        // distracting when adding a 2nd different-date schedule from the
+        // home page. Compare can still be invoked from the AI's $$COMPARE$$
+        // markers when the model explicitly suggests it.
+        const showCompare = false;
         rendered.push(
           <div key={`build-${i}`} style={{
             marginTop: 12, marginBottom: 4,
@@ -318,9 +321,6 @@ export default function ChatMessage({ role, content, msgIndex, isStreaming, onFe
                 {comparePickedLabel(lang || "en", pendingPicksCount)}
               </button>
             )}
-            <p style={{ fontSize: 11, color: "#7a8aa8", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
-              {orMoreHint}
-            </p>
           </div>,
         );
         break;
