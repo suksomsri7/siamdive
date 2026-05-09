@@ -113,7 +113,13 @@ export async function POST(req: NextRequest) {
   // build with identical intent resolves to the existing plan. Skip
   // COMPLETED plans — finished trips; planning a similar future trip
   // should get a fresh plan.
-  if (existingUser) {
+  //
+  // force=true means the user already saw the duplicate prompt and chose
+  // "Create new". Both the signature dedup AND the legacy active-plan
+  // fallback must yield to that choice — earlier I only gated the
+  // recently-deleted check on !force, which made "สร้างใหม่" loop right
+  // back to the existing plan.
+  if (existingUser && !force) {
     const sigMatch = await prisma.userPlan.findFirst({
       where: {
         userId: existingUser.id,

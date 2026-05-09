@@ -510,3 +510,33 @@ const CREATE_NEW_TPL: Record<ArkLang, string> = {
 };
 export const createNewLabel = (lang: string | undefined) =>
   CREATE_NEW_TPL[normalizeArkLang(lang)];
+
+// Static assistant confirmation for the chat-opened-with-pending-picks flow.
+// Template — the picked $$TRIP$$ marker(s) get inserted before the closing
+// question. Skipping the LLM round-trip avoids the "we don't have this trip
+// on the website" hallucination users hit when the AI didn't recognize the
+// boat name they just clicked + on.
+const PICK_CONFIRM_INTRO_TPL: Record<ArkLang, string> = {
+  th: "เห็นคุณเลือกทริปนี้แล้ว ผมจะช่วยจัด plan รอบทริปนี้ให้ครับ",
+  en: "Got it — I'll build a plan around this trip.",
+  cn: "好的 — 我来为这个行程制定计划。",
+  ja: "承知しました — このツアーを中心にプランを組み立てます。",
+  ko: "알겠습니다 — 이 투어를 중심으로 플랜을 만들어드릴게요.",
+  de: "Verstanden — ich baue einen Plan rund um diese Tour.",
+  fr: "Compris — je prépare un plan autour de ce voyage.",
+  ru: "Понял — составлю план вокруг этой поездки.",
+};
+const PICK_CONFIRM_HEADCOUNT_TPL: Record<ArkLang, string> = {
+  th: "ไปกี่คนครับ?",
+  en: "How many people?",
+  cn: "几位出行?",
+  ja: "何名で行かれますか?",
+  ko: "몇 분이 가시나요?",
+  de: "Mit wie vielen Personen?",
+  fr: "Combien de personnes ?",
+  ru: "Сколько человек?",
+};
+export const pickConfirmIntro = (lang: string | undefined) =>
+  PICK_CONFIRM_INTRO_TPL[normalizeArkLang(lang)];
+export const pickConfirmHeadcountAsk = (lang: string | undefined) =>
+  PICK_CONFIRM_HEADCOUNT_TPL[normalizeArkLang(lang)];

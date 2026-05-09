@@ -22,7 +22,7 @@ import {
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
-import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel, planRecentlyDeletedLabel, createNewLabel } from "@/lib/ark-ai/i18n";
+import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel, planRecentlyDeletedLabel, createNewLabel, pickConfirmIntro, pickConfirmHeadcountAsk } from "@/lib/ark-ai/i18n";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -258,9 +258,17 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   }, []);
 
   // When the chat opens with picks already staged (typically because the user
-  // clicked "+" on the boat-detail page just before this), greet them with a
-  // contextual message instead of the generic welcome — the AI already knows
-  // which trip they care about.
+  // clicked "+" on the boat-detail page just before this), inject the user's
+  // implicit greeting AND a deterministic assistant confirmation locally —
+  // do NOT round-trip through /api/ark-ai/chat for this turn.
+  //
+  // Why: when we sent the auto-greet to the LLM, it sometimes denied the
+  // pick existed ("เรายังไม่มีทริปนี้บนเว็บตอนนี้") because the boat name in
+  // free-form Thai didn't fuzzy-match its RAG context strongly enough. The
+  // user just CLICKED + on this exact boat — there is nothing for the model
+  // to "decide". We render a $$TRIP$$ card straight from the staged pick
+  // (cover/area/type all known client-side, no by-ids round-trip needed)
+  // and ask the next slot question. The LLM picks up from the user's reply.
   useEffect(() => {
     if (!open) return;
     const picks = readPendingPicks();
@@ -276,8 +284,24 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       if (!d) return p.title;
       return pickDateLabel(lang, p.title, fmtDateShort(d));
     });
-    const text = pickGreetingMessage(lang, labels.join(", "));
-    sendRef.current?.(text);
+    const userText = pickGreetingMessage(lang, labels.join(", "));
+    const tripMarkers = picks.map(p => {
+      const tripCard = {
+        boatId: p.boatId,
+        title: p.title,
+        type: p.type,
+        area: p.area,
+        slug: p.slug,
+        cover: p.cover,
+        ...(p.schedule?.departureDate ? { departureDate: p.schedule.departureDate } : {}),
+      };
+      return `$$TRIP${JSON.stringify(tripCard)}$$`;
+    }).join("\n");
+    const assistantText = `${pickConfirmIntro(lang)}\n\n${tripMarkers}\n\n${pickConfirmHeadcountAsk(lang)}`;
+    setMessages([
+      { role: "user", content: userText },
+      { role: "assistant", content: assistantText },
+    ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
