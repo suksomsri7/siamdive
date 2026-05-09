@@ -71,11 +71,39 @@ function generateId(): string {
 
 export function getDeviceId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(DEVICE_KEY);
-  if (!id) {
-    id = generateId();
-    localStorage.setItem(DEVICE_KEY, id);
+  // Prefer the analytics visitor ID (sd_vid) — that is what /api/ark-ai/*
+  // routes use to identify the user. plan-store originally maintained its
+  // own UUID under siamdive:deviceId, which split the same browser into
+  // two PlanUser rows: one for chat-built plans (sd_vid) and one for
+  // staged-pick plans (siamdive:deviceId). That broke every cross-path
+  // dedup we tried (slot signature, trip signature, recently-deleted
+  // stash, active-plan fallback) because each path was looking at a
+  // different PlanUser.
+  //
+  // Migration: read sd_vid first; if absent but the legacy siamdive:deviceId
+  // exists, copy it to sd_vid so analytics + plan-store converge. Otherwise
+  // generate one and write to both keys so any code that still reads the
+  // legacy key keeps working.
+  const SD_VID = "sd_vid";
+  let id = localStorage.getItem(SD_VID);
+  if (id) {
+    // Backfill the legacy key once so any older reader that survived the
+    // migration also lands on the same id.
+    if (!localStorage.getItem(DEVICE_KEY)) {
+      try { localStorage.setItem(DEVICE_KEY, id); } catch {}
+    }
+    return id;
   }
+  id = localStorage.getItem(DEVICE_KEY);
+  if (id) {
+    try { localStorage.setItem(SD_VID, id); } catch {}
+    return id;
+  }
+  id = generateId();
+  try {
+    localStorage.setItem(SD_VID, id);
+    localStorage.setItem(DEVICE_KEY, id);
+  } catch {}
   return id;
 }
 
