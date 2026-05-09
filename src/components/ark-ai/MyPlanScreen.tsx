@@ -430,13 +430,19 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* My Plan (active) */}
+        {/* My Plan (active). Tapping snaps back to the plan list — same
+            behaviour as tapping the BottomNav My Plan icon from outside
+            the drawer. Without this onClick the button was dead, which
+            stranded users on a plan detail with no way back to the list
+            short of pulling the drawer closed and re-opening it. */}
         <button
+          onClick={() => handleTap("plan", () => window.dispatchEvent(new CustomEvent("open-myplan")))}
           style={{
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", gap: 3,
             padding: "10px 0 8px", border: "none", background: "transparent",
-            color: "#fff", cursor: "default",
+            color: "#fff", cursor: "pointer",
+            animation: tapped === "plan" ? "planNavPulse 0.3s ease" : "none",
           }}
         >
           <div style={{ position: "relative" }}>
