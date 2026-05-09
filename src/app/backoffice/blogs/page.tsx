@@ -686,7 +686,12 @@ export default function BlogsPage() {
                 <div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                   <button onClick={() => { setPreviewBlogId(b.id); setPreviewOpen(true); }}
                     title="ดูพรีวิว"
-                    style={{ fontSize: 13, padding: "3px 7px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#888", cursor: "pointer", lineHeight: 1 }}>👁</button>
+                    style={{ padding: "3px 7px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#fff", cursor: "pointer", lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
                   <button onClick={() => openEdit(b)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid #222", background: "transparent", color: "#666", cursor: "pointer" }}>แก้ไข</button>
                   <button onClick={() => handleDelete(b.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.2)", background: "transparent", color: "#ef4444", cursor: "pointer" }}>ลบ</button>
                 </div>
