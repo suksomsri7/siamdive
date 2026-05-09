@@ -15,6 +15,18 @@ import { pushRecentBoat } from "@/lib/recentlyViewed";
 import { formatDateLabel } from "@/lib/formatDate";
 
 
+// "View All" call-to-action label per supported language. Falls back to en.
+const VIEW_ALL_T: Record<string, string> = {
+  en: "View all",
+  th: "ดูทั้งหมด",
+  cn: "查看全部",
+  ja: "すべて見る",
+  ko: "전체 보기",
+  de: "Alle ansehen",
+  fr: "Voir tout",
+  ru: "Смотреть все",
+};
+
 export type Section = {
   id:       string;
   layout:   string;
@@ -22,6 +34,9 @@ export type Section = {
   subtitle?: string;
   // "TOP_RANKED" = Netflix-style numbered row. Unset = default trip/blog render.
   variant?: "TOP_RANKED";
+  // Server-computed: where the row's "View all" link should go. Undefined when
+  // the row's itemType has no list page (e.g. INSTRUCTOR rows).
+  viewAllHref?: string;
   trips: {
     id: string; slug: string; title: string; price: number;
     duration: string; type: "DAYTRIP" | "LIVEABOARD";
@@ -119,10 +134,10 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     <h2 className="text-sm sm:text-base font-semibold tracking-wide" style={{ color: "#e5e5e5" }}>
                       {section.title}
                     </h2>
-                    <Link href={`/${lang}/blogs`}
+                    <Link href={section.viewAllHref || `/${lang}/blogs`}
                       className="text-xs font-medium flex items-center gap-1 hover:gap-2 transition-all"
                       style={{ color: "#60a5fa" }}>
-                      ดูทั้งหมด <span aria-hidden>&rsaquo;</span>
+                      {VIEW_ALL_T[lang] || VIEW_ALL_T.en} <span aria-hidden>&rsaquo;</span>
                     </Link>
                   </div>
                   {section.subtitle && (
@@ -169,10 +184,10 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
                     <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
                       {section.title}
                     </h2>
-                    <Link href={`/${lang}/trips`}
-                      className="text-xs font-medium opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
+                    <Link href={section.viewAllHref || `/${lang}/trips/daytrip`}
+                      className="text-xs font-medium transition-all hover:opacity-80"
                       style={{ color: "#f97316" }}>
-                      Explore All &rsaquo;
+                      {VIEW_ALL_T[lang] || VIEW_ALL_T.en} &rsaquo;
                     </Link>
                   </div>
                   {section.subtitle && (
@@ -310,20 +325,20 @@ export default function HomeContent({ sections, lang }: { sections: Section[]; l
 
           // ── TRIP row (Vertical or Horizontal) ─────────────────────────────
           const cardVariant = section.layout === "HORIZONTAL" ? "horizontal" : "vertical";
-          const tripType = section.trips[0]?.type === "LIVEABOARD" ? "liveaboard" : "daytrip";
-          const viewAllHref = `/${lang}/trips/${tripType}`;
+          const tripTypeFallback = section.trips[0]?.type === "LIVEABOARD" ? "liveaboard" : "daytrip";
+          const viewAllHref = section.viewAllHref || `/${lang}/trips/${tripTypeFallback}`;
 
           return (
             <section key={section.id} className="mb-8 group/row">
               <div className="px-4 sm:px-10 mb-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3">
                   <h2 className="text-sm sm:text-base font-semibold tracking-wide text-gray-100">
                     {section.title}
                   </h2>
                   <Link href={viewAllHref}
-                    className="text-xs font-medium opacity-0 group-hover/row:opacity-100 transition-opacity duration-200"
+                    className="text-xs font-medium flex items-center gap-1 hover:gap-2 transition-all whitespace-nowrap"
                     style={{ color: "#60a5fa" }}>
-                    Explore All &rsaquo;
+                    {VIEW_ALL_T[lang] || VIEW_ALL_T.en} <span aria-hidden>&rsaquo;</span>
                   </Link>
                 </div>
                 {section.subtitle && (

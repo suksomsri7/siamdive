@@ -12,6 +12,49 @@ import {
 
 const VALID_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
 
+// Maps a DisplayRow.itemType to the URL segment used by /trips/[segment].
+const ITEM_TYPE_TO_SEGMENT: Record<string, string> = {
+  DAYTRIP:     "daytrip",
+  SNORKELING:  "snorkeling",
+  LAND_TOUR:   "land-tour",
+  LIVEABOARD:  "liveaboard",
+  DIVE_RESORT: "dive-resort",
+  FREEDIVE:    "freedive",
+};
+
+// "Koh Samui" → "samui", "Phuket" → "phuket". Strips the "Koh " prefix so the
+// URL matches what users type ("samui" not "koh-samui"). Diacritics-free input
+// is assumed (English ServiceArea translation).
+function slugifyArea(name: string | undefined | null): string | undefined {
+  if (!name) return undefined;
+  const slug = name.toLowerCase()
+    .replace(/^koh\s+/i, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || undefined;
+}
+
+// Picks the /trips/[segment] URL each homepage row should link to. Returns
+// undefined when the row has no meaningful list page (e.g. INSTRUCTOR rows
+// without a dedicated route, or ALL_TRIPS which already shows everything).
+function viewAllHrefForRow(
+  lang: string,
+  itemType: string,
+  serviceAreaName?: string | null,
+): string | undefined {
+  if (itemType === "BLOG")      return `/${lang}/blogs`;
+  if (itemType === "ALL_TRIPS") return `/${lang}/trips/daytrip`;
+  const seg = ITEM_TYPE_TO_SEGMENT[itemType];
+  if (!seg) return undefined;
+  const areaSlug = slugifyArea(serviceAreaName);
+  if (areaSlug) return `/${lang}/trips/${seg}-${areaSlug}`;
+  // LIVEABOARD without a service area defaults to Thailand — the curated
+  // "Thailand Liveaboards" row has no area pin but should still hit the
+  // Thailand-specific listing for SEO.
+  if (itemType === "LIVEABOARD") return `/${lang}/trips/liveaboard-thailand`;
+  return `/${lang}/trips/${seg}`;
+}
+
 function getDuration(dep: Date | string | null, ret: Date | string | null, boatType: string): string {
   if (dep && ret) {
     // unstable_cache serialises Dates to ISO strings — accept both shapes.
@@ -34,7 +77,11 @@ const getHomepageData = unstable_cache(
 
     const rows = await prisma.displayRow.findMany({
       where: { active: true },
-      include: { translations: true, items: { orderBy: { order: "asc" } } },
+      include: {
+        translations: true,
+        items: { orderBy: { order: "asc" } },
+        serviceArea: { include: { translations: { where: { lang: "en" }, select: { name: true } } } },
+      },
       orderBy: { order: "asc" },
     });
 
@@ -187,6 +234,8 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
       || row.translations.find(t => t.lang === "en");
     const title    = trans?.title    || row.topic;
     const subtitle = trans?.subtitle || undefined;
+    const areaEnName = row.serviceArea?.translations[0]?.name;
+    const viewAllHref = viewAllHrefForRow(l, row.itemType, areaEnName);
     // ALL_TRIPS rows have no curated items so fall back to the trending-ids
     // count instead of 0 when maxItems is null.
     const allTripsCount = allTripsByRowId[row.id]?.length ?? 0;
@@ -216,7 +265,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
           cover:   b.covers[0] || "",
         });
       }
-      return { id: row.id, layout: row.layout, title, subtitle, trips, blogs: resolvedBlogs };
+      return { id: row.id, layout: row.layout, title, subtitle, viewAllHref, trips, blogs: resolvedBlogs };
     }
 
     // autoTrending row: swap curated items with synthetic BOAT items whose
@@ -371,7 +420,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
     const variant: Section["variant"] | undefined =
       row.itemType === "ALL_TRIPS" && row.autoTrending ? "TOP_RANKED" : undefined;
 
-    return { id: row.id, layout: row.layout, title, subtitle, variant, trips, blogs: resolvedBlogs };
+    return { id: row.id, layout: row.layout, title, subtitle, variant, viewAllHref, trips, blogs: resolvedBlogs };
   });
 
   return (

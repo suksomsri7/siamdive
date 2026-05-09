@@ -15,11 +15,21 @@ const TRIP_SEGMENTS = [
   "freedive",
 ];
 const LIVEABOARD_COUNTRY_SEGMENTS = [
+  "liveaboard-thailand",
   "liveaboard-maldives",
   "liveaboard-red-sea",
   "liveaboard-indonesia",
   "liveaboard-palau",
   "liveaboard-philippines",
+];
+// Type+area pages (Phuket / Samui) — same priority as the generic type pages.
+const AREA_TYPE_SEGMENTS = [
+  "daytrip-phuket",
+  "daytrip-samui",
+  "land-tour-phuket",
+  "land-tour-samui",
+  "snorkeling-phuket",
+  "snorkeling-samui",
 ];
 const COURSE_TYPES = [
   "scuba",
@@ -52,6 +62,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       change: "daily" as const,
     })),
     ...LIVEABOARD_COUNTRY_SEGMENTS.map((s) => ({
+      path: `/trips/${s}`,
+      priority: 0.8,
+      change: "daily" as const,
+    })),
+    ...AREA_TYPE_SEGMENTS.map((s) => ({
       path: `/trips/${s}`,
       priority: 0.8,
       change: "daily" as const,
