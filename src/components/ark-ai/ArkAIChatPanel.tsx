@@ -881,6 +881,29 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       .then(async res => {
         if (res.status === 400) {
           const errBody = await res.json().catch(() => null) as { error?: string; reasons?: string[] } | null;
+          // If the user already has at least one plan, the typical "Build
+          // round 2" intent isn't to start over from incomplete slots — it's
+          // to revisit what they made. Offer the existing plan as a 1-button
+          // toast instead of the generic "ยังสร้าง plan ไม่ได้" overlay.
+          // (Skipping a "Create new" CTA here on purpose: with incomplete
+          // slots even force=true would 400 again on the server, so the
+          // button wouldn't actually do anything useful.)
+          const userPlansForFallback = !force ? getPlans() : [];
+          if (userPlansForFallback.length > 0) {
+            const mostRecent = [...userPlansForFallback].sort(
+              (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+            )[0];
+            window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: {} }));
+            window.dispatchEvent(new CustomEvent("plan-toast", {
+              detail: {
+                message: planReusedExistingLabel(lang, mostRecent.name),
+                actionLabel: openPlanLabel(lang),
+                actionEvent: "open-myplan",
+                actionDetail: { planId: mostRecent.id },
+              },
+            }));
+            return;
+          }
           const reasons = errBody?.error === "no_matching_trips" && errBody.reasons?.length
             ? errBody.reasons
             : [t(lang, "needMoreInfo")];
