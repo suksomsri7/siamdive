@@ -4,14 +4,28 @@ import { requireAuth, canDo } from "@/lib/apiAuth";
 import { normalizeStatus } from "@/lib/blogStatus";
 import { validateTranslationParity } from "@/lib/blogParity";
 
-// GET /api/blogs — list all blogs with translations
+// GET /api/blogs — lean list for index pages.
+//
+// Projects only the fields rendered in list views (backoffice + display refs):
+// id, status, covers, timestamps + per-translation {lang, title, slug}.
+// Heavy fields (HTML content, excerpt, keywords, OG fields, videos) are
+// excluded — fetch via GET /api/blogs/[id] when full data is needed (edit
+// panel, admin detail). Cuts payload ~80-95% on a typical 100-blog list
+// where each translation's HTML body is the bulk of the bytes.
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
   if (!canDo(auth, "blogs.read")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const blogs = await prisma.blog.findMany({
-    include: { translations: true, videos: { orderBy: { order: "asc" } } },
+    select: {
+      id: true,
+      status: true,
+      covers: true,
+      createdAt: true,
+      updatedAt: true,
+      translations: { select: { lang: true, title: true, slug: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(blogs);

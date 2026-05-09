@@ -25,6 +25,14 @@ type Translation = { lang: string; title: string; slug: string; excerpt: string;
 type VideoItem = { url: string; name: string };
 type BlogStatusUpper = "DRAFT" | "APPROVED" | "PUBLISHED";
 type BlogStatusLower = "draft" | "approved" | "published";
+// Lean shape returned by GET /api/blogs (list endpoint). Heavy translation
+// fields (content/excerpt/keywords/og*) and videos are NOT included — fetch
+// the full row via GET /api/blogs/[id] when opening the edit panel.
+type BlogListRow = {
+  id: string; status: BlogStatusUpper; covers: string[];
+  translations: { lang: string; title: string; slug: string }[];
+  createdAt: string; updatedAt: string;
+};
 type BlogRow = {
   id: string; status: BlogStatusUpper; covers: string[]; imageIds?: string[]; mjPrompt?: string;
   translations: Translation[]; videos: VideoItem[];
@@ -472,7 +480,7 @@ function RichEditor({ value, onChange, placeholder, minHeight = 300 }: { value: 
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<BlogRow[]>([]);
+  const [blogs, setBlogs] = useState<BlogListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -543,14 +551,18 @@ export default function BlogsPage() {
     setEditId(null); setActiveLang("en"); setPanelOpen(true);
   };
 
-  const openEdit = (b: BlogRow) => {
+  const openEdit = async (row: BlogListRow) => {
+    // List endpoint returns a lean projection — refetch the full row so we
+    // have content/excerpt/keywords/og*/videos/imageIds for the edit form.
+    const res = await fetch(`/api/blogs/${row.id}`);
+    if (!res.ok) { alert("โหลดบทความไม่สำเร็จ"); return; }
+    const b: BlogRow = await res.json();
     const langData = (l: LangKey): LangData => {
       const t = b.translations.find((x) => x.lang === l);
       return { title: t?.title ?? "", slug: t?.slug ?? "", excerpt: t?.excerpt ?? "", content: t?.content ?? "", keywords: t?.keywords ?? [], ogTitle: t?.ogTitle ?? "", ogDescription: t?.ogDescription ?? "", ogImage: t?.ogImage ?? "" };
     };
     const langs = Object.fromEntries(ALL_LANGS.map((l) => [l, langData(l)])) as Record<LangKey, LangData>;
     const enSlug = langs.en.slug;
-    // Mark langs whose slug differs from EN as overridden
     const overrides = new Set(ALL_LANGS.filter((l) => l !== "en" && langs[l].slug && langs[l].slug !== enSlug));
     setSlugOverrides(overrides);
     const statusLower = b.status.toLowerCase() as BlogStatusLower;
