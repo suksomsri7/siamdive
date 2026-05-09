@@ -402,7 +402,12 @@ export async function POST(req: NextRequest) {
         trips: trips as never,
         source: "ARK_AI",
         aiPrompt: JSON.stringify(slots),
-        planSignature,
+        // force=true means the user already saw the duplicate prompt and
+        // chose "Create new anyway". Store this plan WITHOUT a signature
+        // so the partial unique index on (userId, planSignature) doesn't
+        // block it. Future builds will still resolve to the original
+        // signed plan; this orphaned dup just lives independently.
+        planSignature: force ? null : planSignature,
         status: "PLANNING",
       },
     });

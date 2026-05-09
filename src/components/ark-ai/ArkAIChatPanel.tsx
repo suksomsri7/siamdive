@@ -841,20 +841,28 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         }
 
         if (data.plan?.id) {
-          upsertServerPlan(data.plan);
-          window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId: data.plan.id } }));
-          // Layer 2 — surface "already exists" so a stale-chat repeat click
-          // doesn't look like a silent no-op. Toast carries an "Open Plan"
-          // CTA that re-opens MyPlan on the existing plan.
           if (data.reused && data.plan.name) {
+            // Duplicate detected — present an explicit choice instead of
+            // silently routing to the existing plan. User asked for this
+            // UX (2026-05-09): "should be a notification — view existing
+            // OR create new". The "Create new" event re-runs buildPlan
+            // with force: true which bypasses the slot dedup and stores
+            // the new plan with planSignature: null.
+            upsertServerPlan(data.plan);
+            window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: {} }));
             window.dispatchEvent(new CustomEvent("plan-toast", {
               detail: {
                 message: planReusedExistingLabel(lang, data.plan.name),
                 actionLabel: openPlanLabel(lang),
                 actionEvent: "open-myplan",
-                actionDetail: { planId: data.plan!.id },
+                actionDetail: { planId: data.plan.id },
+                actionLabel2: createNewLabel(lang),
+                actionEvent2: "ark-ai-build-plan-force",
               },
             }));
+          } else {
+            upsertServerPlan(data.plan);
+            window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId: data.plan.id } }));
           }
         } else if (data.redirect) {
           window.location.href = data.redirect;
