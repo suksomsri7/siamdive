@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isComplete, type Slots } from "@/lib/ark-ai/slots";
 import { buildPlanSignature } from "@/lib/ark-ai/plan-signature";
+import { findRecentDeletion, clearDeletedSignature } from "@/lib/ark-ai/deleted-sigs";
 import {
   regionMatchesArea,
   dateProximity,
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
   const lang: string = typeof body?.lang === "string" ? body.lang : "en";
   const sessionId: string | undefined = typeof body?.sessionId === "string" ? body.sessionId : undefined;
   const path: string = typeof body?.path === "string" ? body.path : "/";
+  const force: boolean = body?.force === true;
   if (!deviceId) {
     return Response.json({ error: "deviceId required" }, { status: 400 });
   }
@@ -87,14 +89,30 @@ export async function POST(req: NextRequest) {
     });
   };
 
-  // Idempotency layer 1 — slot signature.
-  // User-reported bug 2026-05-09: clicking "Build my plan" on a stale chat
-  // thread created 3 duplicate plans. The signature hashes the slot
-  // fingerprint (dates + headcount + region + certs + categories + companions)
-  // so any repeat build with identical intent resolves to the existing plan.
-  // Skip COMPLETED plans — those are finished trips; user planning a similar
-  // future trip should get a fresh plan.
+  // Recently-deleted guard. User-reported bug 2026-05-09: deleted an
+  // ARK_AI plan, opened chat, hit Build again — same trip rebuilt from
+  // stale slots, felt like the deleted plan came back. Block the rebuild
+  // and ask the client to confirm. Bypass when `force: true` (user clicked
+  // the confirmation toast's "Create anyway").
   const existingUser = await prisma.planUser.findUnique({ where: { deviceId } });
+  if (existingUser && !force) {
+    const recentlyDeleted = findRecentDeletion(existingUser.recentlyDeletedSigs, planSignature);
+    if (recentlyDeleted) {
+      return Response.json({
+        recentlyDeleted: true,
+        name: recentlyDeleted.name,
+        deletedAt: recentlyDeleted.at,
+      });
+    }
+  }
+
+  // Idempotency layer 1 — slot signature.
+  // Repeat clicks on a stale "Build my plan" button were creating up to 3
+  // duplicate plans. The signature hashes the slot fingerprint (dates +
+  // headcount + region + certs + categories + companions) so any repeat
+  // build with identical intent resolves to the existing plan. Skip
+  // COMPLETED plans — finished trips; planning a similar future trip
+  // should get a fresh plan.
   if (existingUser) {
     const sigMatch = await prisma.userPlan.findFirst({
       where: {
@@ -412,6 +430,15 @@ export async function POST(req: NextRequest) {
     await prisma.aiPlanSession
       .update({ where: { id: session.id }, data: { status: "completed" } })
       .catch(err => console.error("[ark-ai/build-plan] session complete failed:", err));
+  }
+
+  // Force-mode reached create — the user explicitly confirmed they wanted
+  // a rebuild after the recently-deleted prompt. Drop the stashed sig so
+  // the prompt doesn't fire on the next legitimate build for this trip.
+  if (force) {
+    clearDeletedSignature(user.id, planSignature).catch(err =>
+      console.error("[ark-ai/build-plan] clearDeletedSignature failed:", err),
+    );
   }
 
   if (sessionId) {

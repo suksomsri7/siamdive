@@ -827,6 +827,11 @@ model PlanUser {
   email     String?
   name      String?
   avatarUrl String?
+  // Last few ARK_AI plans this user explicitly deleted, kept so /api/ark-ai/build-plan
+  // can ask "you just deleted this — recreate?" instead of silently rebuilding the
+  // same trip from a stale chat thread. Shape: [{sig:string, name:string, at:string(ISO)}].
+  // Cap at last 20 entries; entries older than 24h are ignored at read time.
+  recentlyDeletedSigs Json @default("[]")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   plans     UserPlan[]

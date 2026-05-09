@@ -22,7 +22,7 @@ import {
   track,
 } from "@/lib/analytics/client";
 import type { Slots, SlotField } from "@/lib/ark-ai/slots";
-import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel } from "@/lib/ark-ai/i18n";
+import { t, bcp47Locale, pickGreetingMessage, pickDateLabel, addedToMyPlanMessage, planReusedExistingLabel, openPlanLabel, planRecentlyDeletedLabel, createNewLabel } from "@/lib/ark-ai/i18n";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -737,7 +737,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     return () => window.removeEventListener("ark-ai-undo-plan-route", handler);
   }, []);
 
-  const buildPlan = useCallback(async () => {
+  const buildPlan = useCallback(async (force = false) => {
     const deviceId = readBrowserId("sd_vid");
     if (!deviceId) return;
     const sessionIdHdr = readBrowserId("sd_sid");
@@ -757,16 +757,22 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
     // Slow path — no staged picks, ask the server to auto-build from slots.
     // Open MyPlan in "building" mode so the user sees progress while we
-    // wait for /api/ark-ai/build-plan to resolve.
-    onClose();
-    setTimeout(() => {
+    // wait for /api/ark-ai/build-plan to resolve. Skip the close/animate
+    // when this is a force-retry from a confirmation toast — MyPlan is
+    // already in the right state and reopening would jar the user.
+    if (!force) {
+      onClose();
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));
+      }, 80);
+    } else {
       window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));
-    }, 80);
+    }
 
     fetch("/api/ark-ai/build-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname }),
+      body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname, force }),
     })
       .then(async res => {
         if (res.status === 400) {
@@ -778,7 +784,23 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           return;
         }
         if (!res.ok) throw new Error(`build-plan ${res.status}`);
-        const data = await res.json() as { plan?: UserPlan; redirect?: string; reused?: boolean };
+        const data = await res.json() as { plan?: UserPlan; redirect?: string; reused?: boolean; recentlyDeleted?: boolean; name?: string };
+
+        // Recently-deleted prompt — user just removed an identical plan.
+        // Drop the build-progress overlay and surface a confirm toast that
+        // retries with `force: true` if the user clicks "Create new".
+        if (data.recentlyDeleted && data.name) {
+          window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: {} }));
+          window.dispatchEvent(new CustomEvent("plan-toast", {
+            detail: {
+              message: planRecentlyDeletedLabel(lang, data.name),
+              actionLabel: createNewLabel(lang),
+              actionEvent: "ark-ai-build-plan-force",
+            },
+          }));
+          return;
+        }
+
         if (data.plan?.id) {
           upsertServerPlan(data.plan);
           window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId: data.plan.id } }));
@@ -807,6 +829,13 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [reason] } }));
       });
   }, [lang, pathname, onClose, flushPicksToPlan]);
+
+  // Force-retry handler — fired by the recently-deleted confirmation toast.
+  useEffect(() => {
+    const handler = () => { buildPlan(true); };
+    window.addEventListener("ark-ai-build-plan-force", handler);
+    return () => window.removeEventListener("ark-ai-build-plan-force", handler);
+  }, [buildPlan]);
 
   sendRef.current = sendMessage;
 

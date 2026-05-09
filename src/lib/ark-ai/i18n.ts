@@ -484,3 +484,29 @@ const OPEN_PLAN_TPL: Record<ArkLang, string> = {
 };
 export const openPlanLabel = (lang: string | undefined) =>
   OPEN_PLAN_TPL[normalizeArkLang(lang)];
+
+const PLAN_RECENTLY_DELETED_TPL: Record<ArkLang, (n: string) => string> = {
+  th: (n) => `คุณเพิ่งลบ "${n}" ไป ต้องการสร้างใหม่หรือไม่?`,
+  en: (n) => `You just deleted "${n}" — create a new one anyway?`,
+  cn: (n) => `您刚刚删除了 "${n}",仍要新建吗?`,
+  ja: (n) => `先ほど "${n}" を削除しました。新しく作成しますか?`,
+  ko: (n) => `방금 "${n}"을(를) 삭제했습니다. 새로 만드시겠습니까?`,
+  de: (n) => `Du hast "${n}" gerade gelöscht — trotzdem neu erstellen?`,
+  fr: (n) => `Vous venez de supprimer "${n}" — créer quand même un nouveau ?`,
+  ru: (n) => `Вы только что удалили "${n}" — всё равно создать новый?`,
+};
+export const planRecentlyDeletedLabel = (lang: string | undefined, name: string) =>
+  PLAN_RECENTLY_DELETED_TPL[normalizeArkLang(lang)](name);
+
+const CREATE_NEW_TPL: Record<ArkLang, string> = {
+  th: "สร้างใหม่",
+  en: "Create new",
+  cn: "新建",
+  ja: "新規作成",
+  ko: "새로 만들기",
+  de: "Neu erstellen",
+  fr: "Créer nouveau",
+  ru: "Создать новый",
+};
+export const createNewLabel = (lang: string | undefined) =>
+  CREATE_NEW_TPL[normalizeArkLang(lang)];

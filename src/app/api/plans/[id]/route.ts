@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { recordDeletedSignature } from "@/lib/ark-ai/deleted-sigs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -144,6 +145,15 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     const existing = await prisma.userPlan.findFirst({ where: { id, userId: user.id } });
     if (!existing) {
       return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    }
+
+    // Stash the AI-built plan's signature so /api/ark-ai/build-plan can
+    // detect a same-trip rebuild from a stale chat and prompt the user
+    // before silently recreating what they just removed.
+    if (existing.source === "ARK_AI" && existing.planSignature) {
+      await recordDeletedSignature(user.id, existing.planSignature, existing.name).catch((err) => {
+        console.error("[plans/delete] recordDeletedSignature failed:", err);
+      });
     }
 
     await prisma.userPlan.delete({ where: { id } });
