@@ -12,7 +12,7 @@ import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
 import { addTrip, addTripToPlan, createPlan, getPlans, switchPlan, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
-import { readPendingPicks, clearPendingPicks, type PendingPick } from "@/lib/pending-picks";
+import { readPendingPicks, clearPendingPicks, addPendingPick, type PendingPick } from "@/lib/pending-picks";
 import { rankPlans, type PlanScore } from "@/lib/plan-routing";
 import {
   trackChatOpen,
@@ -900,6 +900,9 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
                 actionLabel: openPlanLabel(lang),
                 actionEvent: "open-myplan",
                 actionDetail: { planId: mostRecent.id },
+                actionLabel2: createNewLabel(lang),
+                actionEvent2: "ark-ai-clone-plan-and-build",
+                actionDetail2: { planId: mostRecent.id },
               },
             }));
             return;
@@ -968,14 +971,32 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // Force-retry handlers — both fired by the recently-deleted confirmation
   // toast. Slow path (slot dedup) and fast path (trip dedup) share UX but
   // need separate events because they take different code paths.
+  //
+  // ark-ai-clone-plan-and-build is the slow-path-400 fallback's "Create new"
+  // CTA. Slots are incomplete so the server can't build from scratch — copy
+  // the existing plan's trips into pendingPicks and route through the fast
+  // path with force=true so a fresh plan is created with the same trip set.
   useEffect(() => {
     const slowHandler = () => { buildPlan(true); };
     const fastHandler = () => { buildPlan(true); };
+    const cloneHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      if (!detail?.planId) return;
+      const plan = getPlans().find(p => p.id === detail.planId);
+      if (!plan) return;
+      for (const trip of plan.trips) {
+        const { addedAt: _addedAt, ...pick } = trip;
+        addPendingPick(pick);
+      }
+      buildPlan(true);
+    };
     window.addEventListener("ark-ai-build-plan-force", slowHandler);
     window.addEventListener("ark-ai-flush-picks-force", fastHandler);
+    window.addEventListener("ark-ai-clone-plan-and-build", cloneHandler);
     return () => {
       window.removeEventListener("ark-ai-build-plan-force", slowHandler);
       window.removeEventListener("ark-ai-flush-picks-force", fastHandler);
+      window.removeEventListener("ark-ai-clone-plan-and-build", cloneHandler);
     };
   }, [buildPlan]);
 
