@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   // the confirmation toast's "Create anyway").
   const existingUser = await prisma.planUser.findUnique({ where: { deviceId } });
   if (existingUser && !force) {
-    const recentlyDeleted = findRecentDeletion(existingUser.recentlyDeletedSigs, planSignature);
+    const recentlyDeleted = findRecentDeletion(existingUser.recentlyDeletedSigs, "slot", planSignature);
     if (recentlyDeleted) {
       return Response.json({
         recentlyDeleted: true,
@@ -436,7 +436,7 @@ export async function POST(req: NextRequest) {
   // a rebuild after the recently-deleted prompt. Drop the stashed sig so
   // the prompt doesn't fire on the next legitimate build for this trip.
   if (force) {
-    clearDeletedSignature(user.id, planSignature).catch(err =>
+    clearDeletedSignature(user.id, "slot", planSignature).catch(err =>
       console.error("[ark-ai/build-plan] clearDeletedSignature failed:", err),
     );
   }

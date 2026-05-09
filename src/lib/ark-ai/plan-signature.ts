@@ -27,3 +27,19 @@ export function buildPlanSignature(slots: Slots): string {
   };
   return createHash("sha256").update(JSON.stringify(norm)).digest("hex").slice(0, 32);
 }
+
+// Trip-set signature for the fast path (staged picks). The slot signature
+// only matches when chat extraction produces identical slots — clicking "+"
+// on three boats and then "Build my plan" never goes through slot extraction
+// at all, so we also fingerprint the actual (boatId, scheduleId) set so the
+// fast path can be deduped the same way.
+export type TripFingerprint = { boatId: string; scheduleId?: string | null };
+
+export function buildTripSignature(trips: TripFingerprint[]): string | null {
+  const pairs = trips
+    .map(t => `${t.boatId || ""}:${t.scheduleId || ""}`)
+    .filter(s => s !== ":")
+    .sort();
+  if (pairs.length === 0) return null;
+  return createHash("sha256").update(pairs.join("|")).digest("hex").slice(0, 32);
+}

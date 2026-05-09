@@ -747,6 +747,45 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     // then open My Plan straight to the new plan.
     const stagedPicks = readPendingPicks();
     if (stagedPicks.length > 0) {
+      // Pre-flight dedup. The fast path bypasses /api/ark-ai/build-plan,
+      // so its slot-signature dedup and recently-deleted guard never fire.
+      // Ask the server whether these picks would resurrect a just-deleted
+      // plan; if so, surface the confirm toast and stop. The "Create new"
+      // action retries flushPicksToPlan with force=true, which skips this
+      // pre-flight.
+      if (!force) {
+        try {
+          const checkRes = await fetch("/api/ark-ai/check-pending-picks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deviceId,
+              picks: stagedPicks.map(p => ({
+                boatId: p.boatId,
+                scheduleId: p.schedule?.scheduleId ?? null,
+              })),
+            }),
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json() as { recentlyDeleted?: boolean; name?: string };
+            if (checkData.recentlyDeleted && checkData.name) {
+              window.dispatchEvent(new CustomEvent("plan-toast", {
+                detail: {
+                  message: planRecentlyDeletedLabel(lang, checkData.name),
+                  actionLabel: createNewLabel(lang),
+                  actionEvent: "ark-ai-flush-picks-force",
+                },
+              }));
+              return;
+            }
+          }
+        } catch (err) {
+          // Network blip → fall through. We'd rather create the plan than
+          // block on a transient network failure.
+          console.error("[ark-ai] check-pending-picks failed:", err);
+        }
+      }
+
       const planId = await flushPicksToPlan(stagedPicks);
       onClose();
       setTimeout(() => {
@@ -830,11 +869,18 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       });
   }, [lang, pathname, onClose, flushPicksToPlan]);
 
-  // Force-retry handler — fired by the recently-deleted confirmation toast.
+  // Force-retry handlers — both fired by the recently-deleted confirmation
+  // toast. Slow path (slot dedup) and fast path (trip dedup) share UX but
+  // need separate events because they take different code paths.
   useEffect(() => {
-    const handler = () => { buildPlan(true); };
-    window.addEventListener("ark-ai-build-plan-force", handler);
-    return () => window.removeEventListener("ark-ai-build-plan-force", handler);
+    const slowHandler = () => { buildPlan(true); };
+    const fastHandler = () => { buildPlan(true); };
+    window.addEventListener("ark-ai-build-plan-force", slowHandler);
+    window.addEventListener("ark-ai-flush-picks-force", fastHandler);
+    return () => {
+      window.removeEventListener("ark-ai-build-plan-force", slowHandler);
+      window.removeEventListener("ark-ai-flush-picks-force", fastHandler);
+    };
   }, [buildPlan]);
 
   sendRef.current = sendMessage;

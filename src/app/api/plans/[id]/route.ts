@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { recordDeletedSignature } from "@/lib/ark-ai/deleted-sigs";
+import { recordDeletedSignatures, type SigKind } from "@/lib/ark-ai/deleted-sigs";
+import { buildTripSignature, type TripFingerprint } from "@/lib/ark-ai/plan-signature";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -147,12 +148,33 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
     }
 
-    // Stash the AI-built plan's signature so /api/ark-ai/build-plan can
-    // detect a same-trip rebuild from a stale chat and prompt the user
-    // before silently recreating what they just removed.
-    if (existing.source === "ARK_AI" && existing.planSignature) {
-      await recordDeletedSignature(user.id, existing.planSignature, existing.name).catch((err) => {
-        console.error("[plans/delete] recordDeletedSignature failed:", err);
+    // Stash signatures so a same-trip rebuild — whether through chat slot
+    // extraction (slot kind) or staged-pick "+" / Build flow (trip kind) —
+    // can prompt the user before silently recreating what they just removed.
+    // Track both kinds for ALL plans, not just ARK_AI: a USER plan deleted
+    // because the user changed their mind shouldn't reappear via the fast
+    // path either.
+    const sigsToStash: Array<{ kind: SigKind; sig: string }> = [];
+    if (existing.planSignature) {
+      sigsToStash.push({ kind: "slot", sig: existing.planSignature });
+    }
+    const tripList = Array.isArray(existing.trips) ? (existing.trips as Array<Record<string, unknown>>) : [];
+    const fingerprints: TripFingerprint[] = tripList
+      .filter((t): t is Record<string, unknown> => t != null && typeof t === "object")
+      .map((t) => {
+        const schedule = t.schedule as Record<string, unknown> | undefined;
+        return {
+          boatId: typeof t.boatId === "string" ? t.boatId : "",
+          scheduleId:
+            schedule && typeof schedule.scheduleId === "string" ? schedule.scheduleId : null,
+        };
+      });
+    const tripSig = buildTripSignature(fingerprints);
+    if (tripSig) sigsToStash.push({ kind: "trip", sig: tripSig });
+
+    if (sigsToStash.length > 0) {
+      await recordDeletedSignatures(user.id, sigsToStash, existing.name).catch((err) => {
+        console.error("[plans/delete] recordDeletedSignatures failed:", err);
       });
     }
 
