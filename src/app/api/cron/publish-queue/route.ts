@@ -6,7 +6,7 @@ import { generateBlogCover } from "@/lib/blogCoverGen";
 const MAX_PUBLISH_PER_DAY = 4;
 const REQUIRED_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"] as const;
 const MIN_CONTENT_CHARS = 800;
-const COVER_MODEL = "nano-banana-2";
+const COVER_MODEL = "seedream-v5-lite";
 
 // Returns today's date in Bangkok time as YYYY-MM-DD.
 function bkkDate(): string {

@@ -11,7 +11,7 @@ import sharp from "sharp";
 import { fal } from "@fal-ai/client";
 import { prisma } from "@/lib/prisma";
 import {
-  MODELS, getModel, generateImage, generateOgImage, type AspectRatio,
+  MODELS, getModel, generateImage, type AspectRatio,
 } from "@/app/api/blog-images/generate/models";
 
 export { MODELS, type AspectRatio };
@@ -120,13 +120,13 @@ export type GenerateBlogCoverResult = {
   model: string;
 };
 
-// Common pipeline: original buffer (+ optional separate OG source) → BlogImage row
-// (original/cover/og uploaded to Bunny) → optional attach to blog.
+// Common pipeline: original buffer → BlogImage row (original/cover/og uploaded
+// to Bunny) → optional attach to blog. OG image is cropped from the same source
+// as cover (1.91:1 from 16:9 — ~7% top/bottom trim).
 // Used by both fal.ai generation path and external-URL import path (e.g. Midjourney).
 async function processCoverFromBuffer(buf: Buffer, opts: {
   blogId?: string;
   attachToBlog?: boolean;
-  ogSourceBuf?: Buffer;
   modelLabel: string;
 }): Promise<GenerateBlogCoverResult> {
   const meta = await sharp(buf).metadata();
@@ -151,9 +151,8 @@ async function processCoverFromBuffer(buf: Buffer, opts: {
   const coverBuf = await sharp(coverWithWm).webp({ quality: 85 }).toBuffer();
   await saveFile(`/uploads/processed/${coverFilename}`, coverBuf);
 
-  const ogSourceBuf = opts.ogSourceBuf ?? buf;
   const ogFilename = `${blogImage.id}-og.jpg`;
-  const ogRawBuf = await sharp(ogSourceBuf)
+  const ogRawBuf = await sharp(buf)
     .resize(1200, 630, { fit: "cover", position: "centre" })
     .toBuffer();
   const ogWithWm = await applyWatermark(ogRawBuf);
@@ -206,19 +205,9 @@ export async function generateBlogCover(opts: GenerateBlogCoverOptions): Promise
   if (!imgRes.ok) throw new Error(`Download failed: ${imgRes.status}`);
   const buf = Buffer.from(await imgRes.arrayBuffer());
 
-  let ogSourceBuf: Buffer | undefined;
-  try {
-    const ogUrlFal = await generateOgImage(model, cleanPrompt);
-    if (ogUrlFal) {
-      const ogRes = await fetch(ogUrlFal);
-      if (ogRes.ok) ogSourceBuf = Buffer.from(await ogRes.arrayBuffer());
-    }
-  } catch {}
-
   return processCoverFromBuffer(buf, {
     blogId: opts.blogId,
     attachToBlog: opts.attachToBlog,
-    ogSourceBuf,
     modelLabel: model.id,
   });
 }
