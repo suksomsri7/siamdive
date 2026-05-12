@@ -43,10 +43,18 @@ export type WatermarkSpec = {
   scale?: number; // % of base width
 };
 
+export type GradientSpec = {
+  enabled?: boolean;
+  color?: string; // hex e.g. "#000000"
+  opacity?: number; // 0-100, opacity at the bottom edge
+  height?: number; // % of canvas height covered (band starts at bottom)
+};
+
 export type ComposeLayout = {
   backgroundFit?: "cover" | "contain";
   texts?: TextBlock[];
   watermark?: WatermarkSpec;
+  gradient?: GradientSpec;
 };
 
 async function saveFile(path: string, buf: Buffer) {
@@ -94,6 +102,24 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
   }
   if (current) lines.push(current);
   return lines;
+}
+
+function renderGradientSvg(width: number, height: number, g: GradientSpec): string {
+  const color = (g.color ?? "#000000").replace(/[^#0-9a-fA-F]/g, "") || "#000000";
+  const opacity = Math.max(0, Math.min(100, g.opacity ?? 80)) / 100;
+  const heightPct = Math.max(1, Math.min(100, g.height ?? 50));
+  const bandH = Math.round((height * heightPct) / 100);
+  const y0 = height - bandH;
+  // y1=100%/y2=0% within the rect → opaque at bottom, transparent at top.
+  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="g" x1="0" y1="100%" x2="0" y2="0%">
+        <stop offset="0%" stop-color="${color}" stop-opacity="${opacity}"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="${y0}" width="${width}" height="${bandH}" fill="url(#g)"/>
+  </svg>`;
 }
 
 function renderTextSvg(width: number, height: number, blocks: TextBlock[]): string {
@@ -199,12 +225,23 @@ export async function composeSocialImage(opts: ComposeOptions): Promise<ComposeR
     .resize(opts.width, opts.height, { fit, position: "centre", background: { r: 0, g: 0, b: 0, alpha: 1 } })
     .toBuffer();
 
-  // Apply text overlay via SVG composite
   let composed = resized;
+
+  // Bottom-up gradient — composite a translucent SVG band over the resized bg
+  // before drawing text, so the gradient darkens the bg only.
+  const grad = opts.layout.gradient;
+  if (grad?.enabled && (grad.height ?? 0) > 0 && (grad.opacity ?? 0) > 0) {
+    const gradSvg = renderGradientSvg(opts.width, opts.height, grad);
+    composed = await sharp(composed)
+      .composite([{ input: Buffer.from(gradSvg), top: 0, left: 0 }])
+      .toBuffer();
+  }
+
+  // Apply text overlay via SVG composite
   const texts = opts.layout.texts ?? [];
   if (texts.length > 0) {
     const svg = renderTextSvg(opts.width, opts.height, texts);
-    composed = await sharp(resized)
+    composed = await sharp(composed)
       .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
       .toBuffer();
   }

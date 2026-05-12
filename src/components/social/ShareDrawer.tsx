@@ -37,9 +37,13 @@ export default function ShareDrawer({
   blogSlug: string;
   onClose: () => void;
 }) {
+  const shareUrl = `https://siamdive.com/${language}/blogs/${blogSlug}`;
+
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState<string>("");
-  const [caption, setCaption] = useState<string>(blogExcerpt || blogTitle);
+  const [caption, setCaption] = useState<string>(() =>
+    buildCaption(blogExcerpt, "", shareUrl)
+  );
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagDraft, setHashtagDraft] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string>(defaultImage || "");
@@ -56,6 +60,20 @@ export default function ShareDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+
+  // Pull paragraph 2 from content and rebuild caption (once on mount).
+  useEffect(() => {
+    fetch(`/api/blogs/${blogId}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.translations) return;
+        const tr = d.translations.find((t: { lang: string }) => t.lang === language) || d.translations[0];
+        const p2 = extractParagraph(tr?.content || "", 2);
+        setCaption(buildCaption(tr?.excerpt || blogExcerpt, p2, shareUrl));
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blogId, language]);
 
   // Load accounts on mount + auto-pick by language
   useEffect(() => {
@@ -385,6 +403,7 @@ export default function ShareDrawer({
           initialImageUrl={imageUrl || defaultImage || ""}
           blogId={blogId}
           blogTitle={blogTitle}
+          blogExcerpt={blogExcerpt}
           onSave={(newUrl) => { setImageUrl(newUrl); setEditorOpen(false); }}
           onClose={() => setEditorOpen(false)}
         />
@@ -456,6 +475,32 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13,
   outline: "none",
 };
+
+// Strip markdown/HTML and split into paragraphs separated by blank lines.
+// Returns the Nth (1-indexed) non-empty paragraph, or "" if not found.
+function extractParagraph(content: string, n: number): string {
+  if (!content) return "";
+  // Drop fenced code blocks, then images, then links → keep link text.
+  const noCode = content.replace(/```[\s\S]*?```/g, "");
+  const noImg = noCode.replace(/!\[[^\]]*]\([^)]*\)/g, "");
+  const noLink = noImg.replace(/\[([^\]]+)]\([^)]+\)/g, "$1");
+  // Strip headings, lists, blockquote markers, bold/italic markers, HTML tags.
+  const stripped = noLink
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/[*_]{1,3}/g, "")
+    .replace(/<[^>]+>/g, "");
+  const paras = stripped.split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
+  return paras[n - 1] ?? "";
+}
+
+function buildCaption(excerpt: string, paragraph2: string, url: string): string {
+  const parts = [excerpt.trim(), paragraph2.trim()].filter(Boolean);
+  parts.push("<<< อ่านต่อ >>>");
+  parts.push(url);
+  return parts.join("\n\n");
+}
 
 function miniBtn(loading: boolean): React.CSSProperties {
   return {

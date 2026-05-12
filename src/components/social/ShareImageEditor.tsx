@@ -54,6 +54,7 @@ type Template = {
   layout: {
     texts?: Omit<TextBlock, "id">[];
     watermark?: { enabled: boolean; position: string; opacity: number; scale: number };
+    gradient?: { enabled: boolean; color?: string; opacity?: number; height?: number };
     backgroundFit?: "cover" | "contain";
   };
   thumbnailUrl: string;
@@ -66,12 +67,14 @@ export default function ShareImageEditor({
   initialImageUrl,
   blogId,
   blogTitle,
+  blogExcerpt,
   onSave,
   onClose,
 }: {
   initialImageUrl: string;
   blogId: string;
   blogTitle: string;
+  blogExcerpt?: string;
   onSave: (url: string) => void;
   onClose: () => void;
 }) {
@@ -87,24 +90,49 @@ export default function ShareImageEditor({
   const W = useCustom ? customW : preset.width;
   const H = useCustom ? customH : preset.height;
 
-  const [texts, setTexts] = useState<TextBlock[]>([{
-    id: "t1",
-    content: blogTitle,
-    x: 60, y: 60,
-    width: 900,
-    fontSize: 64,
-    fontWeight: 800,
-    fill: "#ffffff",
-    align: "left",
-    shadow: true,
-  }]);
+  // Two-line title default: yellow extra-bold headline + white regular subtitle.
+  // The subtitle picks up blogExcerpt (first sentence) if available, else blank.
+  const [texts, setTexts] = useState<TextBlock[]>(() => [
+    {
+      id: "t1",
+      content: blogTitle,
+      x: 60, y: 60,
+      width: 900,
+      fontSize: 72,
+      fontWeight: 900,
+      fill: "#fbbf24",
+      align: "left",
+      shadow: true,
+    },
+    {
+      id: "t2",
+      content: firstSentence(blogExcerpt || ""),
+      x: 60, y: 60 + 72 * 1.2 * 1 + 16,
+      width: 900,
+      fontSize: 36,
+      fontWeight: 400,
+      fill: "#ffffff",
+      align: "left",
+      shadow: true,
+    },
+  ]);
   const [selectedTextId, setSelectedTextId] = useState<string | null>("t1");
 
-  const [wmEnabled, setWmEnabled] = useState(true);
+  // bgIsClean = bg has no baked watermark (true for fresh ✨ generate or upload).
+  // We seed it from the URL: /uploads/processed/ → baked; /uploads/originals/ or external → clean.
+  const bgLooksClean = !initialImageUrl.includes("/uploads/processed/");
+  const [bgIsClean, setBgIsClean] = useState(bgLooksClean);
+  const [wmEnabled, setWmEnabled] = useState(bgLooksClean);
   const [wmPosition, setWmPosition] = useState<WatermarkPos>("bottom-right");
   const [wmOpacity, setWmOpacity] = useState(60);
   const [wmScale, setWmScale] = useState(15);
   const [wmImageUrl, setWmImageUrl] = useState<string>("");
+
+  // Bottom-up gradient overlay (e.g. dark fade for readable white text).
+  const [gradientEnabled, setGradientEnabled] = useState(false);
+  const [gradientColor, setGradientColor] = useState<string>("#000000");
+  const [gradientOpacity, setGradientOpacity] = useState(80);
+  const [gradientHeight, setGradientHeight] = useState(50);
 
   const [mjPrompt, setMjPrompt] = useState<string>("");
   const [generating, setGenerating] = useState<string>("");
@@ -213,6 +241,19 @@ export default function ShareImageEditor({
           ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
         }
       }
+
+      // Bottom-up gradient overlay — drawn under the text so it darkens the bg
+      // without dimming the title.
+      if (gradientEnabled && gradientHeight > 0 && gradientOpacity > 0) {
+        const bandH = Math.max(1, Math.round((H * gradientHeight) / 100));
+        const y0 = H - bandH;
+        const g = ctx.createLinearGradient(0, H, 0, y0);
+        g.addColorStop(0, hexToRgba(gradientColor, gradientOpacity / 100));
+        g.addColorStop(1, hexToRgba(gradientColor, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(0, y0, W, bandH);
+      }
+
       drawTexts(ctx);
 
       if (wmEnabled && wmImageUrl) {
@@ -284,7 +325,7 @@ export default function ShareImageEditor({
         }
       }
     }
-  }, [W, H, backgroundUrl, texts, selectedTextId, wmEnabled, wmImageUrl, wmPosition, wmOpacity, wmScale]);
+  }, [W, H, backgroundUrl, texts, selectedTextId, wmEnabled, wmImageUrl, wmPosition, wmOpacity, wmScale, gradientEnabled, gradientColor, gradientOpacity, gradientHeight]);
 
   function updateSelected(patch: Partial<TextBlock>) {
     if (!selectedTextId) return;
@@ -363,9 +404,16 @@ export default function ShareImageEditor({
     }
     if (tpl.layout.watermark) {
       setWmEnabled(tpl.layout.watermark.enabled);
-      setWmPosition(tpl.layout.watermark.position as "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center");
+      setWmPosition(tpl.layout.watermark.position as WatermarkPos);
       setWmOpacity(tpl.layout.watermark.opacity);
       setWmScale(tpl.layout.watermark.scale);
+    }
+    const g = tpl.layout.gradient;
+    if (g) {
+      setGradientEnabled(!!g.enabled);
+      if (g.color) setGradientColor(g.color);
+      if (typeof g.opacity === "number") setGradientOpacity(g.opacity);
+      if (typeof g.height === "number") setGradientHeight(g.height);
     }
   }
 
@@ -386,6 +434,8 @@ export default function ShareImageEditor({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "regen failed");
       setBackgroundUrl(data.originalUrl || data.coverUrl);
+      setBgIsClean(true);
+      setWmEnabled(true);
       setToast({ type: "ok", msg: `สร้างแล้ว: ${aspectRatio} · ${modelId}` });
     } catch (err) {
       setToast({ type: "err", msg: err instanceof Error ? err.message : "regen failed" });
@@ -401,6 +451,9 @@ export default function ShareImageEditor({
         backgroundFit: "cover" as const,
         texts: texts.map(({ id: _id, ...rest }) => rest),
         watermark: { enabled: wmEnabled, position: wmPosition, opacity: wmOpacity, scale: wmScale },
+        gradient: gradientEnabled
+          ? { enabled: true, color: gradientColor, opacity: gradientOpacity, height: gradientHeight }
+          : { enabled: false },
       };
       const res = await fetch("/api/social/image/compose", {
         method: "POST",
@@ -542,7 +595,11 @@ export default function ShareImageEditor({
                 fd.append("file", file);
                 const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
                 const data = await res.json();
-                if (data.url) setBackgroundUrl(data.url);
+                if (data.url) {
+                  setBackgroundUrl(data.url);
+                  setBgIsClean(true);
+                  setWmEnabled(true);
+                }
               }} />
             </label>
             {!mjPrompt && (
@@ -640,6 +697,12 @@ export default function ShareImageEditor({
               <input type="checkbox" checked={wmEnabled} onChange={e => setWmEnabled(e.target.checked)} />
               Watermark
             </label>
+            {!bgIsClean && (
+              <div style={{ fontSize: 10, color: "#f59e0b", lineHeight: 1.4, marginBottom: 6 }}>
+                ⚠️ ภาพปัจจุบันมี watermark ฝังในรูปแล้ว — เปิด overlay จะซ้อน 2 อัน
+                กด ✨ generate หรือ upload รูปใหม่เพื่อใช้ overlay
+              </div>
+            )}
             {wmEnabled && (
               <>
                 <Row label="Position">
@@ -658,6 +721,34 @@ export default function ShareImageEditor({
                 <Row label="Scale">
                   <input type="range" min={5} max={40} value={wmScale} onChange={e => setWmScale(Number(e.target.value))} style={{ width: "100%" }} />
                   <span style={valStyle}>{wmScale}%</span>
+                </Row>
+              </>
+            )}
+          </div>
+
+          {/* Gradient overlay (bottom → top fade) */}
+          <div style={{ border: "1px solid #222", borderRadius: 6, padding: 10 }}>
+            <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={gradientEnabled} onChange={e => setGradientEnabled(e.target.checked)} />
+              Gradient ล่าง→บน
+            </label>
+            {gradientEnabled && (
+              <>
+                <Row label="สี">
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {["#000000", "#0f172a", "#1e3a8a", "#7c2d12", "#0f4c3a", "#4c0519"].map(c => (
+                      <button key={c} onClick={() => setGradientColor(c)} style={{ width: 22, height: 22, borderRadius: 4, border: gradientColor === c ? "2px solid #93c5fd" : "1px solid #333", background: c, cursor: "pointer" }} />
+                    ))}
+                    <input type="color" value={gradientColor} onChange={e => setGradientColor(e.target.value)} style={{ width: 26, height: 22, border: "1px solid #333", borderRadius: 4, background: "transparent", padding: 0, cursor: "pointer" }} />
+                  </div>
+                </Row>
+                <Row label="Opacity">
+                  <input type="range" min={0} max={100} value={gradientOpacity} onChange={e => setGradientOpacity(Number(e.target.value))} style={{ width: "100%" }} />
+                  <span style={valStyle}>{gradientOpacity}%</span>
+                </Row>
+                <Row label="Height">
+                  <input type="range" min={10} max={100} value={gradientHeight} onChange={e => setGradientHeight(Number(e.target.value))} style={{ width: "100%" }} />
+                  <span style={valStyle}>{gradientHeight}%</span>
                 </Row>
               </>
             )}
@@ -716,6 +807,21 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <div style={{ flex: 1, display: "flex", gap: 4, alignItems: "center" }}>{children}</div>
     </div>
   );
+}
+
+function firstSentence(s: string): string {
+  if (!s) return "";
+  const m = s.match(/[^.!?。！？]+[.!?。！？]?/);
+  return (m?.[0] ?? s).trim().slice(0, 120);
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return `rgba(0,0,0,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
