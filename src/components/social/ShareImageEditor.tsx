@@ -108,6 +108,8 @@ export default function ShareImageEditor({
 
   const [mjPrompt, setMjPrompt] = useState<string>("");
   const [generating, setGenerating] = useState<string>("");
+  const [models, setModels] = useState<Array<{ id: string; label: string; price: string; blurb: string }>>([]);
+  const [modelId, setModelId] = useState<string>("nano-banana-pro");
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [saving, setSaving] = useState(false);
@@ -118,6 +120,12 @@ export default function ShareImageEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewBoxRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+  // Bounding box per text block in canvas coords — populated during render, used for hit-testing.
+  const boundsRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
+  // Active drag: which text + offset between cursor and block top-left at mousedown.
+  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  // Cached HTMLImageElements keyed by URL — avoids reload on every redraw while dragging.
+  const imgCacheRef = useRef<Map<string, HTMLImageElement | null>>(new Map());
 
   // Load templates
   useEffect(() => {
@@ -134,6 +142,14 @@ export default function ShareImageEditor({
       .then(d => { if (d?.mjPrompt) setMjPrompt(d.mjPrompt); })
       .catch(() => {});
   }, [blogId]);
+
+  // Load available fal.ai models
+  useEffect(() => {
+    fetch("/api/blog-images/generate", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.models) setModels(d.models); })
+      .catch(() => {});
+  }, []);
 
   // Load site branding — for watermark URL + default position/opacity/scale.
   useEffect(() => {
@@ -176,12 +192,19 @@ export default function ShareImageEditor({
     c.height = H;
 
     let cancelled = false;
+    const cachedLoad = async (url: string) => {
+      const cache = imgCacheRef.current;
+      if (cache.has(url)) return cache.get(url) ?? null;
+      const img = await loadImage(url);
+      cache.set(url, img);
+      return img;
+    };
     const render = async () => {
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, W, H);
 
       if (backgroundUrl) {
-        const bg = await loadImage(backgroundUrl);
+        const bg = await cachedLoad(backgroundUrl);
         if (cancelled) return;
         if (bg) {
           const r = Math.max(W / bg.width, H / bg.height);
@@ -193,7 +216,7 @@ export default function ShareImageEditor({
       drawTexts(ctx);
 
       if (wmEnabled && wmImageUrl) {
-        const wm = await loadImage(wmImageUrl);
+        const wm = await cachedLoad(wmImageUrl);
         if (cancelled || !wm) return;
         const targetW = Math.max(16, Math.round((W * wmScale) / 100));
         const targetH = (wm.height / wm.width) * targetW;
@@ -215,6 +238,7 @@ export default function ShareImageEditor({
     return () => { cancelled = true; };
 
     function drawTexts(ctx: CanvasRenderingContext2D) {
+      boundsRef.current.clear();
       for (const t of texts) {
         ctx.font = `${t.fontWeight} ${t.fontSize}px Prompt, Inter, Arial, sans-serif`;
         ctx.fillStyle = t.fill;
@@ -242,13 +266,75 @@ export default function ShareImageEditor({
           ctx.fillText(line, ax, t.y + i * t.fontSize * 1.2);
         });
         ctx.shadowColor = "transparent";
+
+        // Record bounding box for hit-testing (use the block's full width/height,
+        // not just measured text — so even empty space is grabbable).
+        const lh = t.fontSize * 1.2;
+        const blockH = Math.max(lh, lines.length * lh);
+        boundsRef.current.set(t.id, { x: t.x, y: t.y, w: t.width, h: blockH });
+
+        // Selection outline (dashed) — drawn on top so it's visible while editing.
+        if (t.id === selectedTextId) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(147,197,253,0.9)";
+          ctx.lineWidth = Math.max(2, t.fontSize / 18);
+          ctx.setLineDash([Math.max(8, t.fontSize / 6), Math.max(6, t.fontSize / 8)]);
+          ctx.strokeRect(t.x, t.y, t.width, blockH);
+          ctx.restore();
+        }
       }
     }
-  }, [W, H, backgroundUrl, texts, wmEnabled, wmImageUrl, wmPosition, wmOpacity, wmScale]);
+  }, [W, H, backgroundUrl, texts, selectedTextId, wmEnabled, wmImageUrl, wmPosition, wmOpacity, wmScale]);
 
   function updateSelected(patch: Partial<TextBlock>) {
     if (!selectedTextId) return;
     setTexts(texts.map(t => t.id === selectedTextId ? { ...t, ...patch } : t));
+  }
+
+  // Convert pointer event → canvas coords (account for previewScale CSS transform).
+  function eventToCanvas(e: { clientX: number; clientY: number }) {
+    const c = canvasRef.current;
+    if (!c) return null;
+    const rect = c.getBoundingClientRect();
+    // rect is the *scaled* size, so dividing the offset by previewScale gives canvas-space.
+    const x = (e.clientX - rect.left) / previewScale;
+    const y = (e.clientY - rect.top) / previewScale;
+    return { x, y };
+  }
+  function hitTest(x: number, y: number): string | null {
+    // Iterate in reverse — last-drawn text wins (z-order top).
+    for (let i = texts.length - 1; i >= 0; i--) {
+      const b = boundsRef.current.get(texts[i].id);
+      if (!b) continue;
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return texts[i].id;
+    }
+    return null;
+  }
+  function onCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    const p = eventToCanvas(e);
+    if (!p) return;
+    const hit = hitTest(p.x, p.y);
+    if (!hit) { setSelectedTextId(null); return; }
+    setSelectedTextId(hit);
+    const t = texts.find(tx => tx.id === hit);
+    if (!t) return;
+    dragRef.current = { id: hit, dx: p.x - t.x, dy: p.y - t.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onCanvasPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const p = eventToCanvas(e);
+    if (!p) return;
+    const nx = Math.round(p.x - drag.dx);
+    const ny = Math.round(p.y - drag.dy);
+    setTexts(prev => prev.map(t => t.id === drag.id ? { ...t, x: nx, y: ny } : t));
+  }
+  function onCanvasPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (dragRef.current) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    }
+    dragRef.current = null;
   }
   function addText() {
     const id = `t${Date.now()}`;
@@ -295,12 +381,12 @@ export default function ShareImageEditor({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: mjPrompt, aspectRatio, attachToBlog: false }),
+        body: JSON.stringify({ prompt: mjPrompt, aspectRatio, model: modelId, attachToBlog: false }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "regen failed");
       setBackgroundUrl(data.originalUrl || data.coverUrl);
-      setToast({ type: "ok", msg: `สร้างรูปใหม่แล้ว (${aspectRatio})` });
+      setToast({ type: "ok", msg: `สร้างแล้ว: ${aspectRatio} · ${modelId}` });
     } catch (err) {
       setToast({ type: "err", msg: err instanceof Error ? err.message : "regen failed" });
     } finally {
@@ -410,10 +496,25 @@ export default function ShareImageEditor({
           {/* Background source */}
           <div>
             <label style={labelStyle}>พื้นหลัง</label>
+
+            {/* Model picker */}
+            <select
+              value={modelId}
+              onChange={e => setModelId(e.target.value)}
+              style={{ ...inputStyle, marginBottom: 6 }}
+              title="เลือก fal.ai model ที่จะใช้สร้างภาพ"
+            >
+              {models.length === 0
+                ? <option value={modelId}>{modelId} (loading...)</option>
+                : models.map(m => (
+                  <option key={m.id} value={m.id}>{m.label} · {m.price}</option>
+                ))}
+            </select>
+
             <button
               onClick={generateFromMjPrompt}
               disabled={!!generating || !mjPrompt}
-              title={mjPrompt ? `ใช้ MJ prompt ของ blog สร้างที่ ${closestAspect(W, H)}` : "blog ยังไม่มี MJ prompt"}
+              title={mjPrompt ? `ใช้ MJ prompt ของ blog สร้างด้วย ${modelId} @ ${closestAspect(W, H)}` : "blog ยังไม่มี MJ prompt"}
               style={{
                 ...btnStyle,
                 width: "100%",
@@ -425,11 +526,14 @@ export default function ShareImageEditor({
                 fontWeight: 700,
               }}
             >
-              {generating
-                ? `กำลังสร้าง ${generating}...`
-                : `✨ สร้างจาก MJ prompt @ ${closestAspect(W, H)}`}
+              {generating ? `กำลังสร้าง ${generating}...` : `✨ สร้างจาก MJ prompt`}
             </button>
-            <label style={{ ...btnStyle, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 6, padding: "8px 6px" }}>
+            <div style={{ fontSize: 10, color: "#777", marginTop: 4, lineHeight: 1.4 }}>
+              จะส่ง aspect <b style={{ color: "#93c5fd" }}>{closestAspect(W, H)}</b> (canvas {W}×{H}) ไป fal.ai →
+              ภาพถูก crop เป็น cover ให้พอดี canvas อีกที
+            </div>
+
+            <label style={{ ...btnStyle, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 8, padding: "8px 6px" }}>
               📁 Upload รูปจากเครื่อง
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
                 const file = e.target.files?.[0];
@@ -572,9 +676,25 @@ export default function ShareImageEditor({
         </aside>
 
         {/* Preview */}
-        <div ref={previewBoxRef} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#000" }}>
+        <div ref={previewBoxRef} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#000" }}>
           <div style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
-            <canvas ref={canvasRef} style={{ background: "#000", display: "block", boxShadow: "0 0 0 1px #333" }} />
+            <canvas
+              ref={canvasRef}
+              onPointerDown={onCanvasPointerDown}
+              onPointerMove={onCanvasPointerMove}
+              onPointerUp={onCanvasPointerUp}
+              onPointerCancel={onCanvasPointerUp}
+              style={{
+                background: "#000",
+                display: "block",
+                boxShadow: "0 0 0 1px #333",
+                cursor: selectedTextId ? "move" : "default",
+                touchAction: "none",
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 10, color: "#555", marginTop: 8, textAlign: "center" }}>
+            คลิกข้อความเพื่อเลือก · ลากเพื่อย้ายตำแหน่ง
           </div>
         </div>
       </div>
