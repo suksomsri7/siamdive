@@ -21,6 +21,31 @@ type TextBlock = {
   shadow: boolean;
 };
 
+type WatermarkPos = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+
+// Map arbitrary W:H to the closest aspect supported by /api/blog-images/generate.
+const SUPPORTED_ASPECTS: Array<{ id: string; ratio: number }> = [
+  { id: "21:9", ratio: 21 / 9 },
+  { id: "16:9", ratio: 16 / 9 },
+  { id: "3:2",  ratio: 3 / 2 },
+  { id: "4:3",  ratio: 4 / 3 },
+  { id: "1:1",  ratio: 1 },
+  { id: "3:4",  ratio: 3 / 4 },
+  { id: "2:3",  ratio: 2 / 3 },
+  { id: "9:16", ratio: 9 / 16 },
+  { id: "9:21", ratio: 9 / 21 },
+];
+function closestAspect(w: number, h: number): string {
+  const r = w / h;
+  let best = SUPPORTED_ASPECTS[0];
+  let bestDiff = Infinity;
+  for (const a of SUPPORTED_ASPECTS) {
+    const d = Math.abs(a.ratio - r);
+    if (d < bestDiff) { bestDiff = d; best = a; }
+  }
+  return best.id;
+}
+
 type Template = {
   id: string;
   name: string;
@@ -76,9 +101,13 @@ export default function ShareImageEditor({
   const [selectedTextId, setSelectedTextId] = useState<string | null>("t1");
 
   const [wmEnabled, setWmEnabled] = useState(true);
-  const [wmPosition, setWmPosition] = useState<"top-left" | "top-right" | "bottom-left" | "bottom-right" | "center">("bottom-right");
+  const [wmPosition, setWmPosition] = useState<WatermarkPos>("bottom-right");
   const [wmOpacity, setWmOpacity] = useState(60);
   const [wmScale, setWmScale] = useState(15);
+  const [wmImageUrl, setWmImageUrl] = useState<string>("");
+
+  const [mjPrompt, setMjPrompt] = useState<string>("");
+  const [generating, setGenerating] = useState<string>("");
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [saving, setSaving] = useState(false);
@@ -98,6 +127,30 @@ export default function ShareImageEditor({
       .catch(() => {});
   }, []);
 
+  // Load blog mjPrompt — needed for ✨ Generate button (fal.ai requires a prompt)
+  useEffect(() => {
+    fetch(`/api/blogs/${blogId}`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.mjPrompt) setMjPrompt(d.mjPrompt); })
+      .catch(() => {});
+  }, [blogId]);
+
+  // Load site branding — for watermark URL + default position/opacity/scale.
+  useEffect(() => {
+    fetch("/api/site-branding", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const list: Array<{ id: string; url: string }> = d.watermarks || [];
+        const def = list.find(w => w.id === d.defaultWatermarkId) || list[0];
+        if (def?.url) setWmImageUrl(def.url);
+        if (typeof d.watermarkOpacity === "number") setWmOpacity(d.watermarkOpacity);
+        if (typeof d.watermarkScale === "number") setWmScale(d.watermarkScale);
+        if (typeof d.watermarkPosition === "string") setWmPosition(d.watermarkPosition as WatermarkPos);
+      })
+      .catch(() => {});
+  }, []);
+
   // Compute preview scale to fit available space
   useEffect(() => {
     function resize() {
@@ -113,7 +166,7 @@ export default function ShareImageEditor({
     return () => window.removeEventListener("resize", resize);
   }, [W, H]);
 
-  // Draw on canvas
+  // Draw on canvas (bg → texts → watermark)
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -121,25 +174,45 @@ export default function ShareImageEditor({
     if (!ctx) return;
     c.width = W;
     c.height = H;
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, W, H);
 
-    if (backgroundUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        // cover fit
-        const r = Math.max(W / img.width, H / img.height);
-        const dw = img.width * r;
-        const dh = img.height * r;
-        ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-        drawTexts(ctx);
-      };
-      img.onerror = () => drawTexts(ctx);
-      img.src = backgroundUrl;
-    } else {
+    let cancelled = false;
+    const render = async () => {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
+
+      if (backgroundUrl) {
+        const bg = await loadImage(backgroundUrl);
+        if (cancelled) return;
+        if (bg) {
+          const r = Math.max(W / bg.width, H / bg.height);
+          const dw = bg.width * r;
+          const dh = bg.height * r;
+          ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        }
+      }
       drawTexts(ctx);
-    }
+
+      if (wmEnabled && wmImageUrl) {
+        const wm = await loadImage(wmImageUrl);
+        if (cancelled || !wm) return;
+        const targetW = Math.max(16, Math.round((W * wmScale) / 100));
+        const targetH = (wm.height / wm.width) * targetW;
+        const pad = Math.round(W * 0.025);
+        let x = 0, y = 0;
+        switch (wmPosition) {
+          case "top-left":     x = pad; y = pad; break;
+          case "top-right":    x = W - targetW - pad; y = pad; break;
+          case "bottom-left":  x = pad; y = H - targetH - pad; break;
+          case "bottom-right": x = W - targetW - pad; y = H - targetH - pad; break;
+          case "center":       x = (W - targetW) / 2; y = (H - targetH) / 2; break;
+        }
+        ctx.globalAlpha = Math.max(0, Math.min(100, wmOpacity)) / 100;
+        ctx.drawImage(wm, x, y, targetW, targetH);
+        ctx.globalAlpha = 1;
+      }
+    };
+    render();
+    return () => { cancelled = true; };
 
     function drawTexts(ctx: CanvasRenderingContext2D) {
       for (const t of texts) {
@@ -156,7 +229,6 @@ export default function ShareImageEditor({
           ctx.shadowColor = "transparent";
         }
         const ax = t.align === "center" ? t.x + t.width / 2 : t.align === "right" ? t.x + t.width : t.x;
-        // wrap
         const words = t.content.split(/\s+/);
         const lines: string[] = [];
         let cur = "";
@@ -169,9 +241,10 @@ export default function ShareImageEditor({
         lines.forEach((line, i) => {
           ctx.fillText(line, ax, t.y + i * t.fontSize * 1.2);
         });
+        ctx.shadowColor = "transparent";
       }
     }
-  }, [W, H, backgroundUrl, texts]);
+  }, [W, H, backgroundUrl, texts, wmEnabled, wmImageUrl, wmPosition, wmOpacity, wmScale]);
 
   function updateSelected(patch: Partial<TextBlock>) {
     if (!selectedTextId) return;
@@ -210,24 +283,28 @@ export default function ShareImageEditor({
     }
   }
 
-  async function regenerateBg(aspectRatio: string) {
-    setSaving(true);
+  async function generateFromMjPrompt() {
+    if (!mjPrompt) {
+      setToast({ type: "err", msg: "blog ยังไม่มี MJ prompt — แก้ในหน้า blog editor ก่อน" });
+      return;
+    }
+    const aspectRatio = closestAspect(W, H);
+    setGenerating(aspectRatio);
     try {
       const res = await fetch("/api/blog-images/generate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blogId, aspectRatio, attachToBlog: false }),
+        body: JSON.stringify({ prompt: mjPrompt, aspectRatio, attachToBlog: false }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "regen failed");
-      // The endpoint returns originalUrl + coverUrl. Use originalUrl (uncropped)
       setBackgroundUrl(data.originalUrl || data.coverUrl);
-      setToast({ type: "ok", msg: "สร้างรูปใหม่แล้ว" });
+      setToast({ type: "ok", msg: `สร้างรูปใหม่แล้ว (${aspectRatio})` });
     } catch (err) {
       setToast({ type: "err", msg: err instanceof Error ? err.message : "regen failed" });
     } finally {
-      setSaving(false);
+      setGenerating("");
     }
   }
 
@@ -333,24 +410,42 @@ export default function ShareImageEditor({
           {/* Background source */}
           <div>
             <label style={labelStyle}>พื้นหลัง</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              <button onClick={() => regenerateBg("1:1")} disabled={saving} style={btnStyle}>🎨 1:1</button>
-              <button onClick={() => regenerateBg("16:9")} disabled={saving} style={btnStyle}>🎨 16:9</button>
-              <button onClick={() => regenerateBg("9:16")} disabled={saving} style={btnStyle}>🎨 9:16</button>
-              <label style={{ ...btnStyle, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                📁 Upload
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  // upload via existing /api/upload
-                  const fd = new FormData();
-                  fd.append("file", file);
-                  const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
-                  const data = await res.json();
-                  if (data.url) setBackgroundUrl(data.url);
-                }} />
-              </label>
-            </div>
+            <button
+              onClick={generateFromMjPrompt}
+              disabled={!!generating || !mjPrompt}
+              title={mjPrompt ? `ใช้ MJ prompt ของ blog สร้างที่ ${closestAspect(W, H)}` : "blog ยังไม่มี MJ prompt"}
+              style={{
+                ...btnStyle,
+                width: "100%",
+                padding: "10px 8px",
+                background: mjPrompt ? "#1f2937" : "#111",
+                color: mjPrompt ? "#93c5fd" : "#555",
+                borderColor: mjPrompt ? "#374151" : "#222",
+                cursor: mjPrompt && !generating ? "pointer" : "not-allowed",
+                fontWeight: 700,
+              }}
+            >
+              {generating
+                ? `กำลังสร้าง ${generating}...`
+                : `✨ สร้างจาก MJ prompt @ ${closestAspect(W, H)}`}
+            </button>
+            <label style={{ ...btnStyle, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 6, padding: "8px 6px" }}>
+              📁 Upload รูปจากเครื่อง
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append("file", file);
+                const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: fd });
+                const data = await res.json();
+                if (data.url) setBackgroundUrl(data.url);
+              }} />
+            </label>
+            {!mjPrompt && (
+              <div style={{ fontSize: 10, color: "#666", marginTop: 6, lineHeight: 1.4 }}>
+                blog นี้ยังไม่มี MJ prompt — เพิ่มในหน้า blog editor เพื่อใช้ ✨ generate
+              </div>
+            )}
           </div>
 
           {/* Templates */}
@@ -501,6 +596,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <div style={{ flex: 1, display: "flex", gap: 4, alignItems: "center" }}>{children}</div>
     </div>
   );
+}
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise(resolve => {
+    const img = new Image();
+    // No crossOrigin: canvas becomes tainted but we never call toDataURL (compose runs server-side),
+    // so display works even if Bunny CDN doesn't return CORS headers.
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
 
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6, letterSpacing: "0.05em", textTransform: "uppercase" };
