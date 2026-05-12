@@ -29,23 +29,40 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   CANCELLED: { label: "⚫ Cancelled", color: "#6b7280" },
 };
 
+type Account = { id: string; pageName: string; language: string };
+
 export default function SocialQueuePage() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [accountFilter, setAccountFilter] = useState<string>("");
+  const [languageFilter, setLanguageFilter] = useState<string>("");
   const [syncing, setSyncing] = useState(false);
+
+  // Load accounts once for the filter dropdown
+  useEffect(() => {
+    fetch("/api/social/accounts", { credentials: "include" })
+      .then(r => r.json())
+      .then(d => setAccounts(d.accounts || []))
+      .catch(() => {});
+  }, []);
 
   async function load() {
     setLoading(true);
     const url = new URL("/api/social/posts", window.location.origin);
     if (statusFilter) url.searchParams.set("status", statusFilter);
+    if (accountFilter) url.searchParams.set("accountId", accountFilter);
     url.searchParams.set("limit", "100");
     const res = await fetch(url.toString(), { credentials: "include" });
     const data = await res.json();
-    setPosts(data.posts || []);
+    let list = (data.posts || []) as Post[];
+    // language filter happens client-side (API doesn't filter on language directly)
+    if (languageFilter) list = list.filter(p => p.language === languageFilter);
+    setPosts(list);
     setLoading(false);
   }
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter, accountFilter, languageFilter]);
 
   async function cancel(p: Post) {
     if (!confirm("ยกเลิกโพสนี้?")) return;
@@ -74,7 +91,18 @@ export default function SocialQueuePage() {
     <main style={{ padding: 32, maxWidth: 1400, margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Social Queue</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select value={accountFilter} onChange={e => setAccountFilter(e.target.value)} style={selStyle}>
+            <option value="">ทุก channel</option>
+            {accounts.map(a => (
+              <option key={a.id} value={a.id}>{a.pageName} ({a.language.toUpperCase()})</option>
+            ))}
+          </select>
+          <select value={languageFilter} onChange={e => setLanguageFilter(e.target.value)} style={selStyle}>
+            <option value="">ทุกภาษา</option>
+            <option value="th">TH</option>
+            <option value="en">EN</option>
+          </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selStyle}>
             <option value="">ทุกสถานะ</option>
             <option value="QUEUED">Queued</option>

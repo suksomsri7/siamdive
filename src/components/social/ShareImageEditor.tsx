@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SOCIAL_PRESETS, type SocialPreset } from "@/lib/social/presets";
+import { SOCIAL_PRESETS, PRESET_GROUPS, type SocialPreset } from "@/lib/social/presets";
 
 type TextBlock = {
   id: string;
@@ -311,8 +311,16 @@ export default function ShareImageEditor({
               if (e.target.value === "custom") setUseCustom(true);
               else { setUseCustom(false); setPresetId(e.target.value); }
             }} style={inputStyle}>
-              {SOCIAL_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-              <option value="custom">Custom...</option>
+              {PRESET_GROUPS.map(group => {
+                const items = SOCIAL_PRESETS.filter(p => p.group === group.id);
+                if (items.length === 0) return null;
+                return (
+                  <optgroup key={group.id} label={`${group.icon} ${group.label}`}>
+                    {items.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  </optgroup>
+                );
+              })}
+              <option value="custom">⚙️ Custom dimensions...</option>
             </select>
             {useCustom && (
               <div style={{ display: "flex", gap: 6, marginTop: 6 }}>

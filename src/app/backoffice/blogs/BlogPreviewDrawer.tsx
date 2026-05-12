@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
+
+const ShareDrawer = dynamic(() => import("@/components/social/ShareDrawer"), { ssr: false });
 
 type LangKey = "en" | "th" | "cn" | "de" | "fr" | "ru" | "ko" | "ja";
 const LANG_LABELS: Record<LangKey, string> = {
@@ -49,6 +52,7 @@ export default function BlogPreviewDrawer({ open, blogId, onClose, onStatusChang
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const load = useCallback(async (id: string) => {
     setLoading(true); setErr(null);
@@ -144,6 +148,22 @@ export default function BlogPreviewDrawer({ open, blogId, onClose, onStatusChang
               }}>{STATUS_STYLE[blog.status].label}</span>
             )}
             <div style={{ flex: 1 }} />
+            {blog && trans && (
+              <button
+                onClick={() => setShareOpen(true)}
+                disabled={blog.status !== "PUBLISHED"}
+                title={blog.status !== "PUBLISHED" ? "ต้อง publish ก่อนถึงโพสได้" : "Share to Facebook"}
+                style={{
+                  fontSize: 11, fontWeight: 700,
+                  padding: "5px 12px", borderRadius: 6, border: "none",
+                  cursor: blog.status === "PUBLISHED" ? "pointer" : "not-allowed",
+                  background: blog.status === "PUBLISHED" ? "#1877f2" : "#1a1a1a",
+                  color: blog.status === "PUBLISHED" ? "#fff" : "#444",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                📤 โพส FB
+              </button>
+            )}
             {blog?.status === "PUBLISHED" && trans?.slug && (
               <a
                 href={`/${lang}/blogs/${trans.slug}`}
@@ -151,7 +171,7 @@ export default function BlogPreviewDrawer({ open, blogId, onClose, onStatusChang
                 rel="noreferrer"
                 style={{ fontSize: 11, color: "#60a5fa", textDecoration: "none", fontWeight: 600 }}
               >
-                เปิดในหน้าเว็บจริง ↗
+                เปิดในเว็บ ↗
               </a>
             )}
             <button onClick={onClose} aria-label="Close"
@@ -275,6 +295,17 @@ export default function BlogPreviewDrawer({ open, blogId, onClose, onStatusChang
           )}
         </div>
       </div>
+      {shareOpen && blog && trans && (
+        <ShareDrawer
+          blogId={blog.id}
+          language={lang}
+          defaultImage={trans.ogImage || blog.covers[0] || ""}
+          blogTitle={trans.title}
+          blogExcerpt={trans.excerpt}
+          blogSlug={trans.slug}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </>
   );
 }
