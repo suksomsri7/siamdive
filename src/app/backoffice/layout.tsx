@@ -41,6 +41,15 @@ const NAV = [
     ],
   },
   {
+    section: "Social",
+    items: [
+      { label: "Queue", href: "/backoffice/social/queue", icon: "📤" },
+      { label: "Accounts", href: "/backoffice/social/accounts", icon: "🔗" },
+      { label: "Templates", href: "/backoffice/social/templates", icon: "🖼" },
+      { label: "AI Settings", href: "/backoffice/social/settings", icon: "🤖" },
+    ],
+  },
+  {
     section: "System",
     items: [
       { label: "Admins", href: "/backoffice/admins", icon: "👤" },
