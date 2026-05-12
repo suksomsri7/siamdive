@@ -1115,6 +1115,22 @@ enum AnalyticsEventType {
   ARK_AI_PERSONALIZED
 }
 
+// ── SocialAiConfig ──────────────────────────────────────────────────────────
+// Singleton (id = "default") — independent from AiConfig (Ark AI). Lets the
+// admin pick a cheap model (e.g. gpt-4o-mini via OpenRouter) for caption +
+// hashtag generation without affecting Ark AI chat config.
+
+model SocialAiConfig {
+  id              String   @id @default("default")
+  provider        String   @default("anthropic") // anthropic | openai | openrouter
+  apiKeyEncrypted String   @default("")
+  model           String   @default("claude-haiku-4-5-20251001")
+  maxTokens       Int      @default(800)
+  temperature     Float    @default(0.7)
+  enabled         Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
 // ── Social (Buffer) ─────────────────────────────────────────────────────────
 // Per-page Buffer profile connected by an admin. Each Facebook Page (TH or EN)
 // is one row. Tokens are encrypted at rest via lib/ark-ai/encryption.

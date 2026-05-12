@@ -85,6 +85,7 @@ export default function SocialQueuePage() {
           <button onClick={syncMetrics} disabled={syncing} style={btn}>{syncing ? "..." : "🔄 Sync metrics"}</button>
           <a href="/backoffice/social/accounts" style={{ ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Accounts</a>
           <a href="/backoffice/social/templates" style={{ ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>Templates</a>
+          <a href="/backoffice/social/settings" style={{ ...btn, textDecoration: "none", display: "inline-flex", alignItems: "center" }}>AI Settings</a>
         </div>
       </header>
 
