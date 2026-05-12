@@ -33,6 +33,7 @@ model Blog {
   serviceAreaIds String[]          @default([])
   translations   BlogTranslation[]
   videos         BlogVideo[]
+  socialPosts    SocialPost[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -822,19 +823,19 @@ model Itinerary {
 // ── PlanUser ─────────────────────────────────────────────────────────────────
 
 model PlanUser {
-  id        String     @id @default(cuid())
-  deviceId  String     @unique
-  email     String?
-  name      String?
-  avatarUrl String?
+  id                  String     @id @default(cuid())
+  deviceId            String     @unique
+  email               String?
+  name                String?
+  avatarUrl           String?
   // Last few ARK_AI plans this user explicitly deleted, kept so /api/ark-ai/build-plan
   // can ask "you just deleted this — recreate?" instead of silently rebuilding the
   // same trip from a stale chat thread. Shape: [{sig:string, name:string, at:string(ISO)}].
   // Cap at last 20 entries; entries older than 24h are ignored at read time.
-  recentlyDeletedSigs Json @default("[]")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  plans     UserPlan[]
+  recentlyDeletedSigs Json       @default("[]")
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  plans               UserPlan[]
 
   @@index([email])
 }
@@ -842,27 +843,27 @@ model PlanUser {
 // ── UserPlan ─────────────────────────────────────────────────────────────────
 
 model UserPlan {
-  id         String     @id @default(cuid())
-  shortId    String     @unique @default(cuid())
-  userId     String
-  user       PlanUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String     @default("My Plan")
-  coverUrl   String?
-  status     PlanStatus @default(PLANNING)
-  trips      Json       @default("[]")
-  isPublic   Boolean    @default(false)
-  publicSlug String?    @unique
-  viewCount  Int        @default(0)
-  expiresAt  DateTime?
-  source     String     @default("USER") // USER | ARK_AI | TEMPLATE
-  aiPrompt   String?
+  id            String     @id @default(cuid())
+  shortId       String     @unique @default(cuid())
+  userId        String
+  user          PlanUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String     @default("My Plan")
+  coverUrl      String?
+  status        PlanStatus @default(PLANNING)
+  trips         Json       @default("[]")
+  isPublic      Boolean    @default(false)
+  publicSlug    String?    @unique
+  viewCount     Int        @default(0)
+  expiresAt     DateTime?
+  source        String     @default("USER") // USER | ARK_AI | TEMPLATE
+  aiPrompt      String?
   // SHA256 of normalized slot fields — set by /api/ark-ai/build-plan so a
   // repeat build with identical slots resolves to the existing plan instead
   // of creating a duplicate. NULL for non-AI plans. Partial unique index
   // (added in migration 20260509) enforces uniqueness only when set.
   planSignature String?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   members       PlanMember[]
   media         PlanMedia[]
@@ -1112,6 +1113,85 @@ enum AnalyticsEventType {
   ARK_AI_TEMPLATE_SELECTED
   ARK_AI_BUDGET_BLOCKED
   ARK_AI_PERSONALIZED
+}
+
+// ── Social (Buffer) ─────────────────────────────────────────────────────────
+// Per-page Buffer profile connected by an admin. Each Facebook Page (TH or EN)
+// is one row. Tokens are encrypted at rest via lib/ark-ai/encryption.
+
+model SocialAccount {
+  id              String       @id @default(cuid())
+  provider        String       @default("buffer") // future: native FB/IG/X
+  bufferProfileId String       @unique
+  pageName        String // e.g. "SiamDive TH"
+  pageUrl         String       @default("")
+  avatarUrl       String       @default("")
+  language        String // "th" | "en" — used for auto-route from blog lang
+  accessToken     String // encrypted
+  refreshToken    String?
+  expiresAt       DateTime?
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  posts           SocialPost[]
+
+  @@index([language, active])
+}
+
+model SocialPost {
+  id             String           @id @default(cuid())
+  blogId         String
+  blog           Blog             @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        SocialAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  language       String // matches blog translation lang at compose time
+  caption        String
+  hashtags       String[]
+  imageUrl       String           @default("")
+  imageVariant   String           @default("og") // "og" | "square" | "custom" | "template:{id}"
+  scheduledAt    DateTime?
+  postedAt       DateTime?
+  bufferUpdateId String?
+  externalUrl    String?
+  status         SocialPostStatus @default(QUEUED)
+  errorMessage   String?
+  // metrics (synced from Buffer)
+  likes          Int?
+  comments       Int?
+  shares         Int?
+  reach          Int?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([blogId])
+  @@index([accountId, createdAt])
+}
+
+enum SocialPostStatus {
+  QUEUED
+  POSTED
+  FAILED
+  CANCELLED
+}
+
+// User-defined and system image templates for social post composition.
+// `layout` JSON holds the canvas spec (text blocks, watermark, position),
+// rendered server-side via the photo-compose endpoint.
+model SocialImageTemplate {
+  id           String   @id @default(cuid())
+  name         String
+  width        Int
+  height       Int
+  layout       Json     @default("{}") // { background, texts: [], watermark: {...} }
+  thumbnailUrl String   @default("")
+  isSystem     Boolean  @default(false) // immutable when true
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isSystem, order])
 }
 
 // ── RecommendationAiConfig ──────────────────────────────────────────────────
