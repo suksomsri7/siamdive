@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCronSecret } from "@/lib/cronAuth";
 import { prisma } from "@/lib/prisma";
-import { getUpdate, getUpdateInteractions } from "@/lib/social/buffer";
+import { getUpdate } from "@/lib/social/buffer";
 import { decrypt } from "@/lib/ark-ai/encryption";
 
 export const runtime = "nodejs";
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const u = await getUpdate(token, post.bufferUpdateId);
+      if (!u) continue;
       const data: Record<string, unknown> = { lastSyncedAt: new Date() };
 
       if (u.status === "sent" && post.status === "QUEUED") {
@@ -46,24 +47,6 @@ export async function POST(req: NextRequest) {
         promoted++;
       }
       if (u.service_link && !post.externalUrl) data.externalUrl = u.service_link;
-      if (u.statistics) {
-        if (typeof u.statistics.likes === "number") data.likes = u.statistics.likes;
-        if (typeof u.statistics.comments === "number") data.comments = u.statistics.comments;
-        if (typeof u.statistics.shares === "number") data.shares = u.statistics.shares;
-        if (typeof u.statistics.reach === "number") data.reach = u.statistics.reach;
-      }
-      if (post.status === "POSTED") {
-        // fetch deeper interactions for richer metrics
-        try {
-          const i = await getUpdateInteractions(token, post.bufferUpdateId);
-          if (i.statistics) {
-            if (typeof i.statistics.likes === "number") data.likes = i.statistics.likes;
-            if (typeof i.statistics.comments === "number") data.comments = i.statistics.comments;
-            if (typeof i.statistics.shares === "number") data.shares = i.statistics.shares;
-            if (typeof i.statistics.reach === "number") data.reach = i.statistics.reach;
-          }
-        } catch { /* non-fatal */ }
-      }
 
       await prisma.socialPost.update({ where: { id: post.id }, data });
       synced++;

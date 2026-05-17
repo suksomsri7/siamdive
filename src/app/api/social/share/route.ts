@@ -39,20 +39,18 @@ export async function POST(req: NextRequest) {
   });
   if (!blog) return NextResponse.json({ error: "blog not found" }, { status: 404 });
 
-  // pick language: explicit > account default; default to first translation
   let lang = body.language;
   let account = body.accountId
     ? await prisma.socialAccount.findUnique({ where: { id: body.accountId } })
     : null;
   if (!account) {
-    // auto-route by language
     const candidates = await prisma.socialAccount.findMany({
       where: { active: true, ...(lang ? { language: lang } : {}) },
       orderBy: { createdAt: "asc" },
     });
     account = candidates[0] || null;
   }
-  if (!account) return NextResponse.json({ error: "no active social account (connect Buffer first)" }, { status: 412 });
+  if (!account) return NextResponse.json({ error: "ยังไม่ได้เชื่อมต่อ Buffer — ไปที่ Accounts ใส่ token ก่อน" }, { status: 412 });
   lang = (lang ?? account.language) as "th" | "en";
 
   const trans = blog.translations.find(t => t.lang === lang) || blog.translations[0];
@@ -64,7 +62,9 @@ export async function POST(req: NextRequest) {
     : (trans.ogImage ? absUrl(trans.ogImage) : (blog.covers[0] ? absUrl(blog.covers[0]) : ""));
 
   const hashtagLine = (body.hashtags ?? []).filter(t => t && t.startsWith("#")).join(" ");
-  const fullText = hashtagLine ? `${body.caption.trim()}\n\n${hashtagLine}` : body.caption.trim();
+  const fullText = hashtagLine
+    ? `${body.caption.trim()}\n\n${publicUrl}\n\n${hashtagLine}`
+    : `${body.caption.trim()}\n\n${publicUrl}`;
 
   let scheduledAt: Date | null = null;
   if (body.scheduledAt) {
@@ -81,19 +81,14 @@ export async function POST(req: NextRequest) {
     const res = await createUpdate(token, {
       profileIds: [account.bufferProfileId],
       text: fullText,
-      scheduledAt: scheduledAt ?? null,
+      scheduledAt: scheduledAt ?? undefined,
       now: body.postNow === true,
-      mediaLink: publicUrl,
-      mediaPhoto: imageUrl || undefined,
-      mediaThumbnail: imageUrl || undefined,
-      mediaTitle: trans.ogTitle || trans.title,
-      mediaDescription: trans.ogDescription || trans.excerpt || "",
+      mediaUrl: imageUrl || undefined,
     });
-    if (!res.success) throw new Error(res.message || "buffer rejected");
+    if (!res.success && !res.updates.length) throw new Error(res.message || "buffer rejected");
     bufferUpdateId = res.updates?.[0]?.id;
     bufferExternalUrl = res.updates?.[0]?.service_link;
   } catch (err) {
-    // Persist failure so admin sees it in queue dashboard
     await prisma.socialPost.create({
       data: {
         blogId: blog.id,
