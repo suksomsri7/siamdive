@@ -148,6 +148,14 @@ export default function ShareImageEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewBoxRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    function checkMobile() { setIsMobile(window.innerWidth < 768); }
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   // Bounding box per text block in canvas coords — populated during render, used for hit-testing.
   const boundsRef = useRef<Map<string, { x: number; y: number; w: number; h: number }>>(new Map());
   // Active drag: which text + offset between cursor and block top-left at mousedown.
@@ -200,15 +208,16 @@ export default function ShareImageEditor({
     function resize() {
       if (!previewBoxRef.current) return;
       const box = previewBoxRef.current.getBoundingClientRect();
-      const padding = 40;
+      const padding = 24;
       const sx = (box.width - padding) / W;
       const sy = (box.height - padding) / H;
       setPreviewScale(Math.min(sx, sy, 1));
     }
-    resize();
+    // Small delay to let DOM settle after layout switch
+    const t = setTimeout(resize, 50);
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, [W, H]);
+    return () => { clearTimeout(t); window.removeEventListener("resize", resize); };
+  }, [W, H, isMobile]);
 
   // Draw on canvas (bg → texts → watermark)
   useEffect(() => {
@@ -517,9 +526,37 @@ export default function ShareImageEditor({
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden", minHeight: 0 }}>
+        {/* Preview — on mobile rendered first (top) */}
+        {isMobile && (
+          <div ref={previewBoxRef} style={{ flex: "0 0 50vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#000" }}>
+            <div style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
+              <canvas
+                ref={canvasRef}
+                onPointerDown={onCanvasPointerDown}
+                onPointerMove={onCanvasPointerMove}
+                onPointerUp={onCanvasPointerUp}
+                onPointerCancel={onCanvasPointerUp}
+                style={{
+                  background: "#000",
+                  display: "block",
+                  boxShadow: "0 0 0 1px #333",
+                  cursor: selectedTextId ? "move" : "default",
+                  touchAction: "none",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 10, color: "#555", marginTop: 6, textAlign: "center" }}>
+              แตะข้อความเพื่อเลือก · ลากเพื่อย้ายตำแหน่ง
+            </div>
+          </div>
+        )}
+
         {/* Sidebar */}
-        <aside style={{ width: 280, borderRight: "1px solid #222", overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+        <aside style={isMobile
+          ? { flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 14, borderTop: "1px solid #222" }
+          : { width: 280, borderRight: "1px solid #222", overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 14 }
+        }>
           {/* Preset */}
           <div>
             <label style={labelStyle}>ขนาด</label>
@@ -766,28 +803,30 @@ export default function ShareImageEditor({
           </div>
         </aside>
 
-        {/* Preview */}
-        <div ref={previewBoxRef} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#000" }}>
-          <div style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
-            <canvas
-              ref={canvasRef}
-              onPointerDown={onCanvasPointerDown}
-              onPointerMove={onCanvasPointerMove}
-              onPointerUp={onCanvasPointerUp}
-              onPointerCancel={onCanvasPointerUp}
-              style={{
-                background: "#000",
-                display: "block",
-                boxShadow: "0 0 0 1px #333",
-                cursor: selectedTextId ? "move" : "default",
-                touchAction: "none",
-              }}
-            />
+        {/* Preview — desktop only (mobile version rendered above sidebar) */}
+        {!isMobile && (
+          <div ref={previewBoxRef} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#000" }}>
+            <div style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
+              <canvas
+                ref={canvasRef}
+                onPointerDown={onCanvasPointerDown}
+                onPointerMove={onCanvasPointerMove}
+                onPointerUp={onCanvasPointerUp}
+                onPointerCancel={onCanvasPointerUp}
+                style={{
+                  background: "#000",
+                  display: "block",
+                  boxShadow: "0 0 0 1px #333",
+                  cursor: selectedTextId ? "move" : "default",
+                  touchAction: "none",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 10, color: "#555", marginTop: 8, textAlign: "center" }}>
+              คลิกข้อความเพื่อเลือก · ลากเพื่อย้ายตำแหน่ง
+            </div>
           </div>
-          <div style={{ fontSize: 10, color: "#555", marginTop: 8, textAlign: "center" }}>
-            คลิกข้อความเพื่อเลือก · ลากเพื่อย้ายตำแหน่ง
-          </div>
-        </div>
+        )}
       </div>
 
       {toast && (
