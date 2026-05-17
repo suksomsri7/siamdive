@@ -283,6 +283,7 @@ const BOAT_TYPE_LABEL: Record<string, string> = {
   FREEDIVE_INSTRUCTOR: "Freedive Instructor",
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const tomorrowISO = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 // ── GallerySlider — horizontal thumbnail strip ───────────────────────────────
 function GallerySlider({ photos }: { photos: string[] }) {
@@ -425,8 +426,9 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
   const [loading, setLoading]   = useState<boolean>(!!trip.boatId);
   const [expandedPkg, setExpandedPkg] = useState<string | null>(null);
   const [showVideos, setShowVideos]   = useState(false);
-  const [selectedDate,  setSelectedDate]  = useState<string>(() => initialDate || todayISO());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => (initialDate || todayISO()).slice(0, 7));
+  const defaultStart = trip.type === "DAYTRIP" ? tomorrowISO() : todayISO();
+  const [selectedDate,  setSelectedDate]  = useState<string>(() => initialDate || defaultStart);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => (initialDate || defaultStart).slice(0, 7));
   const [expandedSched, setExpandedSched] = useState<string | null>(null);
   const [showShare,    setShowShare]     = useState(false);
 
