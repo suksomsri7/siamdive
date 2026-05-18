@@ -38,7 +38,7 @@ const LABELS = {
     flightReturn: "เที่ยวบินกลับ",
     hotel: "ที่พัก",
     askAi: "ขอคำแนะนำจาก AI",
-    askAiSoon: "ขอคำแนะนำ (เร็วๆ นี้)",
+    askAiSoon: "ขอคำแนะนำ",
     enterManually: "กรอกเอง",
     notNeeded: "ไม่ต้องการ",
     remove: "ลบ",
@@ -52,7 +52,7 @@ const LABELS = {
     flightReturn: "Return flight",
     hotel: "Hotel",
     askAi: "Ask AI for suggestions",
-    askAiSoon: "Ask AI (coming soon)",
+    askAiSoon: "Ask AI",
     enterManually: "Enter manually",
     notNeeded: "Not needed",
     remove: "Remove",
@@ -82,11 +82,12 @@ type Props = {
   lang: string;
   canEdit: boolean;
   onAddManual: (type: "FLIGHT" | "HOTEL") => void;
+  onAskAi: (type: "FLIGHT" | "HOTEL") => void;
   onEdit: (item: PlanItem) => void;
   refreshSignal?: number;
 };
 
-export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onEdit, refreshSignal }: Props) {
+export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onAskAi, onEdit, refreshSignal }: Props) {
   const labels = L(lang);
   const [items, setItems] = useState<PlanItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +148,7 @@ export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onE
         {!loading && canEdit && !hidden.has("flight") && flights.length === 0 && (
           <EmptySlot
             icon="✈️" label={labels.flightOut} labels={labels}
+            onAi={() => onAskAi("FLIGHT")}
             onManual={() => onAddManual("FLIGHT")}
             onSkip={() => hideSlot("flight")}
           />
@@ -154,6 +156,7 @@ export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onE
         {!loading && canEdit && !hidden.has("hotel") && hotels.length === 0 && (
           <EmptySlot
             icon="🏨" label={labels.hotel} labels={labels}
+            onAi={() => onAskAi("HOTEL")}
             onManual={() => onAddManual("HOTEL")}
             onSkip={() => hideSlot("hotel")}
           />
@@ -215,9 +218,9 @@ function ItemCard({ item, lang, labels, canEdit, onEdit, onRemove }: {
   );
 }
 
-function EmptySlot({ icon, label, labels, onManual, onSkip }: {
+function EmptySlot({ icon, label, labels, onAi, onManual, onSkip }: {
   icon: string; label: string; labels: ReturnType<typeof L>;
-  onManual: () => void; onSkip: () => void;
+  onAi: () => void; onManual: () => void; onSkip: () => void;
 }) {
   return (
     <div style={{
@@ -229,10 +232,10 @@ function EmptySlot({ icon, label, labels, onManual, onSkip }: {
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--plan-fg)" }}>{label}</span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        <button disabled aria-disabled="true" title={labels.askAiSoon} style={ctaSecondaryStyle({ disabled: true })}>
-          ✨ {labels.askAiSoon}
+        <button onClick={onAi} style={ctaPrimaryStyle}>
+          ✨ {labels.askAi}
         </button>
-        <button onClick={onManual} style={ctaPrimaryStyle}>
+        <button onClick={onManual} style={ctaSecondaryStyle({ disabled: false })}>
           + {labels.enterManually}
         </button>
         <button onClick={onSkip} style={ctaGhostStyle}>

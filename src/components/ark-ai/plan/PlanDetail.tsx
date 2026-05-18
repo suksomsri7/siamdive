@@ -14,6 +14,7 @@ import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import PlanItemsBlock, { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
+import SearchResultModal from "./SearchResultModal";
 import ItineraryShareCard from "./ItineraryShareCard";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import ThemeToggle from "./ThemeToggle";
@@ -68,6 +69,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     | null
   >(null);
   const [itemsRefresh, setItemsRefresh] = useState(0);
+  const [searchModal, setSearchModal] = useState<{ type: "FLIGHT" | "HOTEL" } | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -407,6 +409,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       canEdit={canEdit}
                       refreshSignal={itemsRefresh}
                       onAddManual={(type) => setItemModal({ mode: "create", type })}
+                      onAskAi={(type) => setSearchModal({ type })}
                       onEdit={(item) => setItemModal({ mode: "edit", item })}
                     />
                     <div style={{ marginTop: 18 }}>
@@ -530,6 +533,16 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           trips={trips}
           lang={lang}
           onClose={() => setShowShareCard(false)}
+        />
+      )}
+
+      {searchModal && (
+        <SearchResultModal
+          planId={planId}
+          lang={lang}
+          type={searchModal.type}
+          onClose={() => setSearchModal(null)}
+          onPicked={() => setItemsRefresh((n) => n + 1)}
         />
       )}
     </>
