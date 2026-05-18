@@ -1,4 +1,4 @@
-const MARKER = process.env.TRAVELPAYOUTS_MARKER || "530298";
+const MARKER = (process.env.TRAVELPAYOUTS_MARKER || "530298").trim();
 
 function pad2(d: Date | string): string {
   const dt = typeof d === "string" ? new Date(d) : d;

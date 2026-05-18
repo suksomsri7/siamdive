@@ -1,7 +1,7 @@
 import type { HotelSearchInput, SearchOffer } from "./types";
 import { buildBookingUrl } from "../affiliate-urls";
 
-const KEY = process.env.LITEAPI_SANDBOX_KEY || process.env.LITEAPI_KEY || "";
+const KEY = (process.env.LITEAPI_SANDBOX_KEY || process.env.LITEAPI_KEY || "").trim();
 
 type LiteApiHotel = {
   id: string;

@@ -1,8 +1,8 @@
 import type { FlightSearchInput, SearchOffer } from "./types";
 import { buildAviasalesUrl } from "../affiliate-urls";
 
-const TOKEN = process.env.TRAVELPAYOUTS_TOKEN || "";
-const MARKER = process.env.TRAVELPAYOUTS_MARKER || "530298";
+const TOKEN = (process.env.TRAVELPAYOUTS_TOKEN || "").trim();
+const MARKER = (process.env.TRAVELPAYOUTS_MARKER || "530298").trim();
 
 type CheapFlight = {
   airline: string;
