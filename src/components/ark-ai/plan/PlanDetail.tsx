@@ -14,6 +14,7 @@ import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import PlanItemsBlock, { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
+import ItineraryShareCard from "./ItineraryShareCard";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import ThemeToggle from "./ThemeToggle";
 import CompareSheet from "../CompareSheet";
@@ -67,6 +68,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     | null
   >(null);
   const [itemsRefresh, setItemsRefresh] = useState(0);
+  const [showShareCard, setShowShareCard] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -410,6 +412,21 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                     <div style={{ marginTop: 18 }}>
                       <PrepBlock trips={trips} lang={lang} />
                     </div>
+                    <div style={{ marginTop: 18 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowShareCard(true)}
+                        style={{
+                          width: "100%", padding: "12px", borderRadius: 10,
+                          background: "var(--plan-surface-alt)",
+                          border: "1px solid var(--plan-border-soft)",
+                          color: "var(--plan-fg)",
+                          fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        📤 {lang === "th" ? "แชร์แผนทริป" : "Share itinerary"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -503,6 +520,16 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           initialItem={itemModal.mode === "edit" ? itemModal.item : null}
           onClose={() => setItemModal(null)}
           onSaved={() => setItemsRefresh((n) => n + 1)}
+        />
+      )}
+
+      {showShareCard && (
+        <ItineraryShareCard
+          planId={planId}
+          planName={plan.name}
+          trips={trips}
+          lang={lang}
+          onClose={() => setShowShareCard(false)}
         />
       )}
     </>
