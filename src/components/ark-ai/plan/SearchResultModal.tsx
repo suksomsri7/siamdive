@@ -129,14 +129,20 @@ export default function SearchResultModal({ planId, lang, type, onClose, onPicke
       if (res.status === 429) {
         setError(labels.rateLimit);
       } else if (!res.ok) {
-        setError(labels.errorGeneric);
+        let detail = `HTTP ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) detail += ` · ${errBody.error}`;
+          if (errBody?.message) detail += ` (${errBody.message})`;
+        } catch {}
+        setError(`${labels.errorGeneric} — ${detail}`);
       } else {
         const data = await res.json();
         setOffers(data.offers || []);
         if ((data.offers || []).length === 0) setError(labels.noResults);
       }
-    } catch {
-      setError(labels.errorGeneric);
+    } catch (err) {
+      setError(`${labels.errorGeneric} — ${err instanceof Error ? err.message : "network"}`);
     }
     setLoading(false);
   };
