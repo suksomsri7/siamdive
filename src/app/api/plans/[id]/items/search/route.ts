@@ -4,28 +4,26 @@ import { searchFlights, searchHotels } from "@/lib/travel-search";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// Rate limit: 10 searches/day per planId. In-memory per serverless instance —
-// good enough for cost guard. For production scale, swap to Redis/Upstash.
-type RateBucket = { date: string; count: number };
+// Rate limit: 10 AI searches/day per planId. DB-backed via SearchRateLimit
+// table — survives Vercel serverless cold-starts (in-memory state would be
+// wiped between workers).
 const RATE_LIMIT = 10;
-const rateState = new Map<string, RateBucket>();
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function checkRate(planId: string): { allowed: boolean; remaining: number } {
-  const today = todayKey();
-  const bucket = rateState.get(planId);
-  if (!bucket || bucket.date !== today) {
-    rateState.set(planId, { date: today, count: 1 });
-    return { allowed: true, remaining: RATE_LIMIT - 1 };
-  }
-  if (bucket.count >= RATE_LIMIT) {
+async function checkRate(planId: string): Promise<{ allowed: boolean; remaining: number }> {
+  const date = todayKey();
+  const row = await prisma.searchRateLimit.upsert({
+    where: { planId_date: { planId, date } },
+    create: { planId, date, count: 1 },
+    update: { count: { increment: 1 } },
+  });
+  if (row.count > RATE_LIMIT) {
     return { allowed: false, remaining: 0 };
   }
-  bucket.count += 1;
-  return { allowed: true, remaining: RATE_LIMIT - bucket.count };
+  return { allowed: true, remaining: RATE_LIMIT - row.count };
 }
 
 // POST /api/plans/[id]/items/search
@@ -40,7 +38,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
     }
 
-    const rate = checkRate(id);
+    const rate = await checkRate(id);
     if (!rate.allowed) {
       return NextResponse.json({ error: "rate_limit", message: "เกินจำนวนการค้นหาต่อวัน (10 ครั้ง)" }, { status: 429 });
     }

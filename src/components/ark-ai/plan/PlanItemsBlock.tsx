@@ -44,6 +44,7 @@ const LABELS = {
     remove: "ลบ",
     edit: "แก้ไข",
     bookingRef: "เลขที่จอง",
+    confirmRemove: "ลบรายการนี้ใช่ไหม?",
   },
   en: {
     title: "Flights & Hotels",
@@ -58,6 +59,7 @@ const LABELS = {
     remove: "Remove",
     edit: "Edit",
     bookingRef: "Booking ref",
+    confirmRemove: "Remove this item?",
   },
 } as const;
 
@@ -110,6 +112,7 @@ export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onA
   const hotels = items.filter((i) => i.type === "HOTEL");
 
   const handleRemove = async (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm(labels.confirmRemove)) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
       await fetch(`/api/plans/${planId}/items/${id}`, { method: "DELETE" });

@@ -1044,6 +1044,21 @@ enum PlanItemType {
   NOTE
 }
 
+// ── SearchRateLimit ──────────────────────────────────────────────────────────
+// Phase 4.6 — daily AI-search counter per plan. Survives Vercel cold-start
+// (in-memory state gets wiped between serverless workers). Cleaned up by
+// the date index — old rows are harmless and can be pruned periodically.
+
+model SearchRateLimit {
+  planId    String
+  date      String
+  count     Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@id([planId, date])
+  @@index([date])
+}
+
 enum PlanStatus {
   PLANNING
   CONFIRMED
