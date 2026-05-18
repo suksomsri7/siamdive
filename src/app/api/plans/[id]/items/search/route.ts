@@ -33,9 +33,14 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
 
   try {
-    const planExists = await prisma.userPlan.findUnique({ where: { id }, select: { id: true } });
-    if (!planExists) {
-      return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    // Don't 404 on plan-not-in-DB — plans created via the chat picker sync
+    // to DB asynchronously (1.5s debounce) so a user can land here before the
+    // row exists. Rate-limit still enforced per planId, and a CUID format
+    // check keeps random IDs from polluting the rate-limit table. If the user
+    // tries to PICK an offer after search, /items POST will FK-fail with a
+    // clear error then — but the search itself shouldn't be the blocker.
+    if (!/^[a-z0-9]{20,32}$/i.test(id)) {
+      return NextResponse.json({ error: "invalid_plan_id" }, { status: 400 });
     }
 
     const rate = await checkRate(id);
