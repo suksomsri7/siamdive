@@ -872,6 +872,7 @@ model UserPlan {
   notes         PlanNote[]
   activities    PlanActivity[]
   notifications PlanNotification[]
+  items         PlanItem[]
 
   @@index([userId])
   @@index([shortId])
@@ -1001,6 +1002,46 @@ enum PlanNotificationType {
   NEW_BLOG
   PRICE_DROP
   DATE_REMINDER
+}
+
+// ── PlanItem ────────────────────────────────────────────────────────────────
+// Phase 4.5: flight/hotel/activity slots in the itinerary timeline.
+// source=USER_INPUT (manual), AI_SUGGEST (Phase 4.6 tool-call), DB_SCHEDULE (boat from Schedule)
+// searchQuery/alternatives are Phase 4.6 fields (lazy-load AI search results)
+
+model PlanItem {
+  id           String       @id @default(cuid())
+  planId       String
+  plan         UserPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  type         PlanItemType
+  title        String
+  location     String?
+  startAt      DateTime
+  endAt        DateTime?
+  externalUrl  String?
+  bookingRef   String?
+  cost         Float?
+  currency     String?      @default("THB")
+  source       String       @default("USER_INPUT")
+  scheduleId   String?
+  notes        String?
+  order        Int          @default(0)
+  searchQuery  Json?
+  alternatives Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([planId, startAt])
+  @@index([planId, type])
+}
+
+enum PlanItemType {
+  FLIGHT
+  HOTEL
+  BOAT
+  ACTIVITY
+  TRANSFER
+  NOTE
 }
 
 enum PlanStatus {
