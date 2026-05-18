@@ -12,6 +12,8 @@ import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
+import PlanItemsBlock, { type PlanItem } from "./PlanItemsBlock";
+import PlanItemEditModal from "./PlanItemEditModal";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import ThemeToggle from "./ThemeToggle";
 import CompareSheet from "../CompareSheet";
@@ -59,6 +61,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [uploadingCover, setUploadingCover] = useState(false);
   const [slots, setSlots] = useState<Slots | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [itemModal, setItemModal] = useState<
+    | { mode: "create"; type: "FLIGHT" | "HOTEL" | "ACTIVITY" | "TRANSFER" | "NOTE" }
+    | { mode: "edit"; item: PlanItem }
+    | null
+  >(null);
+  const [itemsRefresh, setItemsRefresh] = useState(0);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -391,6 +399,14 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       canEdit={canEdit}
                       onTripRemoved={handleTripRemoved}
                     />
+                    <PlanItemsBlock
+                      planId={planId}
+                      lang={lang}
+                      canEdit={canEdit}
+                      refreshSignal={itemsRefresh}
+                      onAddManual={(type) => setItemModal({ mode: "create", type })}
+                      onEdit={(item) => setItemModal({ mode: "edit", item })}
+                    />
                     <div style={{ marginTop: 18 }}>
                       <PrepBlock trips={trips} lang={lang} />
                     </div>
@@ -475,6 +491,18 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           picks={trips}
           lang={lang}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+
+      {itemModal && (
+        <PlanItemEditModal
+          planId={planId}
+          lang={lang}
+          mode={itemModal.mode}
+          initialType={itemModal.mode === "create" ? itemModal.type : itemModal.item.type as "FLIGHT" | "HOTEL" | "ACTIVITY" | "TRANSFER" | "NOTE"}
+          initialItem={itemModal.mode === "edit" ? itemModal.item : null}
+          onClose={() => setItemModal(null)}
+          onSaved={() => setItemsRefresh((n) => n + 1)}
         />
       )}
     </>
