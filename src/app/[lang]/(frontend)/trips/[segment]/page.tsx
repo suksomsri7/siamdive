@@ -97,7 +97,11 @@ function boatToListItem(b: {
 
 const getBoatsByType = unstable_cache(
   async (boatType: string) => prisma.boat.findMany({
-    where: { type: boatType as never, status: "PUBLISHED" },
+    where: {
+      type: boatType as never,
+      status: "PUBLISHED",
+      schedules: { some: { status: { in: ["OPEN", "FULL"] }, departureDate: { gte: new Date() } } },
+    },
     include: {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
       priceTiers:   { select: { regularPrice: true, salePrice: true } },
@@ -123,6 +127,7 @@ const getLiveaboardsByRegion = unstable_cache(
     where: {
       type: "LIVEABOARD",
       status: "PUBLISHED",
+      schedules: { some: { status: { in: ["OPEN", "FULL"] }, departureDate: { gte: new Date() } } },
       serviceAreas: {
         some: {
           serviceArea: {
@@ -158,6 +163,7 @@ const getBoatsByTypeAndRegion = unstable_cache(
     where: {
       type: boatType as never,
       status: "PUBLISHED",
+      schedules: { some: { status: { in: ["OPEN", "FULL"] }, departureDate: { gte: new Date() } } },
       serviceAreas: {
         some: {
           serviceArea: {
