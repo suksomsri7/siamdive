@@ -282,8 +282,14 @@ const BOAT_TYPE_LABEL: Record<string, string> = {
   SCUBA_INSTRUCTOR: "Scuba Dive Instructor",
   FREEDIVE_INSTRUCTOR: "Freedive Instructor",
 };
-const todayISO = () => new Date().toISOString().slice(0, 10);
-const tomorrowISO = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+const isoLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayISO = () => isoLocal(new Date());
+const tomorrowISO = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return isoLocal(d);
+};
 
 // ── GallerySlider — horizontal thumbnail strip ───────────────────────────────
 function GallerySlider({ photos }: { photos: string[] }) {
