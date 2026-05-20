@@ -887,78 +887,72 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   const doBuildPlanRef = useRef<(selection: { targetPlanId?: string; customName?: string } | null, force: boolean) => void>(() => {});
 
   const buildPlan = useCallback(async (force = false) => {
-    const deviceId = readBrowserId("sd_vid");
-    if (!deviceId) return;
-    const sessionIdHdr = readBrowserId("sd_sid");
-
-    // Fast path — user has staged trips via "+" (chat or boat-detail page).
-    // Run the visible build animation, flush picks into the plan-store,
-    // then open My Plan straight to the new plan.
-    const stagedPicks = readPendingPicks();
-    if (stagedPicks.length > 0) {
-      // Pre-flight dedup. The fast path bypasses /api/ark-ai/build-plan,
-      // so its slot-signature dedup and recently-deleted guard never fire.
-      // Ask the server whether these picks would resurrect a just-deleted
-      // plan; if so, surface the confirm toast and stop. The "Create new"
-      // action retries flushPicksToPlan with force=true, which skips this
-      // pre-flight.
-      if (!force) {
-        try {
-          const checkRes = await fetch("/api/ark-ai/check-pending-picks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              deviceId,
-              picks: stagedPicks.map(p => ({
-                boatId: p.boatId,
-                scheduleId: p.schedule?.scheduleId ?? null,
-              })),
-            }),
-          });
-          if (checkRes.ok) {
-            const checkData = await checkRes.json() as { recentlyDeleted?: boolean; name?: string };
-            if (checkData.recentlyDeleted && checkData.name) {
-              window.dispatchEvent(new CustomEvent("plan-toast", {
-                detail: {
-                  message: planRecentlyDeletedLabel(lang, checkData.name),
-                  actionLabel: createNewLabel(lang),
-                  actionEvent: "ark-ai-flush-picks-force",
-                },
-              }));
-              return;
-            }
-          }
-        } catch (err) {
-          // Network blip → fall through. We'd rather create the plan than
-          // block on a transient network failure.
-          console.error("[ark-ai] check-pending-picks failed:", err);
-        }
+    // Force-retry from a duplicate-confirm toast — skip the sheet, the
+    // user already implicitly chose 'create new'. Both fast and slow paths
+    // retain their legacy behaviour for this case.
+    if (force) {
+      const stagedPicks = readPendingPicks();
+      if (stagedPicks.length > 0) {
+        const planId = await flushPicksToPlan(stagedPicks, true);
+        if (planId === null) return;
+        onClose();
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId } }));
+        }, 80);
+        return;
       }
-
-      const planId = await flushPicksToPlan(stagedPicks, force);
-      // null return = toast/sheet was surfaced and we're waiting for the
-      // user to choose. Don't close the chat or reopen MyPlan — the user
-      // hasn't actually committed to anything yet.
-      if (planId === null) return;
-      onClose();
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("open-myplan", { detail: { planId } }));
-      }, 80);
+      doBuildPlanRef.current(null, true);
       return;
     }
 
-    // Slow path — no staged picks, ask the server to auto-build from slots.
-    // First defer to BuildTargetSheet so the user can pick where the new
-    // trips land (append into an existing plan or create a new one with
-    // a custom name). force=true means the user already chose 'Create new'
-    // from a duplicate-detected toast — skip the sheet and rebuild with
-    // legacy auto-naming behaviour.
-    if (!force) {
-      setBuildTargetOpen(true);
+    // First-touch build — ALWAYS ask the user where the plan should land
+    // before doing anything else. The sheet handles 'pick existing' / 'name
+    // a new one'; the onSelect handler routes to fast or slow path based
+    // on whether there are staged picks.
+    setBuildTargetOpen(true);
+  }, [onClose, flushPicksToPlan]);
+
+  // Routes the BuildTargetSheet selection to the right path. Always goes
+  // through PlanBuildingSkeleton (open-myplan with building:true) regardless
+  // of fast vs slow, so the user sees the same progressive UX.
+  const handleBuildTargetSelect = useCallback(async (selection: { targetPlanId?: string; customName?: string }) => {
+    setBuildTargetOpen(false);
+    const stagedPicks = readPendingPicks();
+
+    // Slow path — no staged picks. Hand off to doBuildPlan which calls
+    // /api/ark-ai/build-plan with selection and shows the skeleton.
+    if (stagedPicks.length === 0) {
+      doBuildPlanRef.current(selection, false);
       return;
     }
-    doBuildPlanRef.current(null, true);
-  }, [lang, pathname, onClose, flushPicksToPlan]);
+
+    // Fast path — show skeleton, mutate plan-store with the selection.
+    onClose();
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));
+    }, 80);
+    // Brief pause so the skeleton actually paints before we swap in the
+    // populated plan. Otherwise the user sees a flash with no progress feel.
+    await new Promise(r => setTimeout(r, 500));
+
+    let planId: string;
+    if (selection.targetPlanId) {
+      planId = selection.targetPlanId;
+    } else if (selection.customName) {
+      const newPlan = createPlan(selection.customName);
+      planId = newPlan.id;
+    } else {
+      // Sheet always returns one or the other — guard anyway.
+      window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [t(lang, "emptyResponse")] } }));
+      return;
+    }
+
+    for (const pick of stagedPicks) addTripToPlan(planId, pick);
+    clearPendingPicks();
+    setPendingPicks([]);
+
+    window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId } }));
+  }, [lang, onClose]);
 
   const doBuildPlan = useCallback((selection: { targetPlanId?: string; customName?: string } | null, force: boolean) => {
     const deviceId = readBrowserId("sd_vid");
@@ -1473,10 +1467,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       {buildTargetOpen && (
         <BuildTargetSheet
           lang={lang}
-          onSelect={(s) => {
-            setBuildTargetOpen(false);
-            doBuildPlanRef.current(s, false);
-          }}
+          onSelect={handleBuildTargetSelect}
           onClose={() => setBuildTargetOpen(false)}
         />
       )}
