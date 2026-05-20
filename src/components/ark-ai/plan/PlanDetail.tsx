@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { renamePlan, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
+import { renamePlan, removeTripByIndex, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
 import type { Slots } from "@/lib/ark-ai/slots";
 import PlanMembers from "./PlanMembers";
 import EmailGateModal from "./EmailGateModal";
@@ -71,9 +71,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [itemsRefresh, setItemsRefresh] = useState(0);
   const [searchModal, setSearchModal] = useState<{ type: "FLIGHT" | "HOTEL" } | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
-  // Itinerary block expanded by default — it's the main content. Toggle mirrors
-  // how PrepBlock works so users get a consistent collapsible card pattern.
-  const [itineraryExpanded, setItineraryExpanded] = useState(true);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -375,6 +372,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       headcountAdults={slots?.headcount?.adults}
                       headcountKids={slots?.headcount?.kids}
                       lang={lang}
+                      canEdit={canEdit}
+                      onRemoveTrip={(idx) => {
+                        removeTripByIndex(planId, idx);
+                        handleTripRemoved();
+                      }}
                     />
                     {trips.length >= 2 && (
                       <div style={{ marginBottom: 12 }}>
@@ -394,20 +396,13 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         </button>
                       </div>
                     )}
-                    <ItineraryBlock
+                    <PlanTimeline
+                      planId={planId}
+                      trips={trips}
                       lang={lang}
-                      expanded={itineraryExpanded}
-                      onToggle={() => setItineraryExpanded(v => !v)}
-                      tripCount={trips.length}
-                    >
-                      <PlanTimeline
-                        planId={planId}
-                        trips={trips}
-                        lang={lang}
-                        canEdit={canEdit}
-                        onTripRemoved={handleTripRemoved}
-                      />
-                    </ItineraryBlock>
+                      canEdit={canEdit}
+                      onTripRemoved={handleTripRemoved}
+                    />
                     <PlanItemsBlock
                       planId={planId}
                       lang={lang}
@@ -551,89 +546,5 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         />
       )}
     </>
-  );
-}
-
-// ── ItineraryBlock — collapsible wrapper that gives the timeline its own
-// header card, matching the look of PrepBlock so the two read as siblings.
-const ITINERARY_HEADER: Record<string, string> = {
-  th: "กำหนดการเดินทาง", en: "Itinerary",
-  cn: "行程安排", ja: "日程", ko: "일정",
-  de: "Programm", fr: "Itinéraire", ru: "Программа",
-};
-const ITINERARY_SUBLINE: Record<string, string> = {
-  th: "แผนการเดินทางวันต่อวันของทริปในแผนนี้",
-  en: "Day-by-day schedule for every trip in this plan",
-  cn: "本计划中每个行程的每日安排",
-  ja: "プラン内の各ツアーの日程",
-  ko: "이 플랜의 모든 투어 일정",
-  de: "Tagesprogramm für jede Tour in diesem Plan",
-  fr: "Programme jour par jour de chaque voyage",
-  ru: "Программа по дням для всех туров плана",
-};
-
-function ItineraryBlock({
-  lang, expanded, onToggle, tripCount, children,
-}: {
-  lang: string;
-  expanded: boolean;
-  onToggle: () => void;
-  tripCount: number;
-  children: React.ReactNode;
-}) {
-  const header  = ITINERARY_HEADER[lang]  || ITINERARY_HEADER.en;
-  const subline = ITINERARY_SUBLINE[lang] || ITINERARY_SUBLINE.en;
-  return (
-    <div style={{
-      background: "var(--plan-surface)",
-      border: "1px solid var(--plan-border-soft)",
-      borderRadius: 12,
-      marginBottom: 16,
-      overflow: "hidden",
-    }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        style={{
-          width: "100%", padding: "12px 14px",
-          background: "transparent", border: "none",
-          cursor: "pointer", textAlign: "left",
-          display: "flex", alignItems: "center", gap: 10,
-          fontFamily: "inherit",
-        }}
-      >
-        <span style={{
-          width: 28, height: 28, borderRadius: 8,
-          background: "var(--plan-surface-alt)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, flexShrink: 0,
-        }}>
-          🗺
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", margin: 0 }}>
-            {header}
-            {tripCount > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--plan-fg-subtle)", marginLeft: 6 }}>
-                · {tripCount}
-              </span>
-            )}
-          </p>
-          <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {subline}
-          </p>
-        </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0, color: "var(--plan-fg-subtle)" }}>
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      {expanded && (
-        <div style={{ padding: "0 14px 14px" }}>
-          {children}
-        </div>
-      )}
-    </div>
   );
 }
