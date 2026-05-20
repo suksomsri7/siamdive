@@ -6,6 +6,7 @@ import Link from "next/link";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import type { PlanTrip } from "@/lib/plan-store";
+import { getDeviceId, pullPlansFromServer } from "@/lib/plan-store";
 import type { PlanItem } from "@/components/ark-ai/plan/PlanItemsBlock";
 
 type Plan = {
@@ -94,10 +95,18 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
       const res = await fetch(`/api/plans/share/${token}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() || undefined, email: email.trim() }),
+        body: JSON.stringify({
+          name: name.trim() || undefined,
+          email: email.trim(),
+          deviceId: getDeviceId(),
+        }),
       });
       if (!res.ok) { setError(L("err", lang)); setLoading(false); return; }
       const data = await res.json() as { shortId: string };
+      // Pull server plans into localStorage so the joined plan shows up in
+      // MyPlan immediately — the backend binds the device to the joiner's
+      // PlanUser, but the in-browser list reads from localStorage alone.
+      await pullPlansFromServer();
       router.replace(`/${lang}/plan/${data.shortId}`);
     } catch {
       setError(L("err", lang));

@@ -220,6 +220,40 @@ async function syncToDb() {
 
 let initialized = false;
 
+// pullPlansFromServer — merge server-side plans (owned + joined via member
+// link) into local storage. Adds plans the user doesn't have locally yet
+// (e.g. just joined a shared plan). Existing local plans are left alone —
+// scheduleSync handles pushing local edits up.
+export async function pullPlansFromServer(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const deviceId = getDeviceId();
+  if (!deviceId) return;
+  try {
+    const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}`);
+    if (!res.ok) return;
+    const data = await res.json() as { plans?: Array<UserPlan & { shortId?: string }>; email?: string | null };
+    if (!data.plans?.length) return;
+
+    const local = readPlans();
+    const localIds = new Set(local.map(p => p.id));
+    const additions = data.plans.filter(p => !localIds.has(p.id)).map(p => ({
+      id:        p.id,
+      name:      p.name,
+      coverUrl:  p.coverUrl,
+      startDate: p.startDate ?? null,
+      trips:     p.trips || [],
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    } as UserPlan));
+
+    if (additions.length === 0) return;
+    writePlans([...local, ...additions]);
+    if (data.email) {
+      try { localStorage.setItem(EMAIL_KEY, data.email); } catch {}
+    }
+  } catch {}
+}
+
 export async function initPlanStore(): Promise<UserPlan[]> {
   if (typeof window === "undefined") return [];
   if (initialized) return readPlans();

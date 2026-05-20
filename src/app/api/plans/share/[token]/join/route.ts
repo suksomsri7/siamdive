@@ -7,10 +7,16 @@ type Ctx = { params: Promise<{ token: string }> };
 // a member. Role is dictated by the token (VIEWER or EDITOR) so the client
 // can't escalate. Upserts on (planId, email) so a user clicking a fresh
 // link with a higher role gets bumped up rather than duplicated.
+//
+// We also bind the joiner's deviceId to a PlanUser row keyed by that email,
+// so when they later open MyPlan the deviceId → PlanUser → memberships
+// chain resolves and they actually see the shared plan in their list.
 export async function POST(req: NextRequest, ctx: Ctx) {
   const { token } = await ctx.params;
   try {
-    const { name, email } = (await req.json()) as { name?: string; email?: string };
+    const { name, email, deviceId } = (await req.json()) as {
+      name?: string; email?: string; deviceId?: string;
+    };
     if (!email) return NextResponse.json({ error: "email_required" }, { status: 400 });
     const normalized = email.toLowerCase().trim();
 
@@ -29,6 +35,30 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     });
     if (owner?.email && owner.email.toLowerCase() === normalized) {
       return NextResponse.json({ shortId: row.plan.shortId, alreadyOwner: true });
+    }
+
+    // Bind this browser (deviceId) to the joiner's PlanUser so that the next
+    // time they open MyPlan and we query plans by deviceId, the member-of
+    // join finds this plan via PlanUser.email → PlanMember.email.
+    if (deviceId) {
+      const existing = await prisma.planUser.findUnique({ where: { deviceId } });
+      if (existing) {
+        // Only patch email/name when those slots were empty — never clobber
+        // an existing identity, in case the user is multi-tenanting a
+        // browser. The lookup below still works because PlanMember.email
+        // matches the typed value either way.
+        await prisma.planUser.update({
+          where: { id: existing.id },
+          data: {
+            email: existing.email ?? normalized,
+            name:  existing.name  ?? (name || null),
+          },
+        });
+      } else {
+        await prisma.planUser.create({
+          data: { deviceId, email: normalized, name: name || null },
+        });
+      }
     }
 
     await prisma.planMember.upsert({
