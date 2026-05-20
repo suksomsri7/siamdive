@@ -948,13 +948,13 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
 
   return (
     <div
-      onClick={onEdit}
+      onClick={canEdit ? onEdit : undefined}
       style={{
         background: "var(--plan-surface)",
         border: "1px solid var(--plan-border-soft)",
         borderRadius: 12,
         padding: 12,
-        cursor: "pointer",
+        cursor: canEdit ? "pointer" : "default",
         display: "flex", alignItems: "flex-start", gap: 10,
       }}
     >
@@ -979,13 +979,13 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
             <span>{checkInLabel}: {dateLabel}</span>
             <span style={{ opacity: 0.5 }}>·</span>
             <span>{checkOutLabel}: {endDateLabel}</span>
-            <EditHint />
+            {canEdit && <EditHint />}
           </p>
         ) : (
           <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
             <span>{dateLabel} · {timeLabel}</span>
             {item.location && <span>· {item.location}</span>}
-            <EditHint />
+            {canEdit && <EditHint />}
           </p>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import JoinPlanClient from "./JoinPlanClient";
 
@@ -32,34 +32,53 @@ export default async function JoinPlanPage({
         include: {
           user: { select: { email: true, name: true } },
           _count: { select: { members: true } },
+          items: { orderBy: [{ startAt: "asc" }, { order: "asc" }] },
         },
       },
     },
   });
 
-  // Token revoked or never existed — show the plain plan view rather than a
-  // 404 so the link still goes somewhere useful.
+  // Token revoked / mismatched → fall through to the plain plan view rather
+  // than a 404 so the link still goes somewhere useful.
   if (!row || row.plan.shortId !== shortId) {
     redirect(`/${lang}/plan/${shortId}`);
   }
 
   const trips = (row.plan.trips as unknown[]) || [];
   const ownerName = row.plan.user.name || row.plan.user.email?.split("@")[0] || null;
-
-  if (!row.plan) notFound();
+  const items = row.plan.items.map(i => ({
+    id: i.id,
+    type: i.type,
+    title: i.title,
+    location: i.location,
+    startAt: i.startAt.toISOString(),
+    endAt: i.endAt?.toISOString() ?? null,
+    externalUrl: i.externalUrl,
+    bookingRef: i.bookingRef,
+    cost: i.cost,
+    currency: i.currency,
+    source: i.source,
+    notes: i.notes,
+    order: i.order,
+  }));
 
   return (
     <JoinPlanClient
       lang={lang}
       token={token}
       plan={{
+        id:          row.plan.id,
         shortId:     row.plan.shortId,
         name:        row.plan.name,
         coverUrl:    row.plan.coverUrl,
+        status:      row.plan.status,
+        trips:       trips as unknown[],
+        items,
         tripCount:   Array.isArray(trips) ? trips.length : 0,
         memberCount: row.plan._count.members + 1,
         ownerName,
         role:        row.role,
+        createdAt:   row.plan.createdAt.toISOString(),
       }}
     />
   );

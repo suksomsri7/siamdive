@@ -2,15 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
+import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
+import type { PlanTrip } from "@/lib/plan-store";
+import type { PlanItem } from "@/components/ark-ai/plan/PlanItemsBlock";
 
 type Plan = {
+  id: string;
   shortId: string;
   name: string;
   coverUrl: string | null;
+  status: string;
+  trips: unknown[];
+  items: PlanItem[];
   tripCount: number;
   memberCount: number;
   ownerName: string | null;
   role: "VIEWER" | "EDITOR";
+  createdAt: string;
 };
 
 type Props = {
@@ -20,17 +29,18 @@ type Props = {
 };
 
 const T: Record<string, Record<string, string>> = {
-  title:       { th: "ขอชวนมาร่วมแผนทริปดำน้ำ", en: "You're invited to a trip plan" },
+  invited:     { th: "ขอเชิญร่วมแผนทริปดำน้ำ",  en: "You're invited to a trip plan" },
   by:          { th: "โดย",                       en: "by" },
   trips:       { th: "ทริป",                      en: "trips" },
   members:     { th: "สมาชิก",                    en: "members" },
   role_view:   { th: "ดูได้อย่างเดียว",            en: "View access" },
   role_edit:   { th: "ปรับเปลี่ยนได้",             en: "Edit access" },
-  choose:      { th: "เลือกวิธีร่วมแผน",          en: "Choose how to join" },
-  join:        { th: "ร่วมแผนนี้",                en: "Join this plan" },
-  joinDesc:    { th: "เห็นแผนเดียวกัน อัปเดต real-time", en: "Same plan, real-time sync" },
-  copy:        { th: "Copy เป็นแผนของฉัน",        en: "Copy as my own plan" },
-  copyDesc:    { th: "แยกแผนใหม่ของตัวเอง แก้ไขได้อิสระ", en: "Fork a private copy you can edit" },
+  join:        { th: "ร่วมแผน",                   en: "Join" },
+  copy:        { th: "Copy เป็นแผนของฉัน",        en: "Copy as mine" },
+  joinTitle:   { th: "ร่วมแผนนี้",                en: "Join this plan" },
+  joinDesc:    { th: "เห็นแผนเดียวกันทุกคน อัปเดต real-time", en: "See the same plan, real-time updates" },
+  copyTitle:   { th: "Copy เป็นแผนของฉัน",        en: "Copy as my own plan" },
+  copyDesc:    { th: "Fork เป็นแผนใหม่ของตัวเอง แก้ไขได้อิสระ", en: "Fork a private copy you can edit alone" },
   yourName:    { th: "ชื่อของคุณ",                en: "Your name" },
   email:       { th: "อีเมล",                     en: "Email" },
   emailPh:     { th: "you@example.com",           en: "you@example.com" },
@@ -38,21 +48,40 @@ const T: Record<string, Record<string, string>> = {
   emailReq:    { th: "กรุณากรอกอีเมล",            en: "Email is required" },
   submit:      { th: "ยืนยัน",                    en: "Continue" },
   cancel:      { th: "ยกเลิก",                    en: "Cancel" },
-  loading:     { th: "กำลังเข้าร่วม…",             en: "Joining…" },
-  copying:     { th: "กำลังคัดลอก…",               en: "Copying…" },
+  loadingJoin: { th: "กำลังเข้าร่วม…",             en: "Joining…" },
+  loadingCopy: { th: "กำลังคัดลอก…",               en: "Copying…" },
   err:         { th: "ลองอีกครั้งครับ",            en: "Something went wrong, try again" },
+  tripsHead:   { th: "ทริปในแพลน",                en: "Trips in this plan" },
+  createdBy:   { th: "สร้างโดย",                   en: "Created by" },
 };
 const L = (k: keyof typeof T, lang: string) => T[k][lang] || T[k].en;
 
 type Mode = "join" | "copy";
 
+const STATUS_LABEL: Record<string, { th: string; en: string; color: string }> = {
+  PLANNING:  { th: "กำลังวางแผน", en: "Planning",  color: "#f59e0b" },
+  CONFIRMED: { th: "ยืนยันแล้ว",   en: "Confirmed", color: "#10b981" },
+  COMPLETED: { th: "เสร็จแล้ว",    en: "Completed", color: "#8b5cf6" },
+};
+
 export default function JoinPlanClient({ lang, token, plan }: Props) {
   const router = useRouter();
+  const isTh = lang === "th";
   const [mode, setMode]       = useState<Mode | null>(null);
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+
+  // Recipient is purely a viewer of the preview — never an editor of the
+  // owner's plan. They become an EDITOR only AFTER tapping Join with an
+  // EDITOR token. Until then PlanTimeline is read-only.
+  const canEdit = false;
+
+  const trips = (plan.trips as PlanTrip[]) || [];
+  const status = STATUS_LABEL[plan.status] || STATUS_LABEL.PLANNING;
+  const cover = plan.coverUrl;
+  const createdDate = new Date(plan.createdAt).toLocaleDateString(isTh ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,101 +105,165 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
   };
 
   return (
-    <main style={{
-      minHeight: "100vh",
-      background: "#0d0d0d",
-      color: "#e5e5e5",
-      padding: "32px 20px 60px",
-      display: "flex", flexDirection: "column", alignItems: "center",
-    }}>
-      <div style={{ width: "100%", maxWidth: 480 }}>
-        {/* Cover image */}
-        {plan.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={plan.coverUrl} alt=""
-            style={{ width: "100%", aspectRatio: "21/9", objectFit: "cover", borderRadius: 14 }} />
-        ) : (
-          <div style={{
-            width: "100%", aspectRatio: "21/9",
-            background: "linear-gradient(135deg,#0f172a,#1e3a5f)",
-            borderRadius: 14,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 48,
-          }}>🤿</div>
-        )}
+    <main style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e5e5e5", paddingBottom: 120 }}>
+      <style>{`
+        @keyframes joinBannerSlide { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+        @keyframes joinModalIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
 
-        <p style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "20px 0 4px" }}>
-          {L("title", lang)}
-        </p>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: "0 0 6px", lineHeight: 1.2 }}>
-          {plan.name}
-        </h1>
-        <p style={{ fontSize: 13, color: "#888", margin: 0 }}>
-          {plan.ownerName && <>{L("by", lang)} <span style={{ color: "#ddd" }}>{plan.ownerName}</span> · </>}
-          {plan.tripCount} {L("trips", lang)} · {plan.memberCount} {L("members", lang)}
-        </p>
-        <span style={{
-          display: "inline-block", marginTop: 10,
-          padding: "3px 9px", borderRadius: 999,
-          fontSize: 11, fontWeight: 700,
-          background: plan.role === "EDITOR" ? "rgba(245,158,11,0.18)" : "rgba(59,130,246,0.18)",
-          color: plan.role === "EDITOR" ? "#fbbf24" : "#93c5fd",
-          border: `1px solid ${plan.role === "EDITOR" ? "rgba(245,158,11,0.4)" : "rgba(96,165,250,0.4)"}`,
-        }}>
-          {plan.role === "EDITOR" ? `✏️ ${L("role_edit", lang)}` : `👁 ${L("role_view", lang)}`}
-        </span>
-
-        {/* Mode picker — Join (shared) vs Copy (fork) */}
-        {!mode && (
-          <>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "28px 0 10px" }}>
-              {L("choose", lang)}
+      {/* Sticky invite banner. Renders the role badge + Join / Copy CTAs so
+          the recipient never loses sight of the action they came here to do
+          while scrolling through the plan. */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 30,
+        background: "rgba(13,13,13,0.95)",
+        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        padding: "10px 14px",
+        animation: "joinBannerSlide 0.3s ease-out both",
+      }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+              📨 {L("invited", lang)}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button onClick={() => setMode("join")}
-                style={{
-                  textAlign: "left", padding: "14px 16px", borderRadius: 12,
-                  background: "rgba(59,130,246,0.14)",
-                  border: "1px solid rgba(96,165,250,0.35)",
-                  color: "#fff", cursor: "pointer", fontFamily: "inherit",
-                }}>
-                <p style={{ fontSize: 14, fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>🤝</span> {L("join", lang)}
-                </p>
-                <p style={{ fontSize: 12, color: "#bfdbfe", margin: "3px 0 0" }}>
-                  {L("joinDesc", lang)}
-                </p>
-              </button>
-              <button onClick={() => setMode("copy")}
-                style={{
-                  textAlign: "left", padding: "14px 16px", borderRadius: 12,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#fff", cursor: "pointer", fontFamily: "inherit",
-                }}>
-                <p style={{ fontSize: 14, fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>📋</span> {L("copy", lang)}
-                </p>
-                <p style={{ fontSize: 12, color: "#888", margin: "3px 0 0" }}>
-                  {L("copyDesc", lang)}
-                </p>
-              </button>
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {plan.name}
+              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+                background: plan.role === "EDITOR" ? "rgba(245,158,11,0.18)" : "rgba(59,130,246,0.18)",
+                color: plan.role === "EDITOR" ? "#fbbf24" : "#93c5fd",
+                border: `1px solid ${plan.role === "EDITOR" ? "rgba(245,158,11,0.4)" : "rgba(96,165,250,0.4)"}`,
+              }}>
+                {plan.role === "EDITOR" ? `✏️ ${L("role_edit", lang)}` : `👁 ${L("role_view", lang)}`}
+              </span>
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onClick={() => { setMode("join"); setError(null); }}
+              style={{
+                padding: "8px 14px", borderRadius: 8,
+                background: "#3b82f6", border: "1px solid #2563eb",
+                color: "#fff", fontSize: 12, fontWeight: 800,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>
+              🤝 {L("join", lang)}
+            </button>
+            <button onClick={() => { setMode("copy"); setError(null); }}
+              style={{
+                padding: "8px 14px", borderRadius: 8,
+                background: "#10b981", border: "1px solid #059669",
+                color: "#fff", fontSize: 12, fontWeight: 800,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>
+              📋 {L("copy", lang)}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Plan preview — matches MyPlan layout: cover hero, info strip, trips
+          timeline, prep block. Read-only via canEdit=false. */}
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 60px" }}>
+
+        {/* Hero */}
+        <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", borderRadius: 16, overflow: "hidden", background: "linear-gradient(135deg, #0f172a, #1e3a5f)", marginBottom: 18 }}>
+          {cover && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          )}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)" }} />
+          <div style={{ position: "absolute", bottom: 14, left: 14, right: 14 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${status.color}22`, border: `1px solid ${status.color}44`, padding: "2px 10px", borderRadius: 12, marginBottom: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: status.color }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: status.color }}>{isTh ? status.th : status.en}</span>
             </div>
-          </>
+            <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>{plan.name}</h1>
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 22 }}>
+          {[
+            { label: L("trips", lang),   value: plan.tripCount,   icon: "🗺" },
+            { label: L("members", lang), value: plan.memberCount, icon: "👤" },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 18, margin: 0 }}>{s.icon}</p>
+              <p style={{ fontSize: 18, fontWeight: 900, color: "#f5f5f5", margin: "2px 0 0" }}>{s.value}</p>
+              <p style={{ fontSize: 10, color: "#666", margin: 0 }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Trips timeline (read-only) */}
+        {trips.length > 0 && (
+          <div style={{ marginBottom: 22 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>
+              {L("tripsHead", lang)}
+            </p>
+            <PlanTimeline
+              planId={plan.id}
+              trips={trips}
+              items={plan.items}
+              lang={lang}
+              canEdit={canEdit}
+            />
+          </div>
         )}
 
-        {/* Name + email form */}
-        {mode && (
-          <form onSubmit={handleSubmit} style={{ marginTop: 28 }}>
-            <p style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
-              {mode === "join" ? `🤝 ${L("join", lang)}` : `📋 ${L("copy", lang)}`}
+        {/* Prep block */}
+        {trips.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <PrepBlock trips={trips} lang={lang} />
+          </div>
+        )}
+
+        {/* Meta */}
+        <div style={{ textAlign: "center", fontSize: 11, color: "#555", margin: "24px 0 0" }}>
+          {plan.ownerName && <span>{L("createdBy", lang)} <span style={{ color: "#888" }}>{plan.ownerName}</span> · </span>}
+          <span>{createdDate}</span>
+        </div>
+      </div>
+
+      {/* Name + email modal */}
+      {mode && (
+        <div
+          onClick={() => { if (!loading) { setMode(null); setError(null); } }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1200,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <form
+            onSubmit={handleSubmit}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 420,
+              background: "#0d0d0d",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 14,
+              padding: 20,
+              animation: "joinModalIn 0.22s ease-out both",
+            }}
+          >
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>
+              {mode === "join" ? `🤝 ${L("joinTitle", lang)}` : `📋 ${L("copyTitle", lang)}`}
+            </p>
+            <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 16px", lineHeight: 1.45 }}>
+              {mode === "join" ? L("joinDesc", lang) : L("copyDesc", lang)}
             </p>
 
-            <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "0 0 4px" }}>{L("yourName", lang)}</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L("namePh", lang)}
-              style={inputStyle} />
+            <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "0 0 4px" }}>
+              {L("yourName", lang)}
+            </label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L("namePh", lang)} style={inputStyle} />
 
-            <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "12px 0 4px" }}>{L("email", lang)} *</label>
+            <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "12px 0 4px" }}>
+              {L("email", lang)} *
+            </label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={L("emailPh", lang)}
               type="email" required style={inputStyle} />
 
@@ -179,12 +272,12 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             )}
 
             <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-              <button type="button" onClick={() => { setMode(null); setError(null); }}
+              <button type="button" onClick={() => { setMode(null); setError(null); }} disabled={loading}
                 style={{
                   flex: 1, padding: "12px", borderRadius: 10,
                   background: "transparent", border: "1px solid rgba(255,255,255,0.12)",
-                  color: "#aaa", cursor: "pointer", fontFamily: "inherit",
-                  fontSize: 13, fontWeight: 700,
+                  color: "#aaa", cursor: loading ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", fontSize: 13, fontWeight: 700,
                 }}>
                 {L("cancel", lang)}
               </button>
@@ -196,12 +289,12 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
                   cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
                   fontSize: 13, fontWeight: 800,
                 }}>
-                {loading ? (mode === "join" ? L("loading", lang) : L("copying", lang)) : L("submit", lang)}
+                {loading ? (mode === "join" ? L("loadingJoin", lang) : L("loadingCopy", lang)) : L("submit", lang)}
               </button>
             </div>
           </form>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }
