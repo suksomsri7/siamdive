@@ -1082,11 +1082,34 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
 
   sendRef.current = sendMessage;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Desktop + Android: Enter alone sends, Shift+Enter inserts a newline.
+    // iOS Safari sometimes reports `key` as Enter but with keyCode==229 while
+    // a Thai/CJK IME is composing — in that case Enter is the IME commit
+    // key, not a send signal. Bail out when composing.
+    const isEnter = e.key === "Enter" || e.keyCode === 13;
+    if (!isEnter || e.shiftKey) return;
+    const composing = (e.nativeEvent as KeyboardEvent).isComposing || e.keyCode === 229;
+    if (composing) return;
+    e.preventDefault();
+    if (input.trim()) sendMessage(input);
+  };
+
+  // Some mobile keyboards (iOS soft "return") sneak past keydown and
+  // commit a newline directly into the textarea via input event. Catch
+  // that as a fallback: if the user inserted a trailing \n and the
+  // resulting text isn't multi-line, treat it as Enter-to-send.
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const trimmed = value.replace(/\n+$/, "");
+    const endedWithNewline = value !== trimmed;
+    const isMultiline = trimmed.includes("\n");
+    if (endedWithNewline && !isMultiline && trimmed.trim()) {
+      sendMessage(trimmed);
+      setInput("");
+      return;
     }
+    setInput(value);
   };
 
   if (!open) return null;
@@ -1315,7 +1338,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
             <textarea
               ref={inputRef}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={handleChange}
               onKeyDown={handleKeyDown}
               placeholder={t(lang, "askAboutDiving")}
               rows={1}
