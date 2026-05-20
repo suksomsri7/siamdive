@@ -945,23 +945,30 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     // populated plan. Otherwise the user sees a flash with no progress feel.
     await new Promise(r => setTimeout(r, 500));
 
-    let planId: string;
-    if (selection.targetPlanId) {
-      planId = selection.targetPlanId;
-    } else if (selection.customName) {
-      const newPlan = createPlan(selection.customName);
-      planId = newPlan.id;
-    } else {
-      // Sheet always returns one or the other — guard anyway.
-      window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [t(lang, "emptyResponse")] } }));
-      return;
+    try {
+      let planId: string;
+      if (selection.targetPlanId) {
+        planId = selection.targetPlanId;
+      } else if (selection.customName) {
+        const newPlan = createPlan(selection.customName);
+        planId = newPlan.id;
+      } else {
+        window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [t(lang, "emptyResponse")] } }));
+        return;
+      }
+
+      for (const pick of stagedPicks) addTripToPlan(planId, pick);
+      clearPendingPicks();
+      setPendingPicks([]);
+
+      window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId } }));
+    } catch (err) {
+      // createPlan / addTripToPlan can throw on localStorage quota or
+      // corrupt data — surface the error instead of leaving the skeleton
+      // hanging forever.
+      console.error("[ark-ai] fast-build failed:", err);
+      window.dispatchEvent(new CustomEvent("myplan-build-error", { detail: { reasons: [t(lang, "buildPlanFailed")] } }));
     }
-
-    for (const pick of stagedPicks) addTripToPlan(planId, pick);
-    clearPendingPicks();
-    setPendingPicks([]);
-
-    window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId } }));
   }, [lang, onClose]);
 
   const doBuildPlan = useCallback((selection: { targetPlanId?: string; customName?: string } | null, force: boolean) => {

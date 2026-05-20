@@ -66,10 +66,13 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
   // Track when the build animation started so we can hold the skeleton
   // for a minimum amount of time. If the API resolves before MIN_BUILD_MS
   // has passed, we defer the swap so the user sees the full skeleton
-  // reveal sequence instead of a brief flash. Without this the UX feels
-  // like 'I saw a tiny bit of step-by-step then everything appeared'.
+  // reveal sequence instead of a brief flash. MAX_BUILD_MS is a safety
+  // bail-out — if no done / error event fires within this window (network
+  // hang, JS error in build path) we surface an error instead of leaving
+  // the user staring at an inert skeleton.
   const buildStartRef = useRef<number>(0);
   const MIN_BUILD_MS = 5500;
+  const MAX_BUILD_MS = 30000;
 
   // Mirror the parent-supplied buildingPlan flag into local state so we
   // can clear it when the build resolves without bouncing the parent.
@@ -80,6 +83,17 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
       buildStartRef.current = Date.now();
     }
   }, [buildingPlan]);
+
+  // Safety bail-out — if we've been showing the skeleton for too long
+  // without a done/error event, force-exit so the user isn't stuck.
+  useEffect(() => {
+    if (!building) return;
+    const timer = window.setTimeout(() => {
+      setBuilding(false);
+      setBuildError([t(lang, "buildPlanFailed")]);
+    }, MAX_BUILD_MS);
+    return () => clearTimeout(timer);
+  }, [building, lang]);
 
   // Listen for the async build-plan resolution dispatched by ArkAIChatPanel.
   useEffect(() => {

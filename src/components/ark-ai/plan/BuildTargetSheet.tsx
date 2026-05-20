@@ -47,12 +47,21 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
   const nameRef = useRef<HTMLInputElement>(null);
 
   // Focus the name input every time the user lands on the name mode. iOS
-  // ignores autoFocus on dynamically-mounted inputs, so we drive it via
-  // ref + a tiny setTimeout (covers the sheet's slide-in animation).
+  // Safari only honours programmatic focus inside a user-gesture frame —
+  // a plain setTimeout loses that context. Double-requestAnimationFrame
+  // keeps focus inside the same task while still giving React two paint
+  // cycles to commit the input into the DOM.
   useEffect(() => {
     if (mode !== "name") return;
-    const t = window.setTimeout(() => { nameRef.current?.focus(); }, 80);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    requestAnimationFrame(() => {
+      if (cancelled) return;
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        nameRef.current?.focus();
+      });
+    });
+    return () => { cancelled = true; };
   }, [mode]);
 
   useEffect(() => {
@@ -69,9 +78,14 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
   const handleCreate = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!name.trim()) return;
-    // Dismiss the mobile soft keyboard before the sheet closes — without
-    // this iOS keeps it open through the transition, which feels janky.
+    // Dismiss the mobile soft keyboard before the sheet closes — iOS
+    // sometimes keeps the keyboard up through the transition otherwise.
+    // Blur both the ref and document.activeElement to cover the case
+    // where focus moved to the submit button after Enter / Done.
     nameRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     onSelect({ customName: name.trim() });
   };
 
@@ -141,7 +155,14 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
                 </button>
               ))}
             </div>
-            <button onClick={() => setMode("name")}
+            <button onClick={() => {
+                setMode("name");
+                // Belt-and-braces focus call inside the click gesture —
+                // covers iOS Safari where focus from useEffect can miss.
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => nameRef.current?.focus());
+                });
+              }}
               style={{
                 width: "100%", padding: "12px", borderRadius: 10,
                 background: "rgba(59,130,246,0.14)",
