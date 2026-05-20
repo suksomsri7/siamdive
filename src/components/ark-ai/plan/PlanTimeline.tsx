@@ -608,7 +608,11 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             }
             .itin-line {
               position: absolute;
-              left: 86px;
+              /* Centred on the icon column: padding-left (4) + time col (62)
+                 + gap (10) + half icon col (18) = 94. Translate -50% to sit
+                 the line on the centre rather than to its right. */
+              left: 94px;
+              transform: translateX(-50%);
               top: 24px; bottom: 24px;
               width: 2px;
               background: #3b82f6;
