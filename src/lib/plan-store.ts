@@ -227,10 +227,12 @@ async function syncToDb() {
 
 let initialized = false;
 
-// pullPlansFromServer — merge server-side plans (owned + joined via member
-// link) into local storage. Adds plans the user doesn't have locally yet
-// (e.g. just joined a shared plan). Existing local plans are left alone —
-// scheduleSync handles pushing local edits up.
+// pullPlansFromServer — sync server plans (owned + joined via share link)
+// into localStorage. Two-way merge:
+//   - server plans missing locally → added
+//   - server plans already local → only social counters
+//     (memberCount/viewCount/shareCount) get refreshed; we leave the rest
+//     of the local row alone so unsynced edits aren't clobbered
 export async function pullPlansFromServer(): Promise<void> {
   if (typeof window === "undefined") return;
   const deviceId = getDeviceId();
@@ -250,6 +252,28 @@ export async function pullPlansFromServer(): Promise<void> {
     if (!data.plans?.length) return;
 
     const local = readPlans();
+    const byId = new Map(data.plans.map(p => [p.id, p]));
+    let dirty = false;
+
+    // Refresh social counters on plans we already track.
+    const merged = local.map(lp => {
+      const sp = byId.get(lp.id);
+      if (!sp) return lp;
+      const next: UserPlan = {
+        ...lp,
+        memberCount: sp.memberCount ?? lp.memberCount ?? 0,
+        viewCount:   sp.viewCount   ?? lp.viewCount   ?? 0,
+        shareCount:  sp.shareCount  ?? lp.shareCount  ?? 0,
+      };
+      if (
+        next.memberCount !== lp.memberCount ||
+        next.viewCount   !== lp.viewCount   ||
+        next.shareCount  !== lp.shareCount
+      ) dirty = true;
+      return next;
+    });
+
+    // Append any plans that are server-only (just joined via share link).
     const localIds = new Set(local.map(p => p.id));
     const additions = data.plans.filter(p => !localIds.has(p.id)).map(p => ({
       id:           p.id,
@@ -264,8 +288,9 @@ export async function pullPlansFromServer(): Promise<void> {
       shareCount:   p.shareCount   ?? 0,
     } as UserPlan));
 
-    if (additions.length === 0) return;
-    writePlans([...local, ...additions]);
+    if (additions.length > 0 || dirty) {
+      writePlans([...merged, ...additions]);
+    }
     if (data.email) {
       try { localStorage.setItem(EMAIL_KEY, data.email); } catch {}
     }
@@ -594,6 +619,13 @@ export function hasTripInPlan(boatId: string): boolean {
 export function tripCount(): number {
   const plans = readPlans();
   return plans.reduce((sum, p) => sum + p.trips.length, 0);
+}
+
+// planCount — total number of plans in the user's MyPlan list. Drives the
+// red badge on the BottomNav MyPlan icon. We surface plan count (not trip
+// count) because the badge sits on the MyPlan tab, not a Trips tab.
+export function planCount(): number {
+  return readPlans().length;
 }
 
 // ── Backward compat ──────────────────────────────────────────────────────────

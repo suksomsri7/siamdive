@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, type UserPlan } from "@/lib/plan-store";
+import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, pullPlansFromServer, type UserPlan } from "@/lib/plan-store";
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 import ThemeToggle from "./plan/ThemeToggle";
@@ -33,7 +33,13 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
   }, []);
 
   useEffect(() => {
-    if (open) refresh();
+    if (open) {
+      refresh();
+      // Pull latest social counters (followers / views / shares) from
+      // server every time the drawer opens. Best-effort — refresh() will
+      // re-fire via the myplan-change event once localStorage updates.
+      void pullPlansFromServer();
+    }
     const handler = () => refresh();
     window.addEventListener("myplan-change", handler);
     return () => window.removeEventListener("myplan-change", handler);

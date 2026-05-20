@@ -238,7 +238,10 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   }
 
   const trips = plan.trips;
-  const cover = trips.find((t) => t.cover)?.cover || plan.coverUrl;
+  // Custom-uploaded cover wins; fall back to the first trip's image. Order
+  // matters — previously trip.cover took priority, which silently masked
+  // the user's own upload as soon as a single trip had its own cover.
+  const cover = plan.coverUrl || trips.find((t) => t.cover)?.cover;
   const isOwner = plan.role === "OWNER";
   const canEdit = plan.role === "OWNER" || plan.role === "EDITOR";
 

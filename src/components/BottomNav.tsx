@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { tripCount } from "@/lib/plan-store";
+import { planCount } from "@/lib/plan-store";
 
 type L = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
@@ -19,8 +19,8 @@ export default function BottomNav() {
   const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
-    setPlanBadge(tripCount());
-    const handler = () => setPlanBadge(tripCount());
+    setPlanBadge(planCount());
+    const handler = () => setPlanBadge(planCount());
     window.addEventListener("myplan-change", handler);
     return () => window.removeEventListener("myplan-change", handler);
   }, []);
