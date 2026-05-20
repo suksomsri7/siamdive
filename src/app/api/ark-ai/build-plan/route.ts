@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
   const sessionId: string | undefined = typeof body?.sessionId === "string" ? body.sessionId : undefined;
   const path: string = typeof body?.path === "string" ? body.path : "/";
   const force: boolean = body?.force === true;
+  // New (2026-05-20): the chat panel asks the user where to land the trips
+  // when they already have at least one plan. Either append into an existing
+  // plan (targetPlanId) or create a new one with the name they typed
+  // (customName). Both fields are optional — when absent we fall back to
+  // the original "always create new with auto-generated name" behavior.
+  const targetPlanId: string | undefined = typeof body?.targetPlanId === "string" ? body.targetPlanId : undefined;
+  const customName: string | undefined = typeof body?.customName === "string" ? body.customName.trim() || undefined : undefined;
   if (!deviceId) {
     return Response.json({ error: "deviceId required" }, { status: 400 });
   }
@@ -408,7 +415,42 @@ export async function POST(req: NextRequest) {
     user = await prisma.planUser.create({ data: { deviceId } });
   }
 
-  const planName = buildPlanName(slots, lang);
+  // targetPlanId path — caller wants to append into an existing plan
+  // instead of creating a new one. Merge trips by (boatId, scheduleId);
+  // skip planSignature updates since the signature concept only applies
+  // to the original Ark-AI-built plan.
+  if (targetPlanId) {
+    const existing = await prisma.userPlan.findFirst({
+      where: { id: targetPlanId, userId: user.id },
+    });
+    if (!existing) {
+      return Response.json({ error: "target_plan_not_found" }, { status: 404 });
+    }
+    const existingTrips = Array.isArray(existing.trips) ? (existing.trips as Array<Record<string, unknown>>) : [];
+    const tripKey = (t: Record<string, unknown>) => {
+      const boatId = typeof t.boatId === "string" ? t.boatId : "";
+      const sched = t.schedule as Record<string, unknown> | undefined;
+      const schedId = sched && typeof sched.scheduleId === "string" ? sched.scheduleId : "";
+      return `${boatId}::${schedId}`;
+    };
+    const seen = new Set(existingTrips.map(tripKey));
+    const additions = trips.filter(t => !seen.has(tripKey(t as Record<string, unknown>)));
+    const merged = [...existingTrips, ...additions];
+    const plan = await prisma.userPlan.update({
+      where: { id: targetPlanId },
+      data: {
+        trips: merged as never,
+        coverUrl: existing.coverUrl ?? trips[0]?.cover ?? null,
+      },
+    });
+    return Response.json({
+      plan: { ...plan, createdAt: plan.createdAt.toISOString(), updatedAt: plan.updatedAt.toISOString() },
+      appended: true,
+      addedCount: additions.length,
+    });
+  }
+
+  const planName = customName || buildPlanName(slots, lang);
   let plan;
   try {
     plan = await prisma.userPlan.create({
@@ -424,7 +466,9 @@ export async function POST(req: NextRequest) {
         // so the partial unique index on (userId, planSignature) doesn't
         // block it. Future builds will still resolve to the original
         // signed plan; this orphaned dup just lives independently.
-        planSignature: force ? null : planSignature,
+        // customName triggers the same skip — a user-typed name implies
+        // they want an independent plan even if the slots match.
+        planSignature: (force || customName) ? null : planSignature,
         status: "PLANNING",
       },
     });

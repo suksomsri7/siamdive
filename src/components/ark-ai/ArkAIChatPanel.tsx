@@ -8,6 +8,7 @@ import SlotTrackerChips from "./SlotTrackerChips";
 import TemplatePicker from "./TemplatePicker";
 import CompareSheet from "./CompareSheet";
 import PlanRouteSheet from "./PlanRouteSheet";
+import BuildTargetSheet from "./plan/BuildTargetSheet";
 import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
@@ -210,6 +211,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // null = no animation in flight. The integer is the current step (0-based).
   const [buildStep, setBuildStep] = useState<number | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [buildTargetOpen, setBuildTargetOpen] = useState(false);
   // PlanRouteSheet state — open with picks to commit + ranked plans, then
   // resolve via the routeSheetResolver callback so flushPicksToPlan can
   // await the user's choice.
@@ -878,6 +880,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     return () => window.removeEventListener("ark-ai-undo-plan-route", handler);
   }, [lang]);
 
+  // Actual build-plan API call, extracted so BuildTargetSheet.onSelect can
+  // invoke it AFTER the user has picked a target plan or typed a custom
+  // name. Declared before buildPlan because buildPlan calls into it.
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  const doBuildPlanRef = useRef<(selection: { targetPlanId?: string; customName?: string } | null, force: boolean) => void>(() => {});
+
   const buildPlan = useCallback(async (force = false) => {
     const deviceId = readBrowserId("sd_vid");
     if (!deviceId) return;
@@ -940,10 +948,26 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     }
 
     // Slow path — no staged picks, ask the server to auto-build from slots.
-    // Open MyPlan in "building" mode so the user sees progress while we
-    // wait for /api/ark-ai/build-plan to resolve. Skip the close/animate
-    // when this is a force-retry from a confirmation toast — MyPlan is
-    // already in the right state and reopening would jar the user.
+    // First defer to BuildTargetSheet so the user can pick where the new
+    // trips land (append into an existing plan or create a new one with
+    // a custom name). force=true means the user already chose 'Create new'
+    // from a duplicate-detected toast — skip the sheet and rebuild with
+    // legacy auto-naming behaviour.
+    if (!force) {
+      setBuildTargetOpen(true);
+      return;
+    }
+    doBuildPlanRef.current(null, true);
+  }, [lang, pathname, onClose, flushPicksToPlan]);
+
+  const doBuildPlan = useCallback((selection: { targetPlanId?: string; customName?: string } | null, force: boolean) => {
+    const deviceId = readBrowserId("sd_vid");
+    if (!deviceId) return;
+    const sessionIdHdr = readBrowserId("sd_sid");
+
+    // Open MyPlan in "building" mode so the user sees the new skeleton
+    // immediately. force-retries skip the close/animate because MyPlan is
+    // already in the right state.
     if (!force) {
       onClose();
       setTimeout(() => {
@@ -956,7 +980,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
     fetch("/api/ark-ai/build-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId, sessionId: sessionIdHdr, lang, path: pathname, force }),
+      body: JSON.stringify({
+        deviceId, sessionId: sessionIdHdr, lang, path: pathname, force,
+        ...(selection?.targetPlanId ? { targetPlanId: selection.targetPlanId } : {}),
+        ...(selection?.customName   ? { customName:   selection.customName   } : {}),
+      }),
     })
       .then(async res => {
         if (res.status === 400) {
@@ -1081,6 +1109,7 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   }, [buildPlan]);
 
   sendRef.current = sendMessage;
+  doBuildPlanRef.current = doBuildPlan;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Desktop + Android: Enter alone sends, Shift+Enter inserts a newline.
@@ -1427,6 +1456,16 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           picks={pendingPicks}
           lang={lang}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+      {buildTargetOpen && (
+        <BuildTargetSheet
+          lang={lang}
+          onSelect={(s) => {
+            setBuildTargetOpen(false);
+            doBuildPlanRef.current(s, false);
+          }}
+          onClose={() => setBuildTargetOpen(false)}
         />
       )}
       {routeSheet && (
