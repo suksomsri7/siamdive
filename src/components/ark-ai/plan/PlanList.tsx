@@ -124,7 +124,7 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
           onClick={(e) => { e.stopPropagation(); onDelete(plan.id); }}
           style={{
             position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 6,
-            background: "rgba(0,0,0,0.5)", border: "none", color: "#666",
+            background: "rgba(0,0,0,0.5)", border: "none", color: "#fff",
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >

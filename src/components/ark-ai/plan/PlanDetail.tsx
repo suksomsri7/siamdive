@@ -247,7 +247,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   ];
 
   const tabsBar = (
-    <div style={{ display: "flex", borderBottom: "1px solid var(--plan-border-soft)", padding: "0 16px", flexShrink: 0 }}>
+    <div style={{ display: "flex", padding: "0 16px", flexShrink: 0 }}>
       {tabs.map((t) => (
         <button key={t.key} onClick={() => setTab(t.key)} style={{
           flex: 1, padding: "10px 0", background: "none", border: "none",
@@ -626,7 +626,7 @@ const ADD_SHEET_T: Record<string, Record<string, string>> = {
   title:   { th: "เพิ่มเที่ยวบินหรือที่พัก", en: "Add flight or hotel" },
   flight:  { th: "เที่ยวบิน", en: "Flight" },
   hotel:   { th: "ที่พัก",     en: "Hotel"  },
-  ai:      { th: "✨ ให้ AI แนะนำ", en: "✨ Let AI suggest" },
+  ai:      { th: "ค้นหา",           en: "Search" },
   manual:  { th: "+ กรอกเอง",     en: "+ Enter manually" },
   cancel:  { th: "ยกเลิก",        en: "Cancel" },
 };
@@ -710,7 +710,12 @@ function AddItemSheet({ lang, onClose, onPick }: {
                   flex: 1, padding: "10px 12px", borderRadius: 8,
                   background: "#1e40af", border: "1px solid #1e3a8a", color: "#fff",
                   fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
                 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
                 {addSheetT("ai", lang)}
               </button>
               <button onClick={() => onPick(row.type, "manual")}
