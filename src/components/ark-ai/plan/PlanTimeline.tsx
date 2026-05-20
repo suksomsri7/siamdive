@@ -5,7 +5,7 @@ import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 import { ScheduleDetailSkeleton } from "../Skeletons";
 import TripSchedulePicker from "../TripSchedulePicker";
-import { t, dayLabel, schedulesDailyLabel, schedulesStopsLabel } from "@/lib/ark-ai/i18n";
+import { t, dayLabel } from "@/lib/ark-ai/i18n";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -55,6 +55,24 @@ const fmtDayHeader = (iso: string, lang: string) =>
   new Date(iso + "T00:00:00").toLocaleDateString(LOCALE_LONG[lang] || "en-US", {
     weekday: "short", day: "numeric", month: "short",
   });
+
+// Pick a glyph for an itinerary row by keyword. Returns null when no clear
+// activity type is hinted — the timeline falls back to a numbered/dot marker
+// rather than guessing.
+function pickItineraryIcon(text: string): string | null {
+  const s = text.toLowerCase();
+  if (/รับ\s*(ที่|จาก)?|pickup|pick.?up|รับลูกค้า|รับท่าน/.test(s)) return "🚐";
+  if (/ส่ง\s*(ที่|กลับ)?|drop.?off|กลับโรงแรม|กลับฝั่ง|กลับถึง|return\s+to\s+hotel/.test(s)) return "🚐";
+  if (/ดำน้ำ|dive\b|diving|ดำผิวน้ำ|snorkel|scuba|ฟรีไดฟ์|freedive/.test(s)) return "🤿";
+  if (/อาหาร|ข้าว|มื้อ|lunch|dinner|breakfast|กลางวัน|เย็น|เช้า\s*ทาน|brunch|buffet/.test(s)) return "🍽️";
+  if (/ออกเรือ|board\b|boarding|embark|set\s+sail|sail\b|cruise|เรือออก/.test(s)) return "⛵";
+  if (/พัก|hotel|resort|stay|check.?in|check.?out|รีสอร์ท|ที่พัก/.test(s)) return "🛏️";
+  if (/ถึง|arrive|arrival|reach\b|มาถึง/.test(s)) return "📍";
+  if (/ชายหาด|beach|เกาะ|island|snorkeling\s+spot|จุดดำน้ำ|reef/.test(s)) return "🏝️";
+  if (/ช้อป|shop|ตลาด|market|souvenir|ของฝาก/.test(s)) return "🛍️";
+  if (/บินกลับ|flight|สนามบิน|airport/.test(s)) return "✈️";
+  return null;
+}
 
 export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved }: Props) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -173,7 +191,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
   // The "ดูรายละเอียด" tab starts COLLAPSED — user feedback: it duplicated
   // the timeline and pushed real info below the fold. They open it on demand.
   const [expanded, setExpanded] = useState(false);
-  const [showItinerary, setShowItinerary] = useState(true);
   const [detail, setDetail] = useState<FetchedDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -538,138 +555,125 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
         </div>
       </div>
 
-      {/* Itinerary timeline — extracted out of the trip card so the schedule
-          reads as its own sibling container. Per user feedback the day-by-day
-          itinerary belongs in a separate block, not nested inside the boat
-          card. */}
+      {/* Itinerary timeline — no card frame, no collapse. Per user feedback:
+          design only the schedule, no border container, always visible. */}
       {itineraryDays.length > 0 && (
-        <div style={{
-          marginTop: 10,
-          background: "var(--plan-surface)",
-          border: "1px solid var(--plan-border-soft)",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}>
-          <button
-            type="button"
-            onClick={() => setShowItinerary(s => !s)}
-            style={{
-              width: "100%", padding: "10px 12px",
-              background: showItinerary ? "rgba(30,58,138,0.12)" : "transparent",
-              border: "none",
-              color: showItinerary ? "#dbeafe" : "var(--plan-fg-muted)",
-              fontSize: 12, fontWeight: 700, cursor: "pointer",
-              display: "flex", alignItems: "center", gap: 6,
-              fontFamily: "inherit",
-              transition: "background 0.2s, color 0.2s",
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-            <span>
-              {showItinerary
-                ? L("hideItinerary")
-                : (isMultiDay
-                    ? schedulesDailyLabel(lang, itineraryDays.length)
-                    : schedulesStopsLabel(lang, itineraryDays.length))}
-            </span>
-          </button>
-          {showItinerary && (
-            <div style={{ padding: "6px 12px 14px", position: "relative" }}>
-              <style>{`
-                .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.55; }
-                .trip-itin-body p { margin: 0 0 4px; }
-                .trip-itin-body p:last-child { margin-bottom: 0; }
-                .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg); font-weight: 700; }
-                .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
-                .trip-itin-body ul, .trip-itin-body ol { margin: 2px 0 4px; padding-left: 18px; }
-                .trip-itin-body li { margin-bottom: 2px; }
-                .itin-row { display: grid; grid-template-columns: 56px 32px 1fr; gap: 8px; align-items: start; padding: 8px 0; position: relative; z-index: 1; }
-                .itin-row + .itin-row { padding-top: 8px; }
-                .itin-time { text-align: right; padding-top: 2px; }
-                .itin-mid { display: flex; justify-content: center; padding-top: 2px; }
-                .itin-circle {
-                  width: 28px; height: 28px; border-radius: 50%;
-                  background: var(--plan-surface);
-                  border: 2px solid var(--plan-border);
-                  display: flex; align-items: center; justify-content: center;
-                  flex-shrink: 0; position: relative; z-index: 2;
-                }
-                .itin-line {
-                  position: absolute; left: 70px; top: 18px; bottom: 18px;
-                  width: 2px; background: var(--plan-border); z-index: 0;
-                }
-              `}</style>
-              {/* Single continuous vertical line passing through all circles. */}
-              {itineraryDays.length > 1 && <div className="itin-line" />}
+        <div style={{ marginTop: 18, padding: "4px 6px 4px 4px", position: "relative" }}>
+          <style>{`
+            .trip-itin-body { font-size: 12.5px; color: var(--plan-fg-muted); line-height: 1.6; }
+            .trip-itin-body p { margin: 0 0 4px; }
+            .trip-itin-body p:last-child { margin-bottom: 0; }
+            .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg-muted); font-weight: 600; }
+            .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
+            .trip-itin-body ul, .trip-itin-body ol { margin: 2px 0 4px; padding-left: 16px; }
+            .trip-itin-body li { margin-bottom: 2px; }
+            .itin-row {
+              display: grid;
+              grid-template-columns: 62px 36px 1fr;
+              gap: 10px;
+              align-items: start;
+              padding: 14px 0;
+              position: relative;
+              z-index: 1;
+            }
+            .itin-row:first-of-type { padding-top: 4px; }
+            .itin-row:last-of-type { padding-bottom: 4px; }
+            .itin-time { text-align: right; padding-top: 4px; font-variant-numeric: tabular-nums; }
+            .itin-mid { display: flex; justify-content: center; padding-top: 5px; }
+            .itin-circle {
+              width: 32px; height: 32px; border-radius: 50%;
+              background: rgba(59,130,246,0.10);
+              border: 1px solid rgba(96,165,250,0.30);
+              display: flex; align-items: center; justify-content: center;
+              flex-shrink: 0; position: relative; z-index: 2;
+              color: #93c5fd;
+              box-shadow: 0 0 0 4px var(--plan-bg);
+            }
+            .itin-line {
+              position: absolute;
+              left: 86px;
+              top: 24px; bottom: 24px;
+              width: 1px;
+              background: linear-gradient(to bottom,
+                transparent 0%,
+                rgba(96,165,250,0.25) 6%,
+                rgba(96,165,250,0.25) 94%,
+                transparent 100%);
+              z-index: 0;
+            }
+          `}</style>
+          {/* Continuous timeline thread that runs behind all circles. */}
+          {itineraryDays.length > 1 && <div className="itin-line" />}
 
-              {itineraryDays.map((d, i) => {
-                const dayDate = itineraryDayDates[i];
-                // Parse "08:00 — รับที่โรงแรม" → time + body. For multi-day
-                // liveaboards strip the "Day N — " prefix so the right column
-                // shows just the location/title.
-                let time: string | null = null;
-                let text = d.heading || "";
-                if (isMultiDay) {
-                  const m = text.match(/^Day\s+\d+\s*[—–\-:]?\s*(.+)$/i);
-                  if (m) text = m[1].trim();
-                } else {
-                  const m = text.match(/^(\d{1,2}[:.]\d{2})\s*[—–\-:]?\s*(.+)$/);
-                  if (m) { time = m[1]; text = m[2].trim(); }
-                }
+          {itineraryDays.map((d, i) => {
+            const dayDate = itineraryDayDates[i];
+            // Parse "08:00 — รับที่โรงแรม" → time + body. Strip "Day N — " for
+            // liveaboards so the day badge isn't repeated in the title.
+            let time: string | null = null;
+            let text = d.heading || "";
+            if (isMultiDay) {
+              const m = text.match(/^Day\s+\d+\s*[—–\-:]?\s*(.+)$/i);
+              if (m) text = m[1].trim();
+            } else {
+              const m = text.match(/^(\d{1,2}[:.]\d{2})\s*[—–\-:]?\s*(.+)$/);
+              if (m) { time = m[1]; text = m[2].trim(); }
+            }
 
-                return (
-                  <div key={i} className="itin-row">
-                    {/* Left column: time (daytrip) or day label + date (multi-day) */}
-                    <div className="itin-time">
-                      {isMultiDay ? (
-                        <>
-                          <p style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa", margin: 0, letterSpacing: "0.05em" }}>
-                            {dayLabel(lang, i + 1)}
-                          </p>
-                          {dayDate && (
-                            <p style={{ fontSize: 10, color: "var(--plan-fg-subtle)", margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                              {fmtDayHeader(dayDate, lang)}
-                            </p>
-                          )}
-                        </>
-                      ) : time ? (
-                        <p style={{ fontSize: 15, fontWeight: 800, color: "var(--plan-fg)", margin: 0, letterSpacing: "-0.01em" }}>
-                          {time}
-                        </p>
-                      ) : null}
-                    </div>
+            // Pick a glyph from the activity keywords. Falls back to a clean
+            // dot when nothing matches — keeps the timeline readable rather
+            // than aggressively guessing.
+            const icon = pickItineraryIcon(text + " " + (d.bodyHtml || ""));
 
-                    {/* Middle column: circle marker (cuts the line) */}
-                    <div className="itin-mid">
-                      <div className="itin-circle">
-                        {isMultiDay ? (
-                          <span style={{ fontSize: 11, fontWeight: 800, color: "var(--plan-fg)" }}>{i + 1}</span>
-                        ) : (
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right column: title + body */}
-                    <div style={{ minWidth: 0, paddingTop: 4 }}>
-                      {text && (
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: 0, lineHeight: 1.35 }}>
-                          {text}
+            return (
+              <div key={i} className="itin-row">
+                {/* Time / day label */}
+                <div className="itin-time">
+                  {isMultiDay ? (
+                    <>
+                      <p style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa", margin: 0, letterSpacing: "0.06em" }}>
+                        {dayLabel(lang, i + 1)}
+                      </p>
+                      {dayDate && (
+                        <p style={{ fontSize: 10.5, color: "var(--plan-fg-subtle)", margin: "3px 0 0", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
+                          {fmtDayHeader(dayDate, lang)}
                         </p>
                       )}
-                      {d.bodyHtml && (
-                        <div className="trip-itin-body" style={{ marginTop: text ? 3 : 0 }}
-                          dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
-                      )}
-                    </div>
+                    </>
+                  ) : time ? (
+                    <p style={{ fontSize: 17, fontWeight: 800, color: "var(--plan-fg)", margin: 0, letterSpacing: "-0.02em" }}>
+                      {time}
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Icon circle on the thread */}
+                <div className="itin-mid">
+                  <div className="itin-circle">
+                    {icon ? (
+                      <span style={{ fontSize: 15, lineHeight: 1 }}>{icon}</span>
+                    ) : isMultiDay ? (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "#bfdbfe" }}>{i + 1}</span>
+                    ) : (
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                </div>
+
+                {/* Right column: title + body */}
+                <div style={{ minWidth: 0, paddingTop: 5 }}>
+                  {text && (
+                    <p style={{ fontSize: 14.5, fontWeight: 700, color: "var(--plan-fg)", margin: 0, lineHeight: 1.35, letterSpacing: "-0.005em" }}>
+                      {text}
+                    </p>
+                  )}
+                  {d.bodyHtml && (
+                    <div className="trip-itin-body" style={{ marginTop: text ? 3 : 0 }}
+                      dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
