@@ -103,6 +103,14 @@ export default async function PlanPage({ params }: { params: Promise<Params> }) 
   });
   if (!userPlan) notFound();
 
+  // Bump the social view counter once per page load. Best-effort — never
+  // block the render. Owner re-views still count for MVP; refine later
+  // if abuse becomes a concern.
+  prisma.userPlan.update({
+    where: { id: userPlan.id },
+    data: { viewCount: { increment: 1 } },
+  }).catch(() => {});
+
   const trips = (userPlan.trips as any[]) || [];
 
   return (
@@ -114,7 +122,9 @@ export default async function PlanPage({ params }: { params: Promise<Params> }) 
         status: userPlan.status,
         trips,
         ownerName: userPlan.user.name || userPlan.user.email?.split("@")[0] || null,
-        memberCount: userPlan.members.length + 1,
+        followerCount: userPlan.members.length,
+        viewCount:     userPlan.viewCount + 1,
+        shareCount:    userPlan.shareCount,
         createdAt: userPlan.createdAt.toISOString(),
       }}
       currentLang={lang}

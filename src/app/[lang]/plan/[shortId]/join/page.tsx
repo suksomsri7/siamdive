@@ -44,6 +44,13 @@ export default async function JoinPlanPage({
     redirect(`/${lang}/plan/${shortId}`);
   }
 
+  // Bump the social view counter once per join-page load. Best-effort,
+  // doesn't block the render.
+  prisma.userPlan.update({
+    where: { id: row.plan.id },
+    data: { viewCount: { increment: 1 } },
+  }).catch(() => {});
+
   const trips = (row.plan.trips as unknown[]) || [];
   const ownerName = row.plan.user.name || row.plan.user.email?.split("@")[0] || null;
   const items = row.plan.items.map(i => ({
@@ -76,6 +83,9 @@ export default async function JoinPlanPage({
         items,
         tripCount:   Array.isArray(trips) ? trips.length : 0,
         memberCount: row.plan._count.members + 1,
+        followerCount: row.plan._count.members,
+        viewCount:    row.plan.viewCount + 1,
+        shareCount:   row.plan.shareCount,
         ownerName,
         role:        row.role,
         createdAt:   row.plan.createdAt.toISOString(),

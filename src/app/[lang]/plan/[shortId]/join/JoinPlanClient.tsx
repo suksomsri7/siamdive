@@ -19,6 +19,9 @@ type Plan = {
   items: PlanItem[];
   tripCount: number;
   memberCount: number;
+  followerCount: number;
+  viewCount: number;
+  shareCount: number;
   ownerName: string | null;
   role: "VIEWER" | "EDITOR";
   createdAt: string;
@@ -37,10 +40,13 @@ const T: Record<string, Record<string, string>> = {
   members:     { th: "สมาชิก",                    en: "members" },
   role_view:   { th: "ดูได้อย่างเดียว",            en: "View access" },
   role_edit:   { th: "ปรับเปลี่ยนได้",             en: "Edit access" },
-  join:        { th: "บันทึก",                    en: "Save" },
+  join:        { th: "Follow",                    en: "Follow" },
   copy:        { th: "Copy เป็นแผนของฉัน",        en: "Copy as mine" },
-  joinTitle:   { th: "บันทึกแผนนี้",              en: "Save this plan" },
+  joinTitle:   { th: "Follow แผนนี้",             en: "Follow this plan" },
   joinDesc:    { th: "เก็บลง My Plan ของคุณ อัปเดต real-time", en: "Save to your My Plan, real-time sync" },
+  followers:   { th: "ผู้ติดตาม",                  en: "Followers" },
+  views:       { th: "ผู้เข้าชม",                  en: "Views" },
+  shares:      { th: "แชร์",                       en: "Shares" },
   copyTitle:   { th: "Copy เป็นแผนของฉัน",        en: "Copy as my own plan" },
   copyDesc:    { th: "Fork เป็นแผนใหม่ของตัวเอง แก้ไขได้อิสระ", en: "Fork a private copy you can edit alone" },
   yourName:    { th: "ชื่อของคุณ",                en: "Your name" },
@@ -48,9 +54,9 @@ const T: Record<string, Record<string, string>> = {
   emailPh:     { th: "you@example.com",           en: "you@example.com" },
   namePh:      { th: "ชื่อเล่นก็ได้",              en: "Nickname is fine" },
   emailReq:    { th: "กรุณากรอกอีเมล",            en: "Email is required" },
-  submit:      { th: "บันทึก",                    en: "Save" },
+  submit:      { th: "Follow",                    en: "Follow" },
   cancel:      { th: "ยกเลิก",                    en: "Cancel" },
-  loadingJoin: { th: "กำลังบันทึก…",                en: "Saving…" },
+  loadingJoin: { th: "กำลัง follow…",              en: "Following…" },
   loadingCopy: { th: "กำลังคัดลอก…",               en: "Copying…" },
   err:         { th: "ลองอีกครั้งครับ",            en: "Something went wrong, try again" },
   tripsHead:   { th: "ทริปในแพลน",                en: "Trips in this plan" },
@@ -196,6 +202,24 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>{plan.name}</h1>
           </div>
+        </div>
+
+        {/* Social stats — Followers / Views / Shares */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 28, margin: "18px 0 22px" }}>
+          {[
+            { label: L("followers", lang), value: plan.followerCount },
+            { label: L("views",     lang), value: plan.viewCount },
+            { label: L("shares",    lang), value: plan.shareCount },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 22, fontWeight: 900, color: "#f5f5f5", margin: 0 }}>
+                {s.value.toLocaleString()}
+              </p>
+              <p style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", margin: "2px 0 0" }}>
+                {s.label}
+              </p>
+            </div>
+          ))}
         </div>
 
         {/* Trips timeline (read-only) */}

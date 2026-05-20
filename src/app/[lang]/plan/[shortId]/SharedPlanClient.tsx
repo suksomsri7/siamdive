@@ -16,7 +16,10 @@ type Props = {
   plan: {
     shortId: string; name: string; coverUrl: string | null;
     status: string; trips: Trip[]; ownerName: string | null;
-    memberCount: number; createdAt: string;
+    followerCount: number;
+    viewCount: number;
+    shareCount: number;
+    createdAt: string;
   };
   currentLang: string;
 };
@@ -90,16 +93,21 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
           </div>
         </div>
 
-        {/* Info strip */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 24 }}>
+        {/* Social stats — Followers / Views / Shares replace the older
+            Trips + Members strip per user feedback. */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 24 }}>
           {[
-            { label: isTh ? "ทริป" : "Trips", value: plan.trips.length, icon: "🗺" },
-            { label: isTh ? "สมาชิก" : "Members", value: plan.memberCount, icon: "👤" },
+            { label: isTh ? "ผู้ติดตาม" : "Followers", value: plan.followerCount },
+            { label: isTh ? "ผู้เข้าชม" : "Views",     value: plan.viewCount },
+            { label: isTh ? "แชร์"      : "Shares",    value: plan.shareCount },
           ].map(s => (
             <div key={s.label} style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 20 }}>{s.icon}</p>
-              <p style={{ fontSize: 20, fontWeight: 900, color: "#f5f5f5" }}>{s.value}</p>
-              <p style={{ fontSize: 10, color: "#666" }}>{s.label}</p>
+              <p style={{ fontSize: 22, fontWeight: 900, color: "#f5f5f5", margin: 0 }}>
+                {s.value.toLocaleString()}
+              </p>
+              <p style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", margin: "2px 0 0" }}>
+                {s.label}
+              </p>
             </div>
           ))}
         </div>

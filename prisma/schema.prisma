@@ -854,6 +854,7 @@ model UserPlan {
   isPublic      Boolean    @default(false)
   publicSlug    String?    @unique
   viewCount     Int        @default(0)
+  shareCount    Int        @default(0)
   expiresAt     DateTime?
   source        String     @default("USER") // USER | ARK_AI | TEMPLATE
   aiPrompt      String?
