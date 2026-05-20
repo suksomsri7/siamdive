@@ -917,6 +917,16 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
   // of fast vs slow, so the user sees the same progressive UX.
   const handleBuildTargetSelect = useCallback(async (selection: { targetPlanId?: string; customName?: string }) => {
     setBuildTargetOpen(false);
+
+    // Clear the chat thread once the user commits to building — they're
+    // moving on to the plan view, the chat history isn't useful any more
+    // and a fresh thread next time avoids the AI re-using stale context.
+    setMessages([]);
+    setInput("");
+    setSlots({});
+    setSlotsComplete(false);
+    try { sessionStorage.removeItem("ark-ai-messages"); } catch {}
+
     const stagedPicks = readPendingPicks();
 
     // Slow path — no staged picks. Hand off to doBuildPlan which calls

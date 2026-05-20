@@ -8,7 +8,7 @@
 //
 // onSelect returns { targetPlanId } to append, or { customName } to create.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getPlans } from "@/lib/plan-store";
 import { t } from "@/lib/ark-ai/i18n";
 
@@ -44,6 +44,16 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
   // name step. Saves a click for the common first-time path.
   const [mode, setMode] = useState<"pick" | "name">(plans.length === 0 ? "name" : "pick");
   const [name, setName] = useState(suggestedName || "");
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Focus the name input every time the user lands on the name mode. iOS
+  // ignores autoFocus on dynamically-mounted inputs, so we drive it via
+  // ref + a tiny setTimeout (covers the sheet's slide-in animation).
+  useEffect(() => {
+    if (mode !== "name") return;
+    const t = window.setTimeout(() => { nameRef.current?.focus(); }, 80);
+    return () => clearTimeout(t);
+  }, [mode]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -59,6 +69,9 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
   const handleCreate = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!name.trim()) return;
+    // Dismiss the mobile soft keyboard before the sheet closes — without
+    // this iOS keeps it open through the transition, which feels janky.
+    nameRef.current?.blur();
     onSelect({ customName: name.trim() });
   };
 
@@ -156,8 +169,9 @@ export default function BuildTargetSheet({ lang, suggestedName, onSelect, onClos
             <p style={{ fontSize: 12, color: "#888", margin: "0 0 14px", textAlign: "center" }}>
               {L("nameHint", lang)}
             </p>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder={L("namePh", lang)}
+            <input ref={nameRef} value={name} onChange={e => setName(e.target.value)} placeholder={L("namePh", lang)}
               autoFocus
+              enterKeyHint="done"
               style={{
                 width: "100%", padding: "12px 14px", borderRadius: 10,
                 background: "#161616", border: "1px solid #262626",
