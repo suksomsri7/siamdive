@@ -577,70 +577,94 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </span>
           </button>
           {showItinerary && (
-            <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ padding: "6px 12px 14px", position: "relative" }}>
               <style>{`
-                .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.65; }
-                .trip-itin-body p { margin: 0 0 6px; }
+                .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.55; }
+                .trip-itin-body p { margin: 0 0 4px; }
                 .trip-itin-body p:last-child { margin-bottom: 0; }
                 .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg); font-weight: 700; }
                 .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
-                .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
-                .trip-itin-body li { margin-bottom: 3px; }
+                .trip-itin-body ul, .trip-itin-body ol { margin: 2px 0 4px; padding-left: 18px; }
+                .trip-itin-body li { margin-bottom: 2px; }
+                .itin-row { display: grid; grid-template-columns: 56px 32px 1fr; gap: 8px; align-items: start; padding: 8px 0; position: relative; z-index: 1; }
+                .itin-row + .itin-row { padding-top: 8px; }
+                .itin-time { text-align: right; padding-top: 2px; }
+                .itin-mid { display: flex; justify-content: center; padding-top: 2px; }
+                .itin-circle {
+                  width: 28px; height: 28px; border-radius: 50%;
+                  background: var(--plan-surface);
+                  border: 2px solid var(--plan-border);
+                  display: flex; align-items: center; justify-content: center;
+                  flex-shrink: 0; position: relative; z-index: 2;
+                }
+                .itin-line {
+                  position: absolute; left: 70px; top: 18px; bottom: 18px;
+                  width: 2px; background: var(--plan-border); z-index: 0;
+                }
               `}</style>
+              {/* Single continuous vertical line passing through all circles. */}
+              {itineraryDays.length > 1 && <div className="itin-line" />}
+
               {itineraryDays.map((d, i) => {
                 const dayDate = itineraryDayDates[i];
+                // Parse "08:00 — รับที่โรงแรม" → time + body. For multi-day
+                // liveaboards strip the "Day N — " prefix so the right column
+                // shows just the location/title.
+                let time: string | null = null;
+                let text = d.heading || "";
+                if (isMultiDay) {
+                  const m = text.match(/^Day\s+\d+\s*[—–\-:]?\s*(.+)$/i);
+                  if (m) text = m[1].trim();
+                } else {
+                  const m = text.match(/^(\d{1,2}[:.]\d{2})\s*[—–\-:]?\s*(.+)$/);
+                  if (m) { time = m[1]; text = m[2].trim(); }
+                }
+
                 return (
-                  <div key={i} style={{ position: "relative", paddingLeft: 22 }}>
-                    {/* Timeline dot + connector for multi-day */}
-                    <div style={{
-                      position: "absolute", left: 0, top: 4,
-                      width: 16, height: 16, borderRadius: "50%",
-                      background: isMultiDay ? "#1e3a8a" : "#3b82f6",
-                      border: "2px solid var(--plan-bg)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 9, fontWeight: 900, color: "#dbeafe",
-                      zIndex: 2,
-                    }}>
-                      {isMultiDay ? i + 1 : ""}
-                    </div>
-                    {i < itineraryDays.length - 1 && (
-                      <div style={{
-                        position: "absolute", left: 7, top: 22, bottom: -12,
-                        width: 2, background: "#1e3a8a", opacity: 0.5,
-                        zIndex: 1,
-                      }} />
-                    )}
-                    {isMultiDay ? (
-                      <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        {dayLabel(lang, i + 1)}
-                        {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
-                      </p>
-                    ) : null}
-                    {d.heading && (() => {
-                      const timeMatch = !isMultiDay
-                        ? d.heading.match(/^(\s*\d{1,2}[:.]\d{2}\s*[—–\-:]?\s*)(.+)$/)
-                        : null;
-                      return (
-                        <p style={{
-                          fontSize: isMultiDay ? 13 : 12,
-                          fontWeight: isMultiDay ? 800 : 500,
-                          color: "var(--plan-fg)",
-                          margin: "0 0 4px",
-                        }}>
-                          {timeMatch ? (
-                            <>
-                              <span style={{ fontWeight: 800 }}>{timeMatch[1].trim()}</span>{" "}
-                              <span style={{ fontWeight: 400 }}>{timeMatch[2]}</span>
-                            </>
-                          ) : (
-                            d.heading
+                  <div key={i} className="itin-row">
+                    {/* Left column: time (daytrip) or day label + date (multi-day) */}
+                    <div className="itin-time">
+                      {isMultiDay ? (
+                        <>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa", margin: 0, letterSpacing: "0.05em" }}>
+                            {dayLabel(lang, i + 1)}
+                          </p>
+                          {dayDate && (
+                            <p style={{ fontSize: 10, color: "var(--plan-fg-subtle)", margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                              {fmtDayHeader(dayDate, lang)}
+                            </p>
                           )}
+                        </>
+                      ) : time ? (
+                        <p style={{ fontSize: 15, fontWeight: 800, color: "var(--plan-fg)", margin: 0, letterSpacing: "-0.01em" }}>
+                          {time}
                         </p>
-                      );
-                    })()}
-                    {d.bodyHtml && (
-                      <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
-                    )}
+                      ) : null}
+                    </div>
+
+                    {/* Middle column: circle marker (cuts the line) */}
+                    <div className="itin-mid">
+                      <div className="itin-circle">
+                        {isMultiDay ? (
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "var(--plan-fg)" }}>{i + 1}</span>
+                        ) : (
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right column: title + body */}
+                    <div style={{ minWidth: 0, paddingTop: 4 }}>
+                      {text && (
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: 0, lineHeight: 1.35 }}>
+                          {text}
+                        </p>
+                      )}
+                      {d.bodyHtml && (
+                        <div className="trip-itin-body" style={{ marginTop: text ? 3 : 0 }}
+                          dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
+                      )}
+                    </div>
                   </div>
                 );
               })}
