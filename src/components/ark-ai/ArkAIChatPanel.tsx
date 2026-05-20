@@ -977,6 +977,12 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       window.dispatchEvent(new CustomEvent("open-myplan", { detail: { building: true } }));
     }
 
+    // When the user came through BuildTargetSheet — picked an existing plan
+    // OR typed a custom name — they explicitly opted in to that outcome.
+    // The legacy 400-fallback that offers to reuse an existing plan would
+    // contradict that choice, so suppress it.
+    const userOptedIn = !!(selection?.targetPlanId || selection?.customName);
+
     fetch("/api/ark-ai/build-plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -996,7 +1002,9 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
           // (Skipping a "Create new" CTA here on purpose: with incomplete
           // slots even force=true would 400 again on the server, so the
           // button wouldn't actually do anything useful.)
-          const userPlansForFallback = !force ? getPlans() : [];
+          // Skip this fallback when the user came in through BuildTargetSheet
+          // — they already told us what they want.
+          const userPlansForFallback = (!force && !userOptedIn) ? getPlans() : [];
           if (userPlansForFallback.length > 0) {
             const mostRecent = [...userPlansForFallback].sort(
               (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -1040,7 +1048,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         }
 
         if (data.plan?.id) {
-          if (data.reused && data.plan.name) {
+          // If the user explicitly opted in (typed a custom name or picked
+          // a target plan), never surface the "duplicate detected" choice.
+          // Treat the response as a normal success even if the backend
+          // somehow returned reused — they already made their decision.
+          if (data.reused && data.plan.name && !userOptedIn) {
             // Duplicate detected — present an explicit choice instead of
             // silently routing to the existing plan. User asked for this
             // UX (2026-05-09): "should be a notification — view existing
