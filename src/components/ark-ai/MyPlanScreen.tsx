@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getPlans, createPlan, deletePlan, getDeviceId, planCount, pullPlansFromServer, type UserPlan } from "@/lib/plan-store";
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
@@ -63,23 +63,44 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
     return () => window.removeEventListener("open-myplan", handler);
   }, []);
 
+  // Track when the build animation started so we can hold the skeleton
+  // for a minimum amount of time. If the API resolves before MIN_BUILD_MS
+  // has passed, we defer the swap so the user sees the full skeleton
+  // reveal sequence instead of a brief flash. Without this the UX feels
+  // like 'I saw a tiny bit of step-by-step then everything appeared'.
+  const buildStartRef = useRef<number>(0);
+  const MIN_BUILD_MS = 5500;
+
   // Mirror the parent-supplied buildingPlan flag into local state so we
   // can clear it when the build resolves without bouncing the parent.
   useEffect(() => {
     if (buildingPlan) {
       setBuilding(true);
       setBuildError(null);
+      buildStartRef.current = Date.now();
     }
   }, [buildingPlan]);
 
   // Listen for the async build-plan resolution dispatched by ArkAIChatPanel.
   useEffect(() => {
-    const onDone = (e: Event) => {
-      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+    const finish = (planId: string | undefined) => {
       setBuilding(false);
       setBuildError(null);
-      if (detail?.planId) setActivePlanId(detail.planId);
+      if (planId) setActivePlanId(planId);
       refresh();
+    };
+    const onDone = (e: Event) => {
+      const detail = (e as CustomEvent<{ planId?: string }>).detail;
+      // Hold the skeleton until at least MIN_BUILD_MS has elapsed since
+      // the user clicked Build. Lets the staggered reveal play out even
+      // when the API resolves in under a second.
+      const elapsed = Date.now() - (buildStartRef.current || Date.now());
+      const remaining = Math.max(0, MIN_BUILD_MS - elapsed);
+      if (remaining > 0) {
+        window.setTimeout(() => finish(detail?.planId), remaining);
+      } else {
+        finish(detail?.planId);
+      }
     };
     const onError = (e: Event) => {
       const detail = (e as CustomEvent<{ reasons?: string[] }>).detail;
