@@ -399,119 +399,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Itinerary timeline — day-by-day for liveaboards, hour-by-hour for daytrips */}
-          {itineraryDays.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--plan-border-soft)" }}>
-              <button
-                type="button"
-                onClick={() => setShowItinerary(s => !s)}
-                style={{
-                  width: "100%", padding: "10px 12px",
-                  background: showItinerary ? "rgba(30,58,138,0.12)" : "transparent",
-                  border: "none",
-                  color: showItinerary ? "#dbeafe" : "var(--plan-fg-muted)",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 6,
-                  fontFamily: "inherit",
-                  transition: "background 0.2s, color 0.2s",
-                }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-                <span>
-                  {showItinerary
-                    ? L("hideItinerary")
-                    : (isMultiDay
-                        ? schedulesDailyLabel(lang, itineraryDays.length)
-                        : schedulesStopsLabel(lang, itineraryDays.length))}
-                </span>
-              </button>
-              {showItinerary && (
-                <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-                  <style>{`
-                    .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.65; }
-                    .trip-itin-body p { margin: 0 0 6px; }
-                    .trip-itin-body p:last-child { margin-bottom: 0; }
-                    .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg); font-weight: 700; }
-                    .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
-                    .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
-                    .trip-itin-body li { margin-bottom: 3px; }
-                  `}</style>
-                  {itineraryDays.map((d, i) => {
-                    const dayDate = itineraryDayDates[i];
-                    return (
-                      <div key={i} style={{
-                        position: "relative",
-                        paddingLeft: 22,
-                      }}>
-                        {/* Timeline dot + connector for multi-day */}
-                        <div style={{
-                          position: "absolute", left: 0, top: 4,
-                          width: 16, height: 16, borderRadius: "50%",
-                          background: isMultiDay ? "#1e3a8a" : "#3b82f6",
-                          border: "2px solid var(--plan-bg)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 9, fontWeight: 900, color: "#dbeafe",
-                          zIndex: 2,
-                        }}>
-                          {isMultiDay ? i + 1 : ""}
-                        </div>
-                        {/* Vertical connector to next day */}
-                        {i < itineraryDays.length - 1 && (
-                          <div style={{
-                            position: "absolute", left: 7, top: 22, bottom: -12,
-                            width: 2, background: "#1e3a8a", opacity: 0.5,
-                            zIndex: 1,
-                          }} />
-                        )}
-                        {/* Day label */}
-                        {isMultiDay ? (
-                          <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {dayLabel(lang, i + 1)}
-                            {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
-                          </p>
-                        ) : null}
-                        {d.heading && (() => {
-                          // For DAYTRIP rows the heading is "07:00 — รับที่โรงแรม"
-                          // — keep the time prefix bold but render the
-                          // description after it in regular weight, per user
-                          // feedback that the all-bold style was too heavy.
-                          // LIVEABOARD (isMultiDay) headings are day titles
-                          // ("Day 1 — Sail Rock") and stay fully bold.
-                          const timeMatch = !isMultiDay
-                            ? d.heading.match(/^(\s*\d{1,2}[:.]\d{2}\s*[—–\-:]?\s*)(.+)$/)
-                            : null;
-                          return (
-                            <p style={{
-                              fontSize: isMultiDay ? 13 : 12,
-                              fontWeight: isMultiDay ? 800 : 500,
-                              color: "var(--plan-fg)",
-                              margin: "0 0 4px",
-                            }}>
-                              {timeMatch ? (
-                                <>
-                                  <span style={{ fontWeight: 800 }}>{timeMatch[1].trim()}</span>{" "}
-                                  <span style={{ fontWeight: 400 }}>{timeMatch[2]}</span>
-                                </>
-                              ) : (
-                                d.heading
-                              )}
-                            </p>
-                          );
-                        })()}
-                        {d.bodyHtml && (
-                          <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Expand/collapse toggle */}
           <button
             onClick={handleToggle}
@@ -650,6 +537,118 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
 
         </div>
       </div>
+
+      {/* Itinerary timeline — extracted out of the trip card so the schedule
+          reads as its own sibling container. Per user feedback the day-by-day
+          itinerary belongs in a separate block, not nested inside the boat
+          card. */}
+      {itineraryDays.length > 0 && (
+        <div style={{
+          marginTop: 10,
+          background: "var(--plan-surface)",
+          border: "1px solid var(--plan-border-soft)",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}>
+          <button
+            type="button"
+            onClick={() => setShowItinerary(s => !s)}
+            style={{
+              width: "100%", padding: "10px 12px",
+              background: showItinerary ? "rgba(30,58,138,0.12)" : "transparent",
+              border: "none",
+              color: showItinerary ? "#dbeafe" : "var(--plan-fg-muted)",
+              fontSize: 12, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+              fontFamily: "inherit",
+              transition: "background 0.2s, color 0.2s",
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: showItinerary ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            <span>
+              {showItinerary
+                ? L("hideItinerary")
+                : (isMultiDay
+                    ? schedulesDailyLabel(lang, itineraryDays.length)
+                    : schedulesStopsLabel(lang, itineraryDays.length))}
+            </span>
+          </button>
+          {showItinerary && (
+            <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <style>{`
+                .trip-itin-body { font-size: 13px; color: var(--plan-fg-muted); line-height: 1.65; }
+                .trip-itin-body p { margin: 0 0 6px; }
+                .trip-itin-body p:last-child { margin-bottom: 0; }
+                .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg); font-weight: 700; }
+                .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
+                .trip-itin-body ul, .trip-itin-body ol { margin: 4px 0 6px; padding-left: 18px; }
+                .trip-itin-body li { margin-bottom: 3px; }
+              `}</style>
+              {itineraryDays.map((d, i) => {
+                const dayDate = itineraryDayDates[i];
+                return (
+                  <div key={i} style={{ position: "relative", paddingLeft: 22 }}>
+                    {/* Timeline dot + connector for multi-day */}
+                    <div style={{
+                      position: "absolute", left: 0, top: 4,
+                      width: 16, height: 16, borderRadius: "50%",
+                      background: isMultiDay ? "#1e3a8a" : "#3b82f6",
+                      border: "2px solid var(--plan-bg)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, fontWeight: 900, color: "#dbeafe",
+                      zIndex: 2,
+                    }}>
+                      {isMultiDay ? i + 1 : ""}
+                    </div>
+                    {i < itineraryDays.length - 1 && (
+                      <div style={{
+                        position: "absolute", left: 7, top: 22, bottom: -12,
+                        width: 2, background: "#1e3a8a", opacity: 0.5,
+                        zIndex: 1,
+                      }} />
+                    )}
+                    {isMultiDay ? (
+                      <p style={{ fontSize: 11, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {dayLabel(lang, i + 1)}
+                        {dayDate && <span style={{ color: "var(--plan-fg-subtle)", fontWeight: 600 }}> · {fmtDayHeader(dayDate, lang)}</span>}
+                      </p>
+                    ) : null}
+                    {d.heading && (() => {
+                      const timeMatch = !isMultiDay
+                        ? d.heading.match(/^(\s*\d{1,2}[:.]\d{2}\s*[—–\-:]?\s*)(.+)$/)
+                        : null;
+                      return (
+                        <p style={{
+                          fontSize: isMultiDay ? 13 : 12,
+                          fontWeight: isMultiDay ? 800 : 500,
+                          color: "var(--plan-fg)",
+                          margin: "0 0 4px",
+                        }}>
+                          {timeMatch ? (
+                            <>
+                              <span style={{ fontWeight: 800 }}>{timeMatch[1].trim()}</span>{" "}
+                              <span style={{ fontWeight: 400 }}>{timeMatch[2]}</span>
+                            </>
+                          ) : (
+                            d.heading
+                          )}
+                        </p>
+                      );
+                    })()}
+                    {d.bodyHtml && (
+                      <div className="trip-itin-body" dangerouslySetInnerHTML={{ __html: d.bodyHtml }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {pickerOpen && (
         <div
           onClick={() => setPickerOpen(false)}
