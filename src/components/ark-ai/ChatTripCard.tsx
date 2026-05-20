@@ -47,26 +47,27 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
       .catch(() => {});
   }, [boatId, lang, imgSrc]);
 
-  const handleAdd = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Don't bail when inPlan — the boat may already have one schedule in the
-    // plan, but the user may want to add a different date. The picker dedupes
-    // per-scheduleId, so opening it again is safe and shows the existing add.
+  const handleCardClick = () => {
+    // Card tap goes straight to the schedule picker — no navigation to
+    // the boat detail page, no separate "+" button. User feedback:
+    // "ยกเลิก + กด tour card แล้วแสดงเลย"
+    trackChatTripClick(boatId, slug);
     if (onSelectTrip) {
       onSelectTrip({ boatId, title, slug, type, area, cover: imgSrc });
     }
   };
 
   return (
-    <a
-      href={`/${lang}/trips/${slug}`}
-      onClick={() => trackChatTripClick(boatId, slug)}
+    <button
+      type="button"
+      onClick={handleCardClick}
       style={{
         position: "relative", display: "block", flexShrink: 0, overflow: "hidden",
         borderRadius: 12, width: 130, aspectRatio: "2/3" as const,
         textDecoration: "none",
         transition: "transform 0.25s ease, box-shadow 0.25s ease",
+        padding: 0, border: "none", background: "transparent",
+        cursor: "pointer", fontFamily: "inherit",
       }}
       onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.06)"; e.currentTarget.style.boxShadow = "0 10px 40px rgba(0,0,0,0.8)"; }}
       onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "none"; }}
@@ -96,47 +97,22 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
         </span>
       </div>
 
-      {/* Add to plan button — prominent */}
-      <button
-        onClick={handleAdd}
-        title={inPlan ? "เพิ่มวันอื่น" : "เพิ่มเข้าทริป"}
-        style={{
-          position: "absolute", top: 4, right: 4,
-          width: 28, height: 28,
-          borderRadius: "50%",
-          border: "2px solid rgba(255,255,255,0.5)",
-          cursor: "pointer",
-          background: "rgba(59,130,246,0.85)",
-          backdropFilter: "blur(4px)",
-          color: "#fff",
-          fontSize: 16,
-          fontWeight: 700,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "transform 0.15s, background 0.15s",
-          boxShadow: "0 2px 8px rgba(59,130,246,0.4)",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.15)"; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
-
-      {/* Subtle "already in plan" dot — visible status without blocking
-          the add button. Sits under the + so it can't be confused with
-          the action target. */}
+      {/* "Already in plan" status dot — top-right slot now that the
+          add button is gone. Card tap opens the schedule picker for
+          adding another date. */}
       {inPlan && (
         <div
           aria-label="already in plan"
           style={{
-            position: "absolute", top: 36, right: 8,
-            width: 14, height: 14, borderRadius: "50%",
+            position: "absolute", top: 6, right: 6,
+            width: 20, height: 20, borderRadius: "50%",
             background: "rgba(74,222,128,0.95)",
             border: "1.5px solid rgba(255,255,255,0.7)",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
           }}
         >
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
       )}
 
@@ -148,6 +124,6 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden",
         }}>{title}</p>
       </div>
-    </a>
+    </button>
   );
 }
