@@ -280,14 +280,14 @@ function PlanBuildingSkeleton({ lang }: { lang: string }) {
         .skel-reveal { animation: skelReveal 0.6s cubic-bezier(0.22,1,0.36,1) both; }
       `}</style>
 
-      {/* Cover hero placeholder — slides in over 0.7s on mount */}
+      {/* Cover hero placeholder — slides in over 1.2s on mount */}
       <div className="skel skel-reveal" style={{
         position: "relative", width: "100%", aspectRatio: "21/9",
         borderRadius: 0,
-        animationDuration: "0.7s",
+        animationDuration: "1.0s",
       }}>
         <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div className="skel skel-pulse skel-reveal" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)", animationDelay: "0.35s" }} />
+          <div className="skel skel-pulse skel-reveal" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)", animationDelay: "0.7s", animationDuration: "0.8s" }} />
         </div>
         {/* Building status pill — bottom-right, replaces the social pill
             while we wait. Dot pulses, text cycles through build steps. */}
@@ -299,27 +299,29 @@ function PlanBuildingSkeleton({ lang }: { lang: string }) {
           backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
           borderRadius: 999,
           border: "1px solid rgba(96,165,250,0.4)",
-          animationDelay: "0.45s",
+          animationDelay: "1.0s",
+          animationDuration: "0.7s",
         }}>
           <div style={{
             width: 8, height: 8, borderRadius: "50%",
             background: "#3b82f6",
-            animation: "skelDot 1s ease-in-out infinite",
+            animation: "skelDot 1.4s ease-in-out infinite",
           }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em", transition: "opacity 0.3s" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em", transition: "opacity 0.4s" }}>
             {steps[stepIdx]}
           </span>
         </div>
       </div>
 
       {/* Trip card skeletons — each LINE inside each card fades in on its
-          own delay, so the user watches the plan get drawn row-by-row,
-          not card-by-card. */}
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          own delay. Heavy delays so the user watches the plan draw itself
+          for ~6 seconds before the API swaps in real content. */}
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
         {Array.from({ length: TRIP_ROWS }).map((_, i) => {
-          // 0.7s per card → first card lands at 0.7s, last at 0.7s + 2*1.0 = 2.7s.
-          // Add ~0.5s for the last line inside that card → ~3.2s total.
-          const base = 0.7 + i * 1.0;
+          // 1.6s per card → first card lands at 1.5s, last at 1.5s + 2*1.6 = 4.7s.
+          // Each line inside adds ~1.2s, so the whole skeleton plays for ~6s
+          // before the last placeholder appears.
+          const base = 1.5 + i * 1.6;
           return (
             <div key={i}
               style={{
@@ -329,16 +331,16 @@ function PlanBuildingSkeleton({ lang }: { lang: string }) {
                 padding: 12,
                 display: "flex", gap: 10,
                 opacity: 0,
-                animation: `skelReveal 0.55s ${base}s cubic-bezier(0.22,1,0.36,1) both`,
+                animation: `skelReveal 0.8s ${base}s cubic-bezier(0.22,1,0.36,1) both`,
               }}>
               {/* Image placeholder appears first inside the card */}
               <div className="skel skel-pulse" style={{
                 width: 48, height: 36, borderRadius: 8, background: "var(--plan-surface-alt)", flexShrink: 0,
                 opacity: 0,
-                animation: `skelReveal 0.4s ${base + 0.1}s ease-out both`,
+                animation: `skelReveal 0.6s ${base + 0.2}s ease-out both`,
               }} />
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                {/* Title line, date line, body line — each appears 0.18s
+                {/* Title line, date line, body line — each appears 0.35s
                     after the previous so the user can watch them populate. */}
                 {[
                   { w: "70%", h: 14 },
@@ -349,7 +351,7 @@ function PlanBuildingSkeleton({ lang }: { lang: string }) {
                     height: line.h, width: line.w, borderRadius: 4,
                     background: "var(--plan-surface-alt)",
                     opacity: 0,
-                    animation: `skelReveal 0.4s ${base + 0.25 + j * 0.18}s ease-out both`,
+                    animation: `skelReveal 0.5s ${base + 0.45 + j * 0.35}s ease-out both`,
                   }} />
                 ))}
               </div>
