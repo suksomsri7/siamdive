@@ -383,11 +383,16 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                           background: "transparent", border: "none", padding: 0, margin: 0,
                           font: "inherit", color: "var(--plan-fg)",
                           cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2,
+                          display: "inline-flex", alignItems: "center", gap: 4,
                         }}
                       >
                         {sched.returnDate && sched.returnDate !== sched.departureDate
                           ? `${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
                           : fmtDate(sched.departureDate, lang)}
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                          <path d="M12 20h9"/>
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
                       </button>
                     </>
                   ) : (
@@ -454,18 +459,47 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Route (collapsed) — prefer fresh detail (current lang) over cached */}
+          {/* Route preview + View Details — single row. Route on the left
+              (truncated, with pin icon), Details pill anchored to the right.
+              The pill is the user's entry into the fullscreen edit modal. */}
           {(() => {
             const routeText = detail?.schedule?.route || sched.route;
-            if (expanded || !routeText) return null;
             return (
-              <div style={{ padding: "0 12px 8px", display: "flex", alignItems: "center", gap: 4 }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                <p style={{ fontSize: 12, color: "var(--plan-fg-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {routeText.replace(/<[^>]+>/g, "").slice(0, 80)}
-                </p>
+              <div style={{ padding: "0 12px 10px", display: "flex", alignItems: "center", gap: 8 }}>
+                {routeText ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, flex: 1 }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--plan-fg-subtle)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <p style={{ fontSize: 12, color: "var(--plan-fg-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {routeText.replace(/<[^>]+>/g, "").slice(0, 80)}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ flex: 1 }} />
+                )}
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  style={{
+                    padding: "5px 10px 5px 12px",
+                    borderRadius: 999,
+                    background: "rgba(59,130,246,0.14)",
+                    border: "1px solid rgba(96,165,250,0.30)",
+                    color: "#93c5fd",
+                    fontSize: 11, fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex", alignItems: "center", gap: 3,
+                    fontFamily: "inherit",
+                    letterSpacing: "0.01em",
+                    flexShrink: 0,
+                  }}
+                >
+                  {L("viewDetails")}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
               </div>
             );
           })()}
@@ -488,32 +522,6 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               </p>
             </div>
           )}
-
-          {/* "View details" — bottom-right pill. Click opens a fullscreen
-              modal instead of the previous inline pull-down panel. */}
-          <div style={{ padding: "2px 12px 12px", display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={handleToggle}
-              style={{
-                padding: "6px 12px 6px 14px",
-                borderRadius: 999,
-                background: "rgba(59,130,246,0.14)",
-                border: "1px solid rgba(96,165,250,0.30)",
-                color: "#93c5fd",
-                fontSize: 11.5, fontWeight: 700,
-                cursor: "pointer",
-                display: "inline-flex", alignItems: "center", gap: 4,
-                fontFamily: "inherit",
-                letterSpacing: "0.01em",
-              }}
-            >
-              {L("viewDetails")}
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </button>
-          </div>
 
         </div>
       </div>
@@ -734,6 +742,46 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 }`}
               </p>
             </div>
+            {canEdit && (
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button
+                  onClick={() => { setExpanded(false); setPickerOpen(true); }}
+                  title={L("clickToChangeDate")}
+                  style={{
+                    padding: "6px 10px", borderRadius: 8,
+                    background: "var(--plan-surface-alt)", border: "1px solid var(--plan-border-soft)",
+                    color: "var(--plan-fg)", fontSize: 12, fontWeight: 700,
+                    cursor: "pointer", fontFamily: "inherit",
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                  }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                  </svg>
+                  {lang === "th" ? "เปลี่ยนวัน" : "Change date"}
+                </button>
+                <button
+                  onClick={() => {
+                    if (typeof window !== "undefined" && !window.confirm(lang === "th" ? "ลบทริปนี้ออกจากแพลน?" : "Remove this trip from plan?")) return;
+                    setExpanded(false);
+                    handleRemove();
+                  }}
+                  title={L("remove")}
+                  style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "transparent", border: "1px solid var(--plan-border-soft)",
+                    color: "var(--plan-fg-subtle)", cursor: "pointer", fontFamily: "inherit",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Scrollable detail body */}
@@ -854,9 +902,18 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
 }) {
   const typeLabel = (ITEM_TYPE_LABEL[item.type]?.[lang]) || ITEM_TYPE_LABEL[item.type]?.en || item.type;
   const icon = ITEM_TYPE_EMOJI[item.type] || "📍";
+  const locale = LOCALE_MAP[lang] || "en-US";
   const start = new Date(item.startAt);
-  const dateLabel = start.toLocaleDateString(LOCALE_MAP[lang] || "en-US", { day: "numeric", month: "short", year: "2-digit" });
-  const timeLabel = start.toLocaleTimeString(LOCALE_MAP[lang] || "en-US", { hour: "2-digit", minute: "2-digit" });
+  const end = item.endAt ? new Date(item.endAt) : null;
+  const dateLabel = start.toLocaleDateString(locale, { day: "numeric", month: "short", year: "2-digit" });
+  const timeLabel = start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+
+  // Hotels list a date range (check in → check out); everything else (flights
+  // mostly) shows a single date + time.
+  const isHotel = item.type === "HOTEL";
+  const checkInLabel  = lang === "th" ? "เช็คอิน"   : "Check in";
+  const checkOutLabel = lang === "th" ? "เช็คเอาท์" : "Check out";
+  const endDateLabel = end?.toLocaleDateString(locale, { day: "numeric", month: "short", year: "2-digit" });
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -892,10 +949,20 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
         <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {item.title}
         </p>
-        <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
-          {dateLabel} · {timeLabel}
-          {item.location && ` · ${item.location}`}
-        </p>
+        {isHotel && end ? (
+          <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+            <span>{checkInLabel}: {dateLabel}</span>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <span>{checkOutLabel}: {endDateLabel}</span>
+            <EditHint />
+          </p>
+        ) : (
+          <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+            <span>{dateLabel} · {timeLabel}</span>
+            {item.location && <span>· {item.location}</span>}
+            <EditHint />
+          </p>
+        )}
       </div>
       {canEdit && (
         <button onClick={handleRemoveClick} aria-label="Remove"
@@ -909,5 +976,17 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
         </button>
       )}
     </div>
+  );
+}
+
+// Tiny pencil icon appended after the date — a quiet hint that the row is
+// editable. The whole card is clickable; this just makes the affordance
+// visible to the user.
+function EditHint() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.55, marginLeft: 2 }}>
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </svg>
   );
 }
