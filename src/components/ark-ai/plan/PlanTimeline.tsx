@@ -56,21 +56,38 @@ const fmtDayHeader = (iso: string, lang: string) =>
     weekday: "short", day: "numeric", month: "short",
   });
 
-// Pick a glyph for an itinerary row by keyword. Returns null when no clear
-// activity type is hinted — the timeline falls back to a numbered/dot marker
-// rather than guessing.
-function pickItineraryIcon(text: string): string | null {
+// Minimal white-line icon set for the itinerary timeline. Lucide-inspired,
+// stroke="currentColor" so the parent (white) controls fill colour.
+const ICON_PROPS = {
+  width: 15, height: 15, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+};
+const ITIN_ICON = {
+  car:    <svg {...ICON_PROPS}><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>,
+  dive:   <svg {...ICON_PROPS}><circle cx="7" cy="11" r="3"/><circle cx="17" cy="11" r="3"/><path d="M10 11h4"/><path d="M5 8 3 6"/><path d="M19 8l2-2"/></svg>,
+  meal:   <svg {...ICON_PROPS}><path d="M3 2v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2"/><path d="M5 11v11"/><path d="M19 2c-1.5 1.3-2.5 3.9-2.5 6.5v3c0 .55.45 1 1 1H19v9"/></svg>,
+  boat:   <svg {...ICON_PROPS}><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1s1.2 1 2.5 1c2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.4 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.9 5.3 2.8 7.8"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/></svg>,
+  bed:    <svg {...ICON_PROPS}><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v3"/></svg>,
+  pin:    <svg {...ICON_PROPS}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+  beach:  <svg {...ICON_PROPS}><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2l1-1 1 1h4"/><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-3l-1-1-1 1h-3"/><path d="M5.9 9.71c-2.15 2.15-2.3 5.47-.35 7.43l4.24-4.25.7-.7.71-.71 2.12-2.12c-2-1.96-5.3-1.8-7.42.35"/><path d="M11 15.5c.5 2.5-.17 4.5-1 6.5h4c2-5.5-.5-12-1-14"/></svg>,
+  bag:    <svg {...ICON_PROPS}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+  plane:  <svg {...ICON_PROPS}><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>,
+};
+
+// Pick a minimal icon for an itinerary row by keyword. Returns null when no
+// activity type is hinted — the timeline falls back to a dot/number marker.
+function pickItineraryIcon(text: string): React.ReactNode {
   const s = text.toLowerCase();
-  if (/รับ\s*(ที่|จาก)?|pickup|pick.?up|รับลูกค้า|รับท่าน/.test(s)) return "🚐";
-  if (/ส่ง\s*(ที่|กลับ)?|drop.?off|กลับโรงแรม|กลับฝั่ง|กลับถึง|return\s+to\s+hotel/.test(s)) return "🚐";
-  if (/ดำน้ำ|dive\b|diving|ดำผิวน้ำ|snorkel|scuba|ฟรีไดฟ์|freedive/.test(s)) return "🤿";
-  if (/อาหาร|ข้าว|มื้อ|lunch|dinner|breakfast|กลางวัน|เย็น|เช้า\s*ทาน|brunch|buffet/.test(s)) return "🍽️";
-  if (/ออกเรือ|board\b|boarding|embark|set\s+sail|sail\b|cruise|เรือออก/.test(s)) return "⛵";
-  if (/พัก|hotel|resort|stay|check.?in|check.?out|รีสอร์ท|ที่พัก/.test(s)) return "🛏️";
-  if (/ถึง|arrive|arrival|reach\b|มาถึง/.test(s)) return "📍";
-  if (/ชายหาด|beach|เกาะ|island|snorkeling\s+spot|จุดดำน้ำ|reef/.test(s)) return "🏝️";
-  if (/ช้อป|shop|ตลาด|market|souvenir|ของฝาก/.test(s)) return "🛍️";
-  if (/บินกลับ|flight|สนามบิน|airport/.test(s)) return "✈️";
+  if (/รับ\s*(ที่|จาก)?|pickup|pick.?up|รับลูกค้า|รับท่าน|ส่ง\s*(ที่|กลับ)?|drop.?off|กลับโรงแรม|กลับฝั่ง|กลับถึง|return\s+to\s+hotel/.test(s)) return ITIN_ICON.car;
+  if (/ดำน้ำ|dive\b|diving|ดำผิวน้ำ|snorkel|scuba|ฟรีไดฟ์|freedive/.test(s)) return ITIN_ICON.dive;
+  if (/อาหาร|ข้าว|มื้อ|lunch|dinner|breakfast|กลางวัน|เย็น|เช้า\s*ทาน|brunch|buffet/.test(s)) return ITIN_ICON.meal;
+  if (/ออกเรือ|board\b|boarding|embark|set\s+sail|sail\b|cruise|เรือออก/.test(s)) return ITIN_ICON.boat;
+  if (/พัก|hotel|resort|stay|check.?in|check.?out|รีสอร์ท|ที่พัก/.test(s)) return ITIN_ICON.bed;
+  if (/ถึง|arrive|arrival|reach\b|มาถึง/.test(s)) return ITIN_ICON.pin;
+  if (/ชายหาด|beach|เกาะ|island|snorkeling\s+spot|จุดดำน้ำ|reef/.test(s)) return ITIN_ICON.beach;
+  if (/ช้อป|shop|ตลาด|market|souvenir|ของฝาก/.test(s)) return ITIN_ICON.bag;
+  if (/บินกลับ|flight|สนามบิน|airport/.test(s)) return ITIN_ICON.plane;
   return null;
 }
 
@@ -563,7 +580,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             .trip-itin-body { font-size: 12.5px; color: var(--plan-fg-muted); line-height: 1.6; }
             .trip-itin-body p { margin: 0 0 4px; }
             .trip-itin-body p:last-child { margin-bottom: 0; }
-            .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg-muted); font-weight: 600; }
+            .trip-itin-body strong, .trip-itin-body b { color: var(--plan-fg-muted); font-weight: 500; }
             .trip-itin-body a { color: #60a5fa; text-decoration: underline; }
             .trip-itin-body ul, .trip-itin-body ol { margin: 2px 0 4px; padding-left: 16px; }
             .trip-itin-body li { margin-bottom: 2px; }
@@ -582,23 +599,19 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             .itin-mid { display: flex; justify-content: center; padding-top: 5px; }
             .itin-circle {
               width: 32px; height: 32px; border-radius: 50%;
-              background: rgba(59,130,246,0.10);
-              border: 1px solid rgba(96,165,250,0.30);
+              background: #3b82f6;
+              border: none;
               display: flex; align-items: center; justify-content: center;
               flex-shrink: 0; position: relative; z-index: 2;
-              color: #93c5fd;
+              color: #ffffff;
               box-shadow: 0 0 0 4px var(--plan-bg);
             }
             .itin-line {
               position: absolute;
               left: 86px;
               top: 24px; bottom: 24px;
-              width: 1px;
-              background: linear-gradient(to bottom,
-                transparent 0%,
-                rgba(96,165,250,0.25) 6%,
-                rgba(96,165,250,0.25) 94%,
-                transparent 100%);
+              width: 2px;
+              background: #3b82f6;
               z-index: 0;
             }
           `}</style>
@@ -650,11 +663,11 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 <div className="itin-mid">
                   <div className="itin-circle">
                     {icon ? (
-                      <span style={{ fontSize: 15, lineHeight: 1 }}>{icon}</span>
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{icon}</span>
                     ) : isMultiDay ? (
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "#bfdbfe" }}>{i + 1}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#ffffff" }}>{i + 1}</span>
                     ) : (
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ffffff" }} />
                     )}
                   </div>
                 </div>
@@ -662,7 +675,7 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                 {/* Right column: title + body */}
                 <div style={{ minWidth: 0, paddingTop: 5 }}>
                   {text && (
-                    <p style={{ fontSize: 14.5, fontWeight: 700, color: "var(--plan-fg)", margin: 0, lineHeight: 1.35, letterSpacing: "-0.005em" }}>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: "var(--plan-fg)", margin: 0, lineHeight: 1.4 }}>
                       {text}
                     </p>
                   )}
