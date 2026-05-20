@@ -383,13 +383,15 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         </button>
                       </div>
                     )}
-                    <PlanTimeline
-                      planId={planId}
-                      trips={trips}
-                      lang={lang}
-                      canEdit={canEdit}
-                      onTripRemoved={handleTripRemoved}
-                    />
+                    <ItineraryBlock lang={lang}>
+                      <PlanTimeline
+                        planId={planId}
+                        trips={trips}
+                        lang={lang}
+                        canEdit={canEdit}
+                        onTripRemoved={handleTripRemoved}
+                      />
+                    </ItineraryBlock>
                     <PlanItemsBlock
                       planId={planId}
                       lang={lang}
@@ -533,5 +535,70 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         />
       )}
     </>
+  );
+}
+
+// ── ItineraryBlock — wraps PlanTimeline in a collapsible card so the schedule
+// reads as its own block, parallel to PrepBlock. Default expanded since this
+// is the main content users come to MyPlan to see.
+const ITINERARY_HEADER: Record<string, string> = {
+  th: "กำหนดการ", en: "Itinerary",
+  cn: "行程", ja: "日程", ko: "일정",
+  de: "Programm", fr: "Itinéraire", ru: "Программа",
+};
+const ITINERARY_SUBLINE: Record<string, string> = {
+  th: "แผนการเดินทางวันต่อวันของทริปในแพลนนี้",
+  en: "Day-by-day schedule for the trips in this plan",
+  cn: "本计划中各行程的每日安排",
+  ja: "プラン内のツアー日程",
+  ko: "이 플랜의 투어 일정",
+  de: "Tagesprogramm der Touren in diesem Plan",
+  fr: "Programme jour par jour des voyages du plan",
+  ru: "Программа поездок плана по дням",
+};
+
+function ItineraryBlock({ lang, children }: { lang: string; children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(true);
+  const header  = ITINERARY_HEADER[lang]  || ITINERARY_HEADER.en;
+  const subline = ITINERARY_SUBLINE[lang] || ITINERARY_SUBLINE.en;
+  return (
+    <div style={{
+      background: "var(--plan-surface)",
+      border: "1px solid var(--plan-border-soft)",
+      borderRadius: 12,
+      marginBottom: 16,
+      overflow: "hidden",
+    }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(s => !s)}
+        aria-expanded={expanded}
+        style={{
+          width: "100%", padding: "12px 14px",
+          background: "transparent", border: "none",
+          cursor: "pointer", textAlign: "left",
+          display: "flex", alignItems: "center", gap: 10,
+          fontFamily: "inherit",
+        }}
+      >
+        <span style={{
+          width: 28, height: 28, borderRadius: 8,
+          background: "var(--plan-surface-alt)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, flexShrink: 0,
+        }}>🗺</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", margin: 0 }}>{header}</p>
+          <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{subline}</p>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0, color: "var(--plan-fg-subtle)" }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {expanded && (
+        <div style={{ padding: "0 14px 14px" }}>{children}</div>
+      )}
+    </div>
   );
 }
