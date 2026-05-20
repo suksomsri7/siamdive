@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trackChatTripClick } from "@/lib/analytics/client";
-import { hasTripInPlan } from "@/lib/plan-store";
 
 type Props = {
   boatId: string;
@@ -26,14 +25,7 @@ const coverCache = new Map<string, string>();
 
 export default function ChatTripCard({ boatId, title, type, area, slug, cover, onSelectTrip }: Props) {
   const lang = (useParams().lang as string) || "en";
-  const [inPlan, setInPlan] = useState(() => hasTripInPlan(boatId));
   const [imgSrc, setImgSrc] = useState<string | null>(cover || coverCache.get(boatId) || null);
-
-  useEffect(() => {
-    const fn = () => setInPlan(hasTripInPlan(boatId));
-    window.addEventListener("myplan-change", fn);
-    return () => window.removeEventListener("myplan-change", fn);
-  }, [boatId]);
 
   useEffect(() => {
     if (imgSrc || !boatId) return;
@@ -96,25 +88,6 @@ export default function ChatTripCard({ boatId, title, type, area, slug, cover, o
           {TYPE_LABEL[type] || type}
         </span>
       </div>
-
-      {/* "Already in plan" status dot — top-right slot now that the
-          add button is gone. Card tap opens the schedule picker for
-          adding another date. */}
-      {inPlan && (
-        <div
-          aria-label="already in plan"
-          style={{
-            position: "absolute", top: 6, right: 6,
-            width: 20, height: 20, borderRadius: "50%",
-            background: "rgba(74,222,128,0.95)",
-            border: "1.5px solid rgba(255,255,255,0.7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      )}
 
       {/* Bottom info */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 8px 10px" }}>
