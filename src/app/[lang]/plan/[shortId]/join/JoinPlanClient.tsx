@@ -56,7 +56,7 @@ const T: Record<string, Record<string, string>> = {
 };
 const L = (k: keyof typeof T, lang: string) => T[k][lang] || T[k].en;
 
-type Mode = "join" | "copy";
+type Mode = "join";
 
 const STATUS_LABEL: Record<string, { th: string; en: string; color: string }> = {
   PLANNING:  { th: "กำลังวางแผน", en: "Planning",  color: "#f59e0b" },
@@ -91,8 +91,7 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const path = mode === "join" ? "join" : "copy";
-      const res = await fetch(`/api/plans/share/${token}/${path}`, {
+      const res = await fetch(`/api/plans/share/${token}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim() || undefined, email: email.trim() }),
@@ -113,10 +112,8 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         @keyframes joinModalIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
-      {/* Sticky invite bar. Single-row layout: subtle role chip on the left,
-          two action buttons on the right. Plan name lives in the hero below,
-          so we don't repeat it here — the bar's only job is to keep Join +
-          Copy one tap away. */}
+      {/* Sticky invite bar. Just the Join CTA — no role chip, no Copy.
+          The recipient came here to join; everything else is noise. */}
       <div style={{
         position: "sticky", top: 0, zIndex: 30,
         background: "rgba(10,10,10,0.92)",
@@ -125,32 +122,12 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         padding: "10px 14px",
         animation: "joinBannerSlide 0.3s ease-out both",
       }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "4px 10px", borderRadius: 999,
-            fontSize: 11, fontWeight: 700,
-            background: plan.role === "EDITOR" ? "rgba(245,158,11,0.12)" : "rgba(96,165,250,0.12)",
-            color:      plan.role === "EDITOR" ? "#fbbf24"               : "#93c5fd",
-            flexShrink: 0,
-          }}>
-            {plan.role === "EDITOR" ? "✏️" : "👁"} {plan.role === "EDITOR" ? L("role_edit", lang) : L("role_view", lang)}
-          </span>
-          <div style={{ flex: 1 }} />
-          <button onClick={() => { setMode("copy"); setError(null); }}
-            style={{
-              padding: "8px 12px", borderRadius: 8,
-              background: "transparent", border: "1px solid rgba(255,255,255,0.10)",
-              color: "#ddd", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", fontFamily: "inherit",
-            }}>
-            {L("copy", lang)}
-          </button>
+        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <button onClick={() => { setMode("join"); setError(null); }}
             style={{
-              padding: "8px 16px", borderRadius: 8,
+              padding: "9px 22px", borderRadius: 8,
               background: "#3b82f6", border: "1px solid #2563eb",
-              color: "#fff", fontSize: 12.5, fontWeight: 800,
+              color: "#fff", fontSize: 13, fontWeight: 800,
               cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 1px 6px rgba(59,130,246,0.35)",
             }}>
@@ -177,20 +154,6 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>{plan.name}</h1>
           </div>
-        </div>
-
-        {/* Stats strip */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 22 }}>
-          {[
-            { label: L("trips", lang),   value: plan.tripCount,   icon: "🗺" },
-            { label: L("members", lang), value: plan.memberCount, icon: "👤" },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 18, margin: 0 }}>{s.icon}</p>
-              <p style={{ fontSize: 18, fontWeight: 900, color: "#f5f5f5", margin: "2px 0 0" }}>{s.value}</p>
-              <p style={{ fontSize: 10, color: "#666", margin: 0 }}>{s.label}</p>
-            </div>
-          ))}
         </div>
 
         {/* Trips timeline (read-only) */}
@@ -248,10 +211,10 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             }}
           >
             <p style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>
-              {mode === "join" ? `🤝 ${L("joinTitle", lang)}` : `📋 ${L("copyTitle", lang)}`}
+              🤝 {L("joinTitle", lang)}
             </p>
             <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 16px", lineHeight: 1.45 }}>
-              {mode === "join" ? L("joinDesc", lang) : L("copyDesc", lang)}
+              {L("joinDesc", lang)}
             </p>
 
             <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "0 0 4px" }}>
@@ -282,12 +245,12 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
               <button type="submit" disabled={loading}
                 style={{
                   flex: 2, padding: "12px", borderRadius: 10,
-                  background: loading ? "#475569" : (mode === "join" ? "#3b82f6" : "#10b981"),
+                  background: loading ? "#475569" : "#3b82f6",
                   border: "none", color: "#fff",
                   cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
                   fontSize: 13, fontWeight: 800,
                 }}>
-                {loading ? (mode === "join" ? L("loadingJoin", lang) : L("loadingCopy", lang)) : L("submit", lang)}
+                {loading ? L("loadingJoin", lang) : L("submit", lang)}
               </button>
             </div>
           </form>
