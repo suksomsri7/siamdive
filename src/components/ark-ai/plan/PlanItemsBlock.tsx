@@ -129,15 +129,6 @@ export default function PlanItemsBlock({ planId, lang, canEdit, onAddManual, onA
 
   return (
     <div style={{ marginTop: 20 }}>
-      <div style={{ marginBottom: 10 }}>
-        <p style={{ fontSize: 14, fontWeight: 800, color: "var(--plan-fg)", margin: 0 }}>
-          {labels.title}
-        </p>
-        <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
-          {labels.subtitle}
-        </p>
-      </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {flights.map((f) => (
           <ItemCard key={f.id} item={f} lang={lang} labels={labels} canEdit={canEdit}
