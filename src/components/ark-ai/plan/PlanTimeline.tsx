@@ -6,6 +6,7 @@ import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } 
 import { ScheduleDetailSkeleton } from "../Skeletons";
 import TripSchedulePicker from "../TripSchedulePicker";
 import { t, dayLabel } from "@/lib/ark-ai/i18n";
+import type { PlanItem } from "./PlanItemsBlock";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
@@ -15,9 +16,12 @@ type FetchedDetail = {
 type Props = {
   planId: string;
   trips: PlanTrip[];
+  items?: PlanItem[];
   lang: string;
   canEdit: boolean;
   onTripRemoved?: () => void;
+  onItemRemove?: (id: string) => void;
+  onItemEdit?: (item: PlanItem) => void;
   onContactClick?: (message: string) => void;
 };
 
@@ -91,7 +95,7 @@ function pickItineraryIcon(text: string): React.ReactNode {
   return null;
 }
 
-export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemoved }: Props) {
+export default function PlanTimeline({ planId, trips, items = [], lang, canEdit, onTripRemoved, onItemRemove, onItemEdit }: Props) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
 
   // Trip-first rendering — one card per trip in chronological order. The
@@ -143,7 +147,32 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
     return conflicts;
   }, [sortedScheduled]);
 
-  if (trips.length === 0) return null;
+  // Build a single date-sorted entry list mixing trips and plan items
+  // (flights/hotels). Items are positioned relative to trips by their startAt
+  // date so adding a "BKK→HKT flight at 08:00 on Day-of-trip" lands above the
+  // trip it precedes. Trips with no date and items don't mix (items always
+  // have startAt).
+  const mixedEntries = useMemo(() => {
+    type Entry =
+      | { kind: "trip"; sortKey: string; trip: PlanTrip; originalIdx: number }
+      | { kind: "item"; sortKey: string; item: PlanItem };
+    const entries: Entry[] = [];
+    for (const { trip, originalIdx } of sortedScheduled) {
+      entries.push({
+        kind: "trip",
+        sortKey: trip.schedule!.departureDate,
+        trip,
+        originalIdx,
+      });
+    }
+    for (const item of items) {
+      entries.push({ kind: "item", sortKey: item.startAt, item });
+    }
+    entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    return entries;
+  }, [sortedScheduled, items]);
+
+  if (trips.length === 0 && items.length === 0) return null;
 
   return (
     <div>
@@ -154,22 +183,36 @@ export default function PlanTimeline({ planId, trips, lang, canEdit, onTripRemov
         }
       `}</style>
 
-      {sortedScheduled.length > 0 && (
+      {mixedEntries.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {sortedScheduled.map(({ trip, originalIdx }, idx) => (
-            <TripSection
-              key={`${trip.boatId}-${trip.schedule!.scheduleId}-${originalIdx}`}
-              trip={trip}
-              originalIdx={originalIdx}
-              planId={planId}
-              lang={lang}
-              canEdit={canEdit}
-              overlap={conflictsByTripIdx.has(originalIdx)}
-              conflicts={conflictsByTripIdx.get(originalIdx)}
-              isLast={idx === sortedScheduled.length - 1}
-              onRemoved={onTripRemoved}
-            />
-          ))}
+          {mixedEntries.map((entry, idx) => {
+            if (entry.kind === "trip") {
+              return (
+                <TripSection
+                  key={`trip-${entry.trip.boatId}-${entry.trip.schedule!.scheduleId}-${entry.originalIdx}`}
+                  trip={entry.trip}
+                  originalIdx={entry.originalIdx}
+                  planId={planId}
+                  lang={lang}
+                  canEdit={canEdit}
+                  overlap={conflictsByTripIdx.has(entry.originalIdx)}
+                  conflicts={conflictsByTripIdx.get(entry.originalIdx)}
+                  isLast={idx === mixedEntries.length - 1}
+                  onRemoved={onTripRemoved}
+                />
+              );
+            }
+            return (
+              <ItemEntryCard
+                key={`item-${entry.item.id}`}
+                item={entry.item}
+                lang={lang}
+                canEdit={canEdit}
+                onRemove={() => onItemRemove?.(entry.item.id)}
+                onEdit={() => onItemEdit?.(entry.item)}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -783,6 +826,85 @@ function UnscheduledCard({ trip, originalIdx, planId, canEdit, onRemoved }: {
       {canEdit && (
         <button onClick={handleRemove}
           style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--plan-border)", background: "transparent", color: "var(--plan-fg-subtle)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── ItemEntryCard ────────────────────────────────────────────────────────────
+// Flight / hotel card rendered inline with trip sections, ordered by item
+// startAt so the entry lands at the right point on the calendar. Click body
+// → onEdit (the same edit modal also functions as "view details"). X → onRemove.
+const ITEM_TYPE_LABEL: Record<string, Record<string, string>> = {
+  FLIGHT:   { th: "เที่ยวบิน", en: "Flight" },
+  HOTEL:    { th: "ที่พัก",     en: "Hotel" },
+  ACTIVITY: { th: "กิจกรรม",   en: "Activity" },
+  TRANSFER: { th: "การเดินทาง", en: "Transfer" },
+  NOTE:     { th: "บันทึก",    en: "Note" },
+};
+const ITEM_TYPE_EMOJI: Record<string, string> = {
+  FLIGHT: "✈️", HOTEL: "🏨", ACTIVITY: "🎯", TRANSFER: "🚗", NOTE: "📝",
+};
+
+function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
+  item: PlanItem; lang: string; canEdit: boolean;
+  onRemove: () => void; onEdit: () => void;
+}) {
+  const typeLabel = (ITEM_TYPE_LABEL[item.type]?.[lang]) || ITEM_TYPE_LABEL[item.type]?.en || item.type;
+  const icon = ITEM_TYPE_EMOJI[item.type] || "📍";
+  const start = new Date(item.startAt);
+  const dateLabel = start.toLocaleDateString(LOCALE_MAP[lang] || "en-US", { day: "numeric", month: "short", year: "2-digit" });
+  const timeLabel = start.toLocaleTimeString(LOCALE_MAP[lang] || "en-US", { hour: "2-digit", minute: "2-digit" });
+
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof window !== "undefined" && !window.confirm(lang === "th" ? "ลบรายการนี้ใช่ไหม?" : "Remove this item?")) return;
+    onRemove();
+  };
+
+  return (
+    <div
+      onClick={onEdit}
+      style={{
+        background: "var(--plan-surface)",
+        border: "1px solid var(--plan-border-soft)",
+        borderRadius: 12,
+        padding: 12,
+        cursor: "pointer",
+        display: "flex", alignItems: "flex-start", gap: 10,
+      }}
+    >
+      <div style={{
+        width: 40, height: 40, borderRadius: 10,
+        background: "rgba(59,130,246,0.10)",
+        border: "1px solid rgba(96,165,250,0.30)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, fontSize: 18,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: "#93c5fd", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+          {typeLabel}
+        </p>
+        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {item.title}
+        </p>
+        <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", margin: "2px 0 0" }}>
+          {dateLabel} · {timeLabel}
+          {item.location && ` · ${item.location}`}
+        </p>
+      </div>
+      {canEdit && (
+        <button onClick={handleRemoveClick} aria-label="Remove"
+          style={{
+            width: 24, height: 24, borderRadius: 6,
+            border: "1px solid var(--plan-surface-alt)", background: "transparent",
+            color: "var(--plan-fg-subtle)", fontSize: 12, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
           ✕
         </button>
       )}

@@ -11,7 +11,7 @@ import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
-import PlanItemsBlock, { type PlanItem } from "./PlanItemsBlock";
+import { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
 import SearchResultModal from "./SearchResultModal";
 import ItineraryShareCard from "./ItineraryShareCard";
@@ -70,6 +70,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [itemsRefresh, setItemsRefresh] = useState(0);
   const [searchModal, setSearchModal] = useState<{ type: "FLIGHT" | "HOTEL" } | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -119,6 +121,23 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   }, [planId, deviceId]);
 
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
+
+  // Plan items (flights / hotels / etc.) live on the plan but render
+  // interleaved with trip cards in the timeline now, so PlanDetail owns the
+  // list. itemsRefresh bumps when the edit/search modals confirm a change.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/plans/${planId}/items`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d?.items) setPlanItems(d.items); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [planId, itemsRefresh]);
+
+  const handleItemRemove = async (id: string) => {
+    setPlanItems(prev => prev.filter(i => i.id !== id));
+    try { await fetch(`/api/plans/${planId}/items/${id}`, { method: "DELETE" }); } catch {}
+  };
 
   // Sprint 4 B6 — fetch the user's chat slots so PlanBookBar can render a
   // group-aware breakdown (X divers × per-person × N + Y non-divers note).
@@ -365,8 +384,41 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 ) : (
                   <div>
+                    <PlanTimeline
+                      planId={planId}
+                      trips={trips}
+                      items={planItems}
+                      lang={lang}
+                      canEdit={canEdit}
+                      onTripRemoved={handleTripRemoved}
+                      onItemRemove={handleItemRemove}
+                      onItemEdit={(item) => setItemModal({ mode: "edit", item })}
+                    />
+                    <div style={{ marginTop: 18 }}>
+                      <PrepBlock trips={trips} lang={lang} />
+                    </div>
+                    {/* Add flight/hotel — bottom button. Opens a sheet that
+                        lets the user pick AI suggestion or manual entry. */}
+                    {canEdit && (
+                      <div style={{ marginTop: 14 }}>
+                        <button
+                          type="button"
+                          onClick={() => setAddSheetOpen(true)}
+                          style={{
+                            width: "100%", padding: "12px", borderRadius: 10,
+                            background: "rgba(59,130,246,0.10)",
+                            border: "1px dashed rgba(96,165,250,0.45)",
+                            color: "#93c5fd",
+                            fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          }}
+                        >
+                          + {lang === "th" ? "เพิ่มเที่ยวบิน / ที่พัก" : "Add flight / hotel"}
+                        </button>
+                      </div>
+                    )}
                     {trips.length >= 2 && (
-                      <div style={{ marginBottom: 12 }}>
+                      <div style={{ marginTop: 14 }}>
                         <button
                           type="button"
                           onClick={() => setCompareOpen(true)}
@@ -383,26 +435,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         </button>
                       </div>
                     )}
-                    <PlanTimeline
-                      planId={planId}
-                      trips={trips}
-                      lang={lang}
-                      canEdit={canEdit}
-                      onTripRemoved={handleTripRemoved}
-                    />
-                    <PlanItemsBlock
-                      planId={planId}
-                      lang={lang}
-                      canEdit={canEdit}
-                      refreshSignal={itemsRefresh}
-                      onAddManual={(type) => setItemModal({ mode: "create", type })}
-                      onAskAi={(type) => setSearchModal({ type })}
-                      onEdit={(item) => setItemModal({ mode: "edit", item })}
-                    />
-                    <div style={{ marginTop: 18 }}>
-                      <PrepBlock trips={trips} lang={lang} />
-                    </div>
-                    <div style={{ marginTop: 18 }}>
+                    <div style={{ marginTop: 14 }}>
                       <button
                         type="button"
                         onClick={() => setShowShareCard(true)}
@@ -532,6 +565,126 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           onPicked={() => setItemsRefresh((n) => n + 1)}
         />
       )}
+
+      {addSheetOpen && (
+        <AddItemSheet
+          lang={lang}
+          onClose={() => setAddSheetOpen(false)}
+          onPick={(type, mode) => {
+            setAddSheetOpen(false);
+            if (mode === "ai") setSearchModal({ type });
+            else setItemModal({ mode: "create", type });
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// ── AddItemSheet ────────────────────────────────────────────────────────────
+// Bottom sheet that asks the user whether they want to add a flight or a
+// hotel, and whether the AI should suggest one or they want to enter it
+// manually. Replaces the inline empty-slot UI per user feedback.
+const ADD_SHEET_T: Record<string, Record<string, string>> = {
+  title:   { th: "เพิ่มเที่ยวบินหรือที่พัก", en: "Add flight or hotel" },
+  flight:  { th: "เที่ยวบิน", en: "Flight" },
+  hotel:   { th: "ที่พัก",     en: "Hotel"  },
+  ai:      { th: "✨ ให้ AI แนะนำ", en: "✨ Let AI suggest" },
+  manual:  { th: "+ กรอกเอง",     en: "+ Enter manually" },
+  cancel:  { th: "ยกเลิก",        en: "Cancel" },
+};
+const addSheetT = (key: keyof typeof ADD_SHEET_T, lang: string) =>
+  ADD_SHEET_T[key][lang] || ADD_SHEET_T[key].en;
+
+function AddItemSheet({ lang, onClose, onPick }: {
+  lang: string;
+  onClose: () => void;
+  onPick: (type: "FLIGHT" | "HOTEL", mode: "ai" | "manual") => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1100,
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        animation: "addSheetFade 0.2s ease-out both",
+      }}
+    >
+      <style>{`
+        @keyframes addSheetFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes addSheetSlide { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "var(--plan-bg, #0d0d0d)",
+          borderTopLeftRadius: 16, borderTopRightRadius: 16,
+          padding: "18px 18px 24px",
+          borderTop: "1px solid var(--plan-border-soft)",
+          animation: "addSheetSlide 0.25s cubic-bezier(0.22,1,0.36,1) both",
+        }}
+      >
+        <div style={{ width: 36, height: 4, background: "var(--plan-border)", borderRadius: 2, margin: "0 auto 14px" }} />
+        <p style={{ fontSize: 15, fontWeight: 800, color: "var(--plan-fg)", margin: "0 0 14px", textAlign: "center" }}>
+          {addSheetT("title", lang)}
+        </p>
+
+        {([
+          { type: "FLIGHT" as const, label: addSheetT("flight", lang), icon: "✈️" },
+          { type: "HOTEL"  as const, label: addSheetT("hotel",  lang), icon: "🏨" },
+        ]).map((row) => (
+          <div key={row.type} style={{
+            background: "var(--plan-surface)",
+            border: "1px solid var(--plan-border-soft)",
+            borderRadius: 12, padding: 12, marginBottom: 10,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{row.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)" }}>{row.label}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => onPick(row.type, "ai")}
+                style={{
+                  flex: 1, padding: "10px 12px", borderRadius: 8,
+                  background: "#1e40af", border: "1px solid #1e3a8a", color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                {addSheetT("ai", lang)}
+              </button>
+              <button onClick={() => onPick(row.type, "manual")}
+                style={{
+                  flex: 1, padding: "10px 12px", borderRadius: 8,
+                  background: "var(--plan-surface-alt)", border: "1px solid var(--plan-border-soft)",
+                  color: "var(--plan-fg)",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                {addSheetT("manual", lang)}
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <button onClick={onClose}
+          style={{
+            width: "100%", marginTop: 4, padding: "10px",
+            background: "transparent", border: "1px solid var(--plan-border-soft)",
+            color: "var(--plan-fg-subtle)", borderRadius: 8,
+            fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+          }}>
+          {addSheetT("cancel", lang)}
+        </button>
+      </div>
+    </div>
   );
 }
