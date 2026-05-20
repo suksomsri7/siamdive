@@ -369,21 +369,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             </div>
           </div>
 
-          {/* Members strip — owner + up to 5 member avatars. The "+" add
-              button was removed per user feedback; member management now
-              lives entirely behind the Invite / Share flow. */}
-          <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--plan-fg)", border: "2px solid var(--plan-border-soft)" }}>
-              {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
-            </div>
-            {plan.members.slice(0, 5).map((m) => (
-              <div key={m.id} style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: "var(--plan-fg-muted)", border: "2px solid var(--plan-border-soft)" }}>
-                {(m.name || m.email)[0].toUpperCase()}
-              </div>
-            ))}
-          </div>
-
-          {tabsBar}
+          {/* Members strip + tabsBar removed — the social mini-pill on the
+              cover already conveys followers/views, and the tab system only
+              ever held one Itinerary tab. */}
 
           {/* Sprint 3 B5 — auto-improve notifications */}
           <PlanNotificationsBanner planId={plan.id} lang={lang} />
