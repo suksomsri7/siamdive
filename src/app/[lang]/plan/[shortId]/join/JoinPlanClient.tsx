@@ -66,6 +66,18 @@ const L = (k: keyof typeof T, lang: string) => T[k][lang] || T[k].en;
 
 type Mode = "join";
 
+type JoinLang = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
+const JOIN_LANGS: { code: JoinLang; label: string; flag: string; native: string }[] = [
+  { code: "en", label: "EN", flag: "🇬🇧", native: "English"  },
+  { code: "th", label: "TH", flag: "🇹🇭", native: "ภาษาไทย"   },
+  { code: "cn", label: "CN", flag: "🇨🇳", native: "中文"      },
+  { code: "ja", label: "JA", flag: "🇯🇵", native: "日本語"    },
+  { code: "ko", label: "KO", flag: "🇰🇷", native: "한국어"    },
+  { code: "de", label: "DE", flag: "🇩🇪", native: "Deutsch"  },
+  { code: "fr", label: "FR", flag: "🇫🇷", native: "Français" },
+  { code: "ru", label: "RU", flag: "🇷🇺", native: "Русский"  },
+];
+
 const STATUS_LABEL: Record<string, { th: string; en: string; color: string }> = {
   PLANNING:  { th: "กำลังวางแผน", en: "Planning",  color: "#f59e0b" },
   CONFIRMED: { th: "ยืนยันแล้ว",   en: "Confirmed", color: "#10b981" },
@@ -79,6 +91,7 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [langOpen, setLangOpen] = useState(false);
 
   // Recipient is purely a viewer of the preview — never an editor of the
   // owner's plan. They become an EDITOR only AFTER tapping Join with an
@@ -114,6 +127,25 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
     })();
     return () => { cancelled = true; };
   }, [plan.shortId, lang, router]);
+
+  // Close the lang dropdown on any outside click.
+  useEffect(() => {
+    if (!langOpen) return;
+    const fn = () => setLangOpen(false);
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [langOpen]);
+
+  const switchLang = (next: JoinLang) => {
+    if (next === lang) { setLangOpen(false); return; }
+    try { document.cookie = `NEXT_LOCALE=${next};path=/;max-age=31536000;samesite=lax`; } catch {}
+    // Keep the user on the same join page — only swap the lang prefix.
+    const path = window.location.pathname + window.location.search;
+    const newPath = path.replace(/^\/[a-z]{2}(\/|$)/, `/${next}$1`);
+    router.replace(newPath);
+    setLangOpen(false);
+  };
+  const currentLang = JOIN_LANGS.find(l => l.code === (lang as JoinLang)) || JOIN_LANGS[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,16 +201,65 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/ai-mask.png" alt="SIAMDIVE" width={32} height={32} style={{ filter: "brightness(1.1)" }} />
           </Link>
-          <button onClick={() => { setMode("join"); setError(null); }}
-            style={{
-              padding: "9px 22px", borderRadius: 8,
-              background: "#3b82f6", border: "1px solid #2563eb",
-              color: "#fff", fontSize: 13, fontWeight: 800,
-              cursor: "pointer", fontFamily: "inherit",
-              boxShadow: "0 1px 6px rgba(59,130,246,0.35)",
-            }}>
-            {L("join", lang)}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Language switcher — mirrors Navbar pattern so this public
+                join page can also be read in the visitor's language. */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setLangOpen(v => !v)}
+                aria-label="Language"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#ccc" }}>{currentLang.label}</span>
+                <svg width="9" height="6" viewBox="0 0 10 6" fill="none" style={{ transition: "transform 0.2s", transform: langOpen ? "rotate(180deg)" : "none" }}>
+                  <path d="M1 1l4 4 4-4" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {langOpen && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: "absolute", top: "calc(100% + 8px)", right: 0,
+                    background: "rgba(13,13,13,0.98)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 12, padding: 6, minWidth: 170,
+                    boxShadow: "0 16px 40px rgba(0,0,0,0.6)", zIndex: 200,
+                  }}
+                >
+                  {JOIN_LANGS.map(l => (
+                    <button key={l.code} onClick={() => switchLang(l.code)}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: 10,
+                        padding: "9px 12px", borderRadius: 8,
+                        background: lang === l.code ? "rgba(59,130,246,0.15)" : "transparent",
+                        border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.15s",
+                        fontFamily: "inherit",
+                      }}>
+                      <span style={{ fontSize: 16, lineHeight: 1 }}>{l.flag}</span>
+                      <span style={{ fontSize: 13, color: lang === l.code ? "#60a5fa" : "#999", fontWeight: lang === l.code ? 700 : 400 }}>{l.native}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 10, color: "#444", fontWeight: 700 }}>{l.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => { setMode("join"); setError(null); }}
+              style={{
+                padding: "9px 22px", borderRadius: 8,
+                background: "#3b82f6", border: "1px solid #2563eb",
+                color: "#fff", fontSize: 13, fontWeight: 800,
+                cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "0 1px 6px rgba(59,130,246,0.35)",
+              }}>
+              {L("join", lang)}
+            </button>
+          </div>
         </div>
       </div>
 
