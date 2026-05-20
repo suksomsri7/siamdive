@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import type { PlanTrip } from "@/lib/plan-store";
@@ -122,7 +123,12 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         padding: "10px 14px",
         animation: "joinBannerSlide 0.3s ease-out both",
       }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <Link href={`/${lang}`} aria-label="SIAMDIVE"
+            style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ai-mask.png" alt="SIAMDIVE" width={32} height={32} style={{ filter: "brightness(1.1)" }} />
+          </Link>
           <button onClick={() => { setMode("join"); setError(null); }}
             style={{
               padding: "9px 22px", borderRadius: 8,
