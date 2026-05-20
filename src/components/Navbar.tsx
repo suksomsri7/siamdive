@@ -99,17 +99,20 @@ export default function Navbar() {
 
   // Cross-page nudge: pages that send the user home with the intent of
   // landing them in MyPlan (e.g. the join-plan flow) drop a flag in
-  // sessionStorage. We pick it up here once the Navbar mounts and fire
-  // the existing `open-myplan` event.
+  // sessionStorage. The value is the planId to open into — passing it
+  // as `detail.planId` makes MyPlanScreen drill straight into PlanDetail
+  // for that plan instead of showing the list. "1" remains a valid
+  // legacy sentinel meaning "open the list".
   useEffect(() => {
     try {
       const flag = sessionStorage.getItem("siamdive:openMyPlanOnNext");
       if (!flag) return;
       sessionStorage.removeItem("siamdive:openMyPlanOnNext");
+      const detail = flag === "1" ? {} : { planId: flag };
       // setTimeout 0 so MyPlanScreen finishes mounting before we ask it
       // to open. Without this it can miss the event in dev StrictMode.
       const t = window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("open-myplan", { detail: {} }));
+        window.dispatchEvent(new CustomEvent("open-myplan", { detail }));
       }, 0);
       return () => clearTimeout(t);
     } catch {}

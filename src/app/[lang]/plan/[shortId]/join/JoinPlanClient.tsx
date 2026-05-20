@@ -88,18 +88,21 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
 
   // Already-joined fast-path. If this device's PlanUser is already a member
   // (or owner) of the plan, skip the save form entirely and bounce straight
-  // to MyPlan. We detect by listing the user's plans server-side and
-  // matching the shortId — that covers both owner & member cases.
+  // INTO that plan inside MyPlan (not the list). We detect by listing the
+  // user's plans server-side and matching shortId — that covers both
+  // owner & member cases. The planId is stashed in sessionStorage so the
+  // Navbar can fire `open-myplan` with the right detail.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(getDeviceId())}`);
         if (!res.ok) return;
-        const data = await res.json() as { plans?: Array<{ shortId?: string }> };
+        const data = await res.json() as { plans?: Array<{ id: string; shortId?: string }> };
         if (cancelled) return;
-        if (data.plans?.some(p => p.shortId === plan.shortId)) {
-          try { sessionStorage.setItem("siamdive:openMyPlanOnNext", "1"); } catch {}
+        const matched = data.plans?.find(p => p.shortId === plan.shortId);
+        if (matched) {
+          try { sessionStorage.setItem("siamdive:openMyPlanOnNext", matched.id); } catch {}
           router.replace(`/${lang}`);
         }
       } catch {}
@@ -123,13 +126,15 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         }),
       });
       if (!res.ok) { setError(L("err", lang)); setLoading(false); return; }
+      const data = await res.json() as { id: string; shortId: string };
       // Pull server plans into localStorage so the joined plan shows up in
       // MyPlan immediately — the backend binds the device to the joiner's
       // PlanUser, but the in-browser list reads from localStorage alone.
       await pullPlansFromServer();
-      // Flag the next page mount to open MyPlan. The Navbar listens for the
-      // flag in sessionStorage and dispatches `open-myplan` after mount.
-      try { sessionStorage.setItem("siamdive:openMyPlanOnNext", "1"); } catch {}
+      // Flag the next page mount to open the plan inside MyPlan. Storing
+      // the planId tells Navbar's handler to fire open-myplan with that
+      // id, which drills straight into PlanDetail instead of the list.
+      try { sessionStorage.setItem("siamdive:openMyPlanOnNext", data.id); } catch {}
       router.replace(`/${lang}`);
     } catch {
       setError(L("err", lang));

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       select: { email: true },
     });
     if (owner?.email && owner.email.toLowerCase() === normalized) {
-      return NextResponse.json({ shortId: row.plan.shortId, alreadyOwner: true });
+      return NextResponse.json({ id: row.plan.id, shortId: row.plan.shortId, alreadyOwner: true });
     }
 
     // Bind this browser (deviceId) to the joiner's PlanUser so that the next
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       },
     }).catch(() => {});
 
-    return NextResponse.json({ shortId: row.plan.shortId, role: row.role });
+    return NextResponse.json({ id: row.plan.id, shortId: row.plan.shortId, role: row.role });
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
