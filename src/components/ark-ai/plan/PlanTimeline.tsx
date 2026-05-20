@@ -184,36 +184,54 @@ export default function PlanTimeline({ planId, trips, items = [], lang, canEdit,
       `}</style>
 
       {mixedEntries.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {mixedEntries.map((entry, idx) => {
-            if (entry.kind === "trip") {
-              return (
-                <TripSection
-                  key={`trip-${entry.trip.boatId}-${entry.trip.schedule!.scheduleId}-${entry.originalIdx}`}
-                  trip={entry.trip}
-                  originalIdx={entry.originalIdx}
-                  planId={planId}
-                  lang={lang}
-                  canEdit={canEdit}
-                  overlap={conflictsByTripIdx.has(entry.originalIdx)}
-                  conflicts={conflictsByTripIdx.get(entry.originalIdx)}
-                  isLast={idx === mixedEntries.length - 1}
-                  onRemoved={onTripRemoved}
-                />
-              );
+        <>
+          <style>{`
+            @keyframes planEntryIn {
+              from { opacity: 0; transform: translateY(10px); }
+              to   { opacity: 1; transform: translateY(0); }
             }
-            return (
-              <ItemEntryCard
-                key={`item-${entry.item.id}`}
-                item={entry.item}
-                lang={lang}
-                canEdit={canEdit}
-                onRemove={() => onItemRemove?.(entry.item.id)}
-                onEdit={() => onItemEdit?.(entry.item)}
-              />
-            );
-          })}
-        </div>
+          `}</style>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {mixedEntries.map((entry, idx) => {
+              // Staggered reveal — each card appears 150ms after the
+              // previous so the timeline feels like it's filling in as
+              // the user watches, instead of arriving all at once.
+              // Cap delay so plans with 10+ entries don't take forever.
+              const delay = Math.min(idx, 6) * 0.15;
+              const entryStyle: React.CSSProperties = {
+                animation: `planEntryIn 0.45s ${delay}s ease-out both`,
+              };
+              if (entry.kind === "trip") {
+                return (
+                  <div key={`trip-${entry.trip.boatId}-${entry.trip.schedule!.scheduleId}-${entry.originalIdx}`} style={entryStyle}>
+                    <TripSection
+                      trip={entry.trip}
+                      originalIdx={entry.originalIdx}
+                      planId={planId}
+                      lang={lang}
+                      canEdit={canEdit}
+                      overlap={conflictsByTripIdx.has(entry.originalIdx)}
+                      conflicts={conflictsByTripIdx.get(entry.originalIdx)}
+                      isLast={idx === mixedEntries.length - 1}
+                      onRemoved={onTripRemoved}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <div key={`item-${entry.item.id}`} style={entryStyle}>
+                  <ItemEntryCard
+                    item={entry.item}
+                    lang={lang}
+                    canEdit={canEdit}
+                    onRemove={() => onItemRemove?.(entry.item.id)}
+                    onEdit={() => onItemEdit?.(entry.item)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {unscheduled.length > 0 && (

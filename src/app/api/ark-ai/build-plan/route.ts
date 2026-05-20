@@ -96,13 +96,18 @@ export async function POST(req: NextRequest) {
     });
   };
 
+  // Skip all dedup paths when the caller explicitly opted in to a fresh
+  // plan: force (legacy confirm-toast retry), customName (user typed a
+  // new name in BuildTargetSheet), or targetPlanId (appending into an
+  // existing plan — handled lower down, no signature lookup needed).
+  const skipDedup = force || !!customName || !!targetPlanId;
+
   // Recently-deleted guard. User-reported bug 2026-05-09: deleted an
   // ARK_AI plan, opened chat, hit Build again — same trip rebuilt from
   // stale slots, felt like the deleted plan came back. Block the rebuild
-  // and ask the client to confirm. Bypass when `force: true` (user clicked
-  // the confirmation toast's "Create anyway").
+  // and ask the client to confirm.
   const existingUser = await prisma.planUser.findUnique({ where: { deviceId } });
-  if (existingUser && !force) {
+  if (existingUser && !skipDedup) {
     const recentlyDeleted = findRecentDeletion(existingUser.recentlyDeletedSigs, "slot", planSignature);
     if (recentlyDeleted) {
       return Response.json({
@@ -120,13 +125,7 @@ export async function POST(req: NextRequest) {
   // build with identical intent resolves to the existing plan. Skip
   // COMPLETED plans — finished trips; planning a similar future trip
   // should get a fresh plan.
-  //
-  // force=true means the user already saw the duplicate prompt and chose
-  // "Create new". Both the signature dedup AND the legacy active-plan
-  // fallback must yield to that choice — earlier I only gated the
-  // recently-deleted check on !force, which made "สร้างใหม่" loop right
-  // back to the existing plan.
-  if (existingUser && !force) {
+  if (existingUser && !skipDedup) {
     const sigMatch = await prisma.userPlan.findFirst({
       where: {
         userId: existingUser.id,
