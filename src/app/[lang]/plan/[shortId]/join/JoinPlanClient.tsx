@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
@@ -37,10 +37,10 @@ const T: Record<string, Record<string, string>> = {
   members:     { th: "สมาชิก",                    en: "members" },
   role_view:   { th: "ดูได้อย่างเดียว",            en: "View access" },
   role_edit:   { th: "ปรับเปลี่ยนได้",             en: "Edit access" },
-  join:        { th: "ร่วมแผน",                   en: "Join" },
+  join:        { th: "บันทึก",                    en: "Save" },
   copy:        { th: "Copy เป็นแผนของฉัน",        en: "Copy as mine" },
-  joinTitle:   { th: "ร่วมแผนนี้",                en: "Join this plan" },
-  joinDesc:    { th: "เห็นแผนเดียวกันทุกคน อัปเดต real-time", en: "See the same plan, real-time updates" },
+  joinTitle:   { th: "บันทึกแผนนี้",              en: "Save this plan" },
+  joinDesc:    { th: "เก็บลง My Plan ของคุณ อัปเดต real-time", en: "Save to your My Plan, real-time sync" },
   copyTitle:   { th: "Copy เป็นแผนของฉัน",        en: "Copy as my own plan" },
   copyDesc:    { th: "Fork เป็นแผนใหม่ของตัวเอง แก้ไขได้อิสระ", en: "Fork a private copy you can edit alone" },
   yourName:    { th: "ชื่อของคุณ",                en: "Your name" },
@@ -48,9 +48,9 @@ const T: Record<string, Record<string, string>> = {
   emailPh:     { th: "you@example.com",           en: "you@example.com" },
   namePh:      { th: "ชื่อเล่นก็ได้",              en: "Nickname is fine" },
   emailReq:    { th: "กรุณากรอกอีเมล",            en: "Email is required" },
-  submit:      { th: "ยืนยัน",                    en: "Continue" },
+  submit:      { th: "บันทึก",                    en: "Save" },
   cancel:      { th: "ยกเลิก",                    en: "Cancel" },
-  loadingJoin: { th: "กำลังเข้าร่วม…",             en: "Joining…" },
+  loadingJoin: { th: "กำลังบันทึก…",                en: "Saving…" },
   loadingCopy: { th: "กำลังคัดลอก…",               en: "Copying…" },
   err:         { th: "ลองอีกครั้งครับ",            en: "Something went wrong, try again" },
   tripsHead:   { th: "ทริปในแพลน",                en: "Trips in this plan" },
@@ -86,6 +86,27 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
   // matches what SharedPlanClient does so the hero never renders empty.
   const cover = plan.coverUrl || trips.find(t => t.cover)?.cover || null;
 
+  // Already-joined fast-path. If this device's PlanUser is already a member
+  // (or owner) of the plan, skip the save form entirely and bounce straight
+  // to MyPlan. We detect by listing the user's plans server-side and
+  // matching the shortId — that covers both owner & member cases.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(getDeviceId())}`);
+        if (!res.ok) return;
+        const data = await res.json() as { plans?: Array<{ shortId?: string }> };
+        if (cancelled) return;
+        if (data.plans?.some(p => p.shortId === plan.shortId)) {
+          try { sessionStorage.setItem("siamdive:openMyPlanOnNext", "1"); } catch {}
+          router.replace(`/${lang}`);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [plan.shortId, lang, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) { setError(L("emailReq", lang)); return; }
@@ -102,12 +123,14 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         }),
       });
       if (!res.ok) { setError(L("err", lang)); setLoading(false); return; }
-      const data = await res.json() as { shortId: string };
       // Pull server plans into localStorage so the joined plan shows up in
       // MyPlan immediately — the backend binds the device to the joiner's
       // PlanUser, but the in-browser list reads from localStorage alone.
       await pullPlansFromServer();
-      router.replace(`/${lang}/plan/${data.shortId}`);
+      // Flag the next page mount to open MyPlan. The Navbar listens for the
+      // flag in sessionStorage and dispatches `open-myplan` after mount.
+      try { sessionStorage.setItem("siamdive:openMyPlanOnNext", "1"); } catch {}
+      router.replace(`/${lang}`);
     } catch {
       setError(L("err", lang));
       setLoading(false);

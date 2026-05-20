@@ -97,6 +97,24 @@ export default function Navbar() {
     return () => window.removeEventListener("open-ark-ai", handler);
   }, []);
 
+  // Cross-page nudge: pages that send the user home with the intent of
+  // landing them in MyPlan (e.g. the join-plan flow) drop a flag in
+  // sessionStorage. We pick it up here once the Navbar mounts and fire
+  // the existing `open-myplan` event.
+  useEffect(() => {
+    try {
+      const flag = sessionStorage.getItem("siamdive:openMyPlanOnNext");
+      if (!flag) return;
+      sessionStorage.removeItem("siamdive:openMyPlanOnNext");
+      // setTimeout 0 so MyPlanScreen finishes mounting before we ask it
+      // to open. Without this it can miss the event in dev StrictMode.
+      const t = window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("open-myplan", { detail: {} }));
+      }, 0);
+      return () => clearTimeout(t);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ planId?: string; building?: boolean }>).detail;

@@ -129,7 +129,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 }
 
-// DELETE /api/plans/[id]?deviceId=xxx — delete plan (owner only)
+// DELETE /api/plans/[id]?deviceId=xxx
+// Owner → delete the whole plan (existing behavior).
+// Member → leave the plan: remove their own PlanMember row only. The plan
+// stays alive for everyone else. Either way the caller's MyPlan list will
+// no longer surface this plan.
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   try {
@@ -145,6 +149,26 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
     const existing = await prisma.userPlan.findFirst({ where: { id, userId: user.id } });
     if (!existing) {
+      // Not an owner of this plan — check if the user is a member and let
+      // them leave instead of erroring out. Keep the 404 if they're not a
+      // member either (stale local copy, never had access).
+      if (user.email) {
+        const membership = await prisma.planMember.findUnique({
+          where: { planId_email: { planId: id, email: user.email } },
+        });
+        if (membership) {
+          await prisma.planMember.delete({ where: { id: membership.id } });
+          await prisma.planActivity.create({
+            data: {
+              planId: id,
+              action: "MEMBER_LEFT",
+              actorEmail: user.email,
+              detail: { via: "delete_from_myplan" },
+            },
+          }).catch(() => {});
+          return NextResponse.json({ ok: true, left: true });
+        }
+      }
       return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
     }
 
