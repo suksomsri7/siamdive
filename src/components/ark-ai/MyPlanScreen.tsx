@@ -235,51 +235,63 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
 }
 
 // PlanBuildingSkeleton — mirrors PlanDetail layout while /api/ark-ai/build-plan
-// is still resolving. Cover, plan-name strip, and 3 trip cards render as
-// pulsing placeholders; a small status pill in the corner names the current
-// build step so the user knows it's actually working. When build-plan
-// returns the parent swaps this for real PlanDetail and content fades in.
+// is resolving. Trip rows reveal one at a time on a deliberate cadence so
+// the wait feels like the AI is actively assembling the plan, not a flash
+// of static placeholders. Status pill cycles through build steps.
 function PlanBuildingSkeleton({ lang }: { lang: string }) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const steps = [L("buildingStepSearch"), L("buildingStepSchedules"), L("buildingStepPicking"), L("buildingStepAlmost")];
   const [stepIdx, setStepIdx] = useState(0);
+  const TRIP_ROWS = 3;
+  // Pure-CSS staggered reveal — each card has 4 elements (image, title,
+  // date, body) that fade in one after the other with a fixed delay.
+  // Cards are spaced 1.0s apart so the full sequence runs ~3.5s, which
+  // matches the typical /api/ark-ai/build-plan response time.
   useEffect(() => {
-    const timer = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1200);
-    return () => clearInterval(timer);
+    const stepTimer = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1100);
+    return () => clearInterval(stepTimer);
   }, [steps.length]);
 
   return (
     <div style={{ flex: 1, overflowY: "auto", position: "relative" }}>
       <style>{`
         @keyframes skelPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.95; } }
-        @keyframes skelFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes skelReveal {
+          0%   { opacity: 0; transform: translateY(14px) scale(0.98); }
+          60%  { opacity: 1; }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
         @keyframes skelShimmer {
           0% { background-position: -200px 0; }
           100% { background-position: calc(100% + 200px) 0; }
         }
+        @keyframes skelDot {
+          0%, 100% { transform: scale(1);   opacity: 1; }
+          50%      { transform: scale(1.5); opacity: 0.4; }
+        }
         .skel {
           background: var(--plan-surface-alt);
-          background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+          background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
           background-size: 200px 100%;
           background-repeat: no-repeat;
-          animation: skelShimmer 1.8s linear infinite;
+          animation: skelShimmer 2.2s linear infinite;
         }
-        .skel-pulse { animation: skelPulse 1.6s ease-in-out infinite; }
-        .skel-fade { animation: skelFade 0.45s ease-out both; }
+        .skel-pulse { animation: skelPulse 1.8s ease-in-out infinite; }
+        .skel-reveal { animation: skelReveal 0.6s cubic-bezier(0.22,1,0.36,1) both; }
       `}</style>
 
-      {/* Cover hero placeholder */}
-      <div className="skel skel-fade" style={{
+      {/* Cover hero placeholder — slides in over 0.7s on mount */}
+      <div className="skel skel-reveal" style={{
         position: "relative", width: "100%", aspectRatio: "21/9",
         borderRadius: 0,
+        animationDuration: "0.7s",
       }}>
         <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div className="skel skel-pulse" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)" }} />
+          <div className="skel skel-pulse skel-reveal" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)", animationDelay: "0.35s" }} />
         </div>
-        {/* Building status pill — replaces the social mini-pill while
-            we wait. Gives the user a sense of activity without a blocking
-            overlay. */}
-        <div style={{
+        {/* Building status pill — bottom-right, replaces the social pill
+            while we wait. Dot pulses, text cycles through build steps. */}
+        <div className="skel-reveal" style={{
           position: "absolute", bottom: 10, right: 12,
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "5px 11px",
@@ -287,39 +299,63 @@ function PlanBuildingSkeleton({ lang }: { lang: string }) {
           backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
           borderRadius: 999,
           border: "1px solid rgba(96,165,250,0.4)",
+          animationDelay: "0.45s",
         }}>
           <div style={{
             width: 8, height: 8, borderRadius: "50%",
             background: "#3b82f6",
-            animation: "skelPulse 0.8s ease-in-out infinite",
+            animation: "skelDot 1s ease-in-out infinite",
           }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em", transition: "opacity 0.3s" }}>
             {steps[stepIdx]}
           </span>
         </div>
       </div>
 
-      {/* Trip card skeletons — staggered fade-in so they look like they're
-          arriving from the API one at a time. */}
+      {/* Trip card skeletons — each LINE inside each card fades in on its
+          own delay, so the user watches the plan get drawn row-by-row,
+          not card-by-card. */}
       <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {[0, 1, 2].map(i => (
-          <div key={i}
-            style={{
-              background: "var(--plan-surface)",
-              border: "1px solid var(--plan-border-soft)",
-              borderRadius: 12,
-              padding: 12,
-              display: "flex", gap: 10,
-              animation: `skelFade 0.5s ${i * 0.15}s ease-out both`,
-            }}>
-            <div className="skel skel-pulse" style={{ width: 48, height: 36, borderRadius: 8, background: "var(--plan-surface-alt)", flexShrink: 0 }} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div className="skel skel-pulse" style={{ height: 14, width: "70%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
-              <div className="skel skel-pulse" style={{ height: 11, width: "45%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
-              <div className="skel skel-pulse" style={{ height: 11, width: "30%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
+        {Array.from({ length: TRIP_ROWS }).map((_, i) => {
+          // 0.7s per card → first card lands at 0.7s, last at 0.7s + 2*1.0 = 2.7s.
+          // Add ~0.5s for the last line inside that card → ~3.2s total.
+          const base = 0.7 + i * 1.0;
+          return (
+            <div key={i}
+              style={{
+                background: "var(--plan-surface)",
+                border: "1px solid var(--plan-border-soft)",
+                borderRadius: 12,
+                padding: 12,
+                display: "flex", gap: 10,
+                opacity: 0,
+                animation: `skelReveal 0.55s ${base}s cubic-bezier(0.22,1,0.36,1) both`,
+              }}>
+              {/* Image placeholder appears first inside the card */}
+              <div className="skel skel-pulse" style={{
+                width: 48, height: 36, borderRadius: 8, background: "var(--plan-surface-alt)", flexShrink: 0,
+                opacity: 0,
+                animation: `skelReveal 0.4s ${base + 0.1}s ease-out both`,
+              }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                {/* Title line, date line, body line — each appears 0.18s
+                    after the previous so the user can watch them populate. */}
+                {[
+                  { w: "70%", h: 14 },
+                  { w: "45%", h: 11 },
+                  { w: "30%", h: 11 },
+                ].map((line, j) => (
+                  <div key={j} className="skel skel-pulse" style={{
+                    height: line.h, width: line.w, borderRadius: 4,
+                    background: "var(--plan-surface-alt)",
+                    opacity: 0,
+                    animation: `skelReveal 0.4s ${base + 0.25 + j * 0.18}s ease-out both`,
+                  }} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

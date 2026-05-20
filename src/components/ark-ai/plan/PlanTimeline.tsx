@@ -193,13 +193,13 @@ export default function PlanTimeline({ planId, trips, items = [], lang, canEdit,
           `}</style>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {mixedEntries.map((entry, idx) => {
-              // Staggered reveal — each card appears 150ms after the
-              // previous so the timeline feels like it's filling in as
-              // the user watches, instead of arriving all at once.
-              // Cap delay so plans with 10+ entries don't take forever.
-              const delay = Math.min(idx, 6) * 0.15;
+              // Staggered reveal — each card appears 350ms after the
+              // previous so the user can watch the plan get drawn row
+              // by row instead of dumping the whole timeline at once.
+              // Cap delay so plans with 10+ entries don't drag on forever.
+              const delay = Math.min(idx, 6) * 0.35;
               const entryStyle: React.CSSProperties = {
-                animation: `planEntryIn 0.45s ${delay}s ease-out both`,
+                animation: `planEntryIn 0.6s ${delay}s cubic-bezier(0.22,1,0.36,1) both`,
               };
               if (entry.kind === "trip") {
                 return (
