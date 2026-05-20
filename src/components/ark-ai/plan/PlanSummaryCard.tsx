@@ -1,10 +1,9 @@
 "use client";
 
 // PlanSummaryCard — collapsible "everything at a glance" panel that sits at
-// the very top of the Itinerary tab. Three sections:
-//   1. Trip list — boat, date, route, price range from priceMin/priceMax.
-//   2. Logistics — pickup, hotel, meeting point extracted from itinerary text.
-//   3. Total cost — Σ priceMin × pax  →  Σ priceMax × pax, with a clear note
+// the very top of the Itinerary tab. Two sections:
+//   1. Logistics — pickup, hotel, meeting point extracted from itinerary text.
+//   2. Total cost — Σ priceMin × pax  →  Σ priceMax × pax, with a clear note
 //      that the figure is an estimate and not a booking confirmation.
 //
 // Pure read-only — never writes to the plan store. Editing pickup/hotel still
@@ -21,13 +20,10 @@ type Props = {
   headcountAdults?: number;
   headcountKids?: number;
   lang: string;
-  canEdit?: boolean;
-  onRemoveTrip?: (originalIdx: number) => void;
 };
 
 const T: Record<string, Record<string, string>> = {
   title:        { en: "Plan summary",   th: "สรุปรายการทั้งหมด", cn: "行程总览",     ja: "プランの概要",   ko: "플랜 요약",     de: "Plan-Übersicht",  fr: "Récap du plan",   ru: "Сводка плана" },
-  trips:        { en: "Trips",           th: "ทริปของผม",        cn: "我的行程",     ja: "トリップ",       ko: "트립",          de: "Trips",            fr: "Excursions",      ru: "Поездки" },
   logistics:    { en: "Logistics",       th: "การเดินทาง",       cn: "出行安排",     ja: "送迎・集合",     ko: "이동",          de: "Logistik",         fr: "Logistique",      ru: "Логистика" },
   total:        { en: "Estimated total", th: "ยอดรวมประมาณ",     cn: "预计费用",     ja: "目安料金",       ko: "예상 합계",     de: "Geschätzte Summe", fr: "Total estimé",    ru: "Примерная сумма" },
   estimate:     { en: "Estimate only — not confirmed by operator. Final price will be quoted on booking.",
@@ -45,12 +41,8 @@ const T: Record<string, Record<string, string>> = {
   pickup:       { en: "Pickup",           th: "การเดินทาง",       cn: "接送",          ja: "送迎",            ko: "픽업",          de: "Abholung",         fr: "Pickup",           ru: "Трансфер" },
   meetingPoint: { en: "Meeting point",   th: "จุดนัด",            cn: "集合地点",     ja: "集合場所",       ko: "집결 장소",     de: "Treffpunkt",       fr: "Point de RDV",     ru: "Место встречи" },
   perPerson:    { en: "/ person",        th: "/ คน",              cn: "/ 人",          ja: "/ 名",            ko: "/ 인",          de: "/ Person",         fr: "/ pers",           ru: "/ чел" },
-  fromPrice:    { en: "From",            th: "เริ่มต้น",           cn: "起",            ja: "〜",              ko: "부터",          de: "ab",                fr: "à partir de",      ru: "от" },
   forPax:       { en: "for",             th: "สำหรับ",            cn: "适用",          ja: "対象",            ko: "대상",          de: "für",               fr: "pour",             ru: "на" },
   ppl:          { en: "people",          th: "คน",                cn: "人",            ja: "名",              ko: "인",            de: "Personen",          fr: "pers",             ru: "чел" },
-  noTrips:      { en: "No trips yet",    th: "ยังไม่มีทริปในแผน", cn: "尚无行程",     ja: "まだトリップなし", ko: "아직 트립 없음", de: "Noch keine Trips", fr: "Aucune excursion", ru: "Поездок нет" },
-  expand:       { en: "Show summary",    th: "แสดงสรุป",          cn: "展开",          ja: "概要を表示",      ko: "요약 보기",     de: "Zeigen",            fr: "Afficher",         ru: "Показать" },
-  collapse:     { en: "Hide summary",    th: "ซ่อนสรุป",          cn: "收起",          ja: "概要を隠す",      ko: "요약 숨기기",   de: "Verbergen",         fr: "Masquer",          ru: "Скрыть" },
 };
 
 function L(key: keyof typeof T, lang: string): string {
@@ -58,11 +50,6 @@ function L(key: keyof typeof T, lang: string): string {
 }
 
 const fmtMoney = (n: number) => `฿${n.toLocaleString()}`;
-
-const fmtDate = (iso: string, lang: string) => {
-  const locale = lang === "th" ? "th-TH" : lang === "ja" ? "ja-JP" : lang === "ko" ? "ko-KR" : lang === "cn" ? "zh-CN" : lang === "de" ? "de-DE" : lang === "fr" ? "fr-FR" : lang === "ru" ? "ru-RU" : "en-GB";
-  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "2-digit" });
-};
 
 // Extract a meeting point from the schedule's itinerary or route. Picks the
 // first "<HH:MM> ... pier|ท่าเรือ|码头|港|부두|hafen|môle|пирс" line if present;
@@ -85,7 +72,7 @@ function extractMeetingPoint(itinerary: string, route: string): string | null {
   return null;
 }
 
-export default function PlanSummaryCard({ trips, logistics, headcountAdults, headcountKids, lang, canEdit, onRemoveTrip }: Props) {
+export default function PlanSummaryCard({ trips, logistics, headcountAdults, headcountKids, lang }: Props) {
   // Persist collapsed state per session — collapsed by default so the user
   // sees the timeline first when opening the plan.
   const [open, setOpen] = useState<boolean>(() => {
@@ -148,10 +135,11 @@ export default function PlanSummaryCard({ trips, logistics, headcountAdults, hea
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
           </svg>
           {L("title", lang)}
-          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--plan-fg-subtle, #888)", marginLeft: 4 }}>
-            · {trips.length} {L("trips", lang)}
-            {showTotal && pax > 0 && ` · ${fmtMoney(totalMin)}${totalMax !== totalMin ? `–${fmtMoney(totalMax)}` : ""}`}
-          </span>
+          {showTotal && pax > 0 && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--plan-fg-subtle, #888)", marginLeft: 4 }}>
+              · {fmtMoney(totalMin)}{totalMax !== totalMin ? `–${fmtMoney(totalMax)}` : ""}
+            </span>
+          )}
         </span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--plan-fg-subtle, #888)" }}>
           <polyline points="6 9 12 15 18 9"/>
@@ -160,70 +148,6 @@ export default function PlanSummaryCard({ trips, logistics, headcountAdults, hea
 
       {open && (
         <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Trips section */}
-          <SectionHeading label={L("trips", lang)} />
-          {trips.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--plan-fg-subtle, #888)", margin: 0 }}>{L("noTrips", lang)}</p>
-          ) : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-              {trips.map((t, i) => {
-                const dep = t.schedule?.departureDate ? fmtDate(t.schedule.departureDate, lang) : null;
-                const ret = t.schedule?.returnDate && t.schedule.returnDate !== t.schedule.departureDate
-                  ? fmtDate(t.schedule.returnDate, lang) : null;
-                const dateLabel = dep ? (ret ? `${dep} → ${ret}` : dep) : null;
-                const min = t.schedule?.priceMin ?? 0;
-                const max = t.schedule?.priceMax ?? min;
-                return (
-                  <li key={`${t.boatId}-${i}`} style={{ display: "flex", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--plan-bg-row, rgba(255,255,255,0.03))" }}>
-                    {t.cover ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={t.cover} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
-                    ) : (
-                      <div style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(59,130,246,0.15)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤿</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "var(--plan-fg, #e5e5e5)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
-                      {dateLabel && (
-                        <p style={{ fontSize: 11, color: "#93c5fd", margin: "2px 0 0", fontWeight: 600 }}>{dateLabel}</p>
-                      )}
-                      {t.area && (
-                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle, #888)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.area}</p>
-                      )}
-                    </div>
-                    {min > 0 && (
-                      <div style={{ flexShrink: 0, textAlign: "right" }}>
-                        <p style={{ fontSize: 9, color: "var(--plan-fg-subtle, #888)", textTransform: "uppercase", fontWeight: 700, margin: 0 }}>
-                          {L("fromPrice", lang)}
-                        </p>
-                        <p style={{ fontSize: 12, fontWeight: 800, color: "#93c5fd", margin: "1px 0 0" }}>
-                          {fmtMoney(min)}{max !== min ? `–${fmtMoney(max)}` : ""}
-                        </p>
-                        <p style={{ fontSize: 9, color: "var(--plan-fg-subtle, #888)", margin: 0 }}>{L("perPerson", lang)}</p>
-                      </div>
-                    )}
-                    {canEdit && onRemoveTrip && (
-                      <button
-                        onClick={() => onRemoveTrip(i)}
-                        aria-label="Remove trip"
-                        style={{
-                          width: 24, height: 24, borderRadius: 6,
-                          border: "1px solid var(--plan-border, rgba(255,255,255,0.12))",
-                          background: "transparent",
-                          color: "var(--plan-fg-subtle, #888)",
-                          fontSize: 12, cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
           {/* Logistics section */}
           <SectionHeading label={L("logistics", lang)} />
           <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "8px 10px", borderRadius: 10, background: "var(--plan-bg-row, rgba(255,255,255,0.03))" }}>
