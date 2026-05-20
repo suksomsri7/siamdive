@@ -63,15 +63,10 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
     return () => window.removeEventListener("open-myplan", handler);
   }, []);
 
-  // Track when the build animation started so we can hold the skeleton
-  // for a minimum amount of time. If the API resolves before MIN_BUILD_MS
-  // has passed, we defer the swap so the user sees the full skeleton
-  // reveal sequence instead of a brief flash. MAX_BUILD_MS is a safety
-  // bail-out — if no done / error event fires within this window (network
-  // hang, JS error in build path) we surface an error instead of leaving
-  // the user staring at an inert skeleton.
-  const buildStartRef = useRef<number>(0);
-  const MIN_BUILD_MS = 5500;
+  // MAX_BUILD_MS is a safety bail-out — if no done / error event fires
+  // within this window (network hang, JS error in build path) we surface
+  // an error instead of leaving the user staring at the loading icon.
+  // No MIN delay — the skeleton swaps the moment the API resolves.
   const MAX_BUILD_MS = 30000;
 
   // Mirror the parent-supplied buildingPlan flag into local state so we
@@ -80,7 +75,6 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
     if (buildingPlan) {
       setBuilding(true);
       setBuildError(null);
-      buildStartRef.current = Date.now();
     }
   }, [buildingPlan]);
 
@@ -97,24 +91,12 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
 
   // Listen for the async build-plan resolution dispatched by ArkAIChatPanel.
   useEffect(() => {
-    const finish = (planId: string | undefined) => {
-      setBuilding(false);
-      setBuildError(null);
-      if (planId) setActivePlanId(planId);
-      refresh();
-    };
     const onDone = (e: Event) => {
       const detail = (e as CustomEvent<{ planId?: string }>).detail;
-      // Hold the skeleton until at least MIN_BUILD_MS has elapsed since
-      // the user clicked Build. Lets the staggered reveal play out even
-      // when the API resolves in under a second.
-      const elapsed = Date.now() - (buildStartRef.current || Date.now());
-      const remaining = Math.max(0, MIN_BUILD_MS - elapsed);
-      if (remaining > 0) {
-        window.setTimeout(() => finish(detail?.planId), remaining);
-      } else {
-        finish(detail?.planId);
-      }
+      setBuilding(false);
+      setBuildError(null);
+      if (detail?.planId) setActivePlanId(detail.planId);
+      refresh();
     };
     const onError = (e: Event) => {
       const detail = (e as CustomEvent<{ reasons?: string[] }>).detail;
@@ -269,131 +251,50 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
   );
 }
 
-// PlanBuildingSkeleton — mirrors PlanDetail layout while /api/ark-ai/build-plan
-// is resolving. Trip rows reveal one at a time on a deliberate cadence so
-// the wait feels like the AI is actively assembling the plan, not a flash
-// of static placeholders. Status pill cycles through build steps.
+// PlanBuildingSkeleton — simple Ark AI loading state. The earlier
+// progressive-reveal skeleton tried too hard; per user feedback it
+// reverts to a clean centered icon that pulses while build-plan runs.
 function PlanBuildingSkeleton({ lang }: { lang: string }) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
-  const steps = [L("buildingStepSearch"), L("buildingStepSchedules"), L("buildingStepPicking"), L("buildingStepAlmost")];
-  const [stepIdx, setStepIdx] = useState(0);
-  const TRIP_ROWS = 3;
-  // Pure-CSS staggered reveal — each card has 4 elements (image, title,
-  // date, body) that fade in one after the other with a fixed delay.
-  // Cards are spaced 1.0s apart so the full sequence runs ~3.5s, which
-  // matches the typical /api/ark-ai/build-plan response time.
-  useEffect(() => {
-    const stepTimer = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1100);
-    return () => clearInterval(stepTimer);
-  }, [steps.length]);
-
   return (
-    <div style={{ flex: 1, overflowY: "auto", position: "relative" }}>
-      <style>{`
-        @keyframes skelPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.95; } }
-        @keyframes skelReveal {
-          0%   { opacity: 0; transform: translateY(14px) scale(0.98); }
-          60%  { opacity: 1; }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes skelShimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: calc(100% + 200px) 0; }
-        }
-        @keyframes skelDot {
-          0%, 100% { transform: scale(1);   opacity: 1; }
-          50%      { transform: scale(1.5); opacity: 0.4; }
-        }
-        .skel {
-          background: var(--plan-surface-alt);
-          background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
-          background-size: 200px 100%;
-          background-repeat: no-repeat;
-          animation: skelShimmer 2.2s linear infinite;
-        }
-        .skel-pulse { animation: skelPulse 1.8s ease-in-out infinite; }
-        .skel-reveal { animation: skelReveal 0.6s cubic-bezier(0.22,1,0.36,1) both; }
-      `}</style>
-
-      {/* Cover hero placeholder — slides in over 1.2s on mount */}
-      <div className="skel skel-reveal" style={{
-        position: "relative", width: "100%", aspectRatio: "21/9",
-        borderRadius: 0,
-        animationDuration: "1.0s",
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "32px 24px", textAlign: "center",
+    }}>
+      <div style={{
+        width: 80, height: 80, marginBottom: 22,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #1e40af, #3b82f6)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 8px 32px rgba(59,130,246,0.4)",
+        animation: "arkPulse 1.6s ease-in-out infinite",
       }}>
-        <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div className="skel skel-pulse skel-reveal" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)", animationDelay: "0.7s", animationDuration: "0.8s" }} />
-        </div>
-        {/* Building status pill — bottom-right, replaces the social pill
-            while we wait. Dot pulses, text cycles through build steps. */}
-        <div className="skel-reveal" style={{
-          position: "absolute", bottom: 10, right: 12,
-          display: "inline-flex", alignItems: "center", gap: 6,
-          padding: "5px 11px",
-          background: "rgba(0,0,0,0.65)",
-          backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-          borderRadius: 999,
-          border: "1px solid rgba(96,165,250,0.4)",
-          animationDelay: "1.0s",
-          animationDuration: "0.7s",
-        }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%",
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/ai-mask.png" alt="" width={44} height={44} style={{ filter: "brightness(1.2)" }} />
+      </div>
+      <p style={{ fontSize: 15, fontWeight: 700, color: "var(--plan-fg)", margin: 0 }}>
+        {L("aiBuildingPlan")}
+      </p>
+      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: 6, height: 6, borderRadius: "50%",
             background: "#3b82f6",
-            animation: "skelDot 1.4s ease-in-out infinite",
+            animation: `arkDot 1.2s ${i * 0.18}s ease-in-out infinite`,
           }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em", transition: "opacity 0.4s" }}>
-            {steps[stepIdx]}
-          </span>
-        </div>
+        ))}
       </div>
-
-      {/* Trip card skeletons — each LINE inside each card fades in on its
-          own delay. Heavy delays so the user watches the plan draw itself
-          for ~6 seconds before the API swaps in real content. */}
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
-        {Array.from({ length: TRIP_ROWS }).map((_, i) => {
-          // 1.6s per card → first card lands at 1.5s, last at 1.5s + 2*1.6 = 4.7s.
-          // Each line inside adds ~1.2s, so the whole skeleton plays for ~6s
-          // before the last placeholder appears.
-          const base = 1.5 + i * 1.6;
-          return (
-            <div key={i}
-              style={{
-                background: "var(--plan-surface)",
-                border: "1px solid var(--plan-border-soft)",
-                borderRadius: 12,
-                padding: 12,
-                display: "flex", gap: 10,
-                opacity: 0,
-                animation: `skelReveal 0.8s ${base}s cubic-bezier(0.22,1,0.36,1) both`,
-              }}>
-              {/* Image placeholder appears first inside the card */}
-              <div className="skel skel-pulse" style={{
-                width: 48, height: 36, borderRadius: 8, background: "var(--plan-surface-alt)", flexShrink: 0,
-                opacity: 0,
-                animation: `skelReveal 0.6s ${base + 0.2}s ease-out both`,
-              }} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                {/* Title line, date line, body line — each appears 0.35s
-                    after the previous so the user can watch them populate. */}
-                {[
-                  { w: "70%", h: 14 },
-                  { w: "45%", h: 11 },
-                  { w: "30%", h: 11 },
-                ].map((line, j) => (
-                  <div key={j} className="skel skel-pulse" style={{
-                    height: line.h, width: line.w, borderRadius: 4,
-                    background: "var(--plan-surface-alt)",
-                    opacity: 0,
-                    animation: `skelReveal 0.5s ${base + 0.45 + j * 0.35}s ease-out both`,
-                  }} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <style>{`
+        @keyframes arkPulse {
+          0%, 100% { transform: scale(1);    box-shadow: 0 8px 32px rgba(59,130,246,0.35); }
+          50%      { transform: scale(1.07); box-shadow: 0 12px 40px rgba(59,130,246,0.6); }
+        }
+        @keyframes arkDot {
+          0%, 100% { opacity: 0.25; transform: translateY(0); }
+          50%      { opacity: 1;    transform: translateY(-3px); }
+        }
+      `}</style>
     </div>
   );
 }
