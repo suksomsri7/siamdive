@@ -4,7 +4,7 @@
 // MyPlanScreen + PlanDetail headers so the user can switch language while
 // inside the MyPlan drawer (which covers the main Navbar).
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
@@ -28,10 +28,19 @@ export default function LangSwitch() {
   const lang: LangCode = (LANGS.find(l => l.code === urlLang) ? urlLang : "en") as LangCode;
 
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Outside-click closes the dropdown. CRITICAL: must check that the click
+  // target is OUTSIDE the dropdown — otherwise the mousedown that opens or
+  // selects a language option triggers this handler first and unmounts the
+  // option button before its click event can fire.
   useEffect(() => {
     if (!open) return;
-    const fn = () => setOpen(false);
+    const fn = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, [open]);
@@ -47,8 +56,8 @@ export default function LangSwitch() {
   const current = LANGS.find(l => l.code === lang)!;
 
   return (
-    <div style={{ position: "relative" }}>
-      <button onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }} aria-label="Language"
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(v => !v)} aria-label="Language"
         style={{
           display: "flex", alignItems: "center", gap: 5,
           background: "var(--plan-surface-alt)",
@@ -62,7 +71,7 @@ export default function LangSwitch() {
         </svg>
       </button>
       {open && (
-        <div onClick={(e) => e.stopPropagation()} style={{
+        <div style={{
           position: "absolute", top: "calc(100% + 6px)", right: 0,
           background: "var(--plan-bg, #0d0d0d)",
           border: "1px solid var(--plan-border-soft)",

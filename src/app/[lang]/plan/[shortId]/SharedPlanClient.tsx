@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
@@ -66,9 +66,14 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
   };
   const currentLangObj = SHARED_LANGS.find(l => l.code === (currentLang as SharedLang)) || SHARED_LANGS[0];
 
+  const langContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!langOpen) return;
-    const fn = () => setLangOpen(false);
+    const fn = (e: MouseEvent) => {
+      if (!langContainerRef.current?.contains(e.target as Node)) {
+        setLangOpen(false);
+      }
+    };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, [langOpen]);
@@ -124,8 +129,8 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/ai-mask.png" alt="SIAMDIVE" width={32} height={32} style={{ filter: "brightness(1.1)" }} />
           </Link>
-          <div style={{ position: "relative" }}>
-            <button onClick={(e) => { e.stopPropagation(); setLangOpen(v => !v); }} aria-label="Language"
+          <div ref={langContainerRef} style={{ position: "relative" }}>
+            <button onClick={() => setLangOpen(v => !v)} aria-label="Language"
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 background: "rgba(255,255,255,0.06)",
@@ -139,7 +144,7 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
               </svg>
             </button>
             {langOpen && (
-              <div onClick={(e) => e.stopPropagation()} style={{
+              <div style={{
                 position: "absolute", top: "calc(100% + 8px)", right: 0,
                 background: "rgba(13,13,13,0.98)",
                 border: "1px solid rgba(255,255,255,0.08)",
