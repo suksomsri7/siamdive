@@ -21,7 +21,7 @@ import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
 import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
-import { t, compareInPlanLabel } from "@/lib/ark-ai/i18n";
+import { t } from "@/lib/ark-ai/i18n";
 
 type PlanData = {
   id: string; shortId: string; name: string; coverUrl: string | null;
@@ -397,58 +397,58 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                     <div style={{ marginTop: 18 }}>
                       <PrepBlock trips={trips} lang={lang} />
                     </div>
-                    {/* Add flight/hotel — bottom button. Opens a sheet that
-                        lets the user pick AI suggestion or manual entry. */}
-                    {canEdit && (
-                      <div style={{ marginTop: 14 }}>
-                        <button
-                          type="button"
+                    {/* Bottom action row — three circular icon buttons on a
+                        single line. Add (blue) opens the AI/manual sheet,
+                        Compare (amber) shows only with 2+ trips, Share is
+                        always available. */}
+                    <div style={{ marginTop: 20, display: "flex", justifyContent: "center", alignItems: "flex-start", gap: 28 }}>
+                      {canEdit && (
+                        <PlanActionButton
                           onClick={() => setAddSheetOpen(true)}
-                          style={{
-                            width: "100%", padding: "12px", borderRadius: 10,
-                            background: "rgba(59,130,246,0.10)",
-                            border: "1px dashed rgba(96,165,250,0.45)",
-                            color: "#93c5fd",
-                            fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                          }}
-                        >
-                          + {lang === "th" ? "เพิ่มเที่ยวบิน / ที่พัก" : "Add flight / hotel"}
-                        </button>
-                      </div>
-                    )}
-                    {trips.length >= 2 && (
-                      <div style={{ marginTop: 14 }}>
-                        <button
-                          type="button"
+                          label={lang === "th" ? "เพิ่มรายการ" : "Add"}
+                          fg="#ffffff"
+                          bg="#3b82f6"
+                          border="#2563eb"
+                          icon={
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 5v14"/><path d="M5 12h14"/>
+                            </svg>
+                          }
+                        />
+                      )}
+                      {trips.length >= 2 && (
+                        <PlanActionButton
                           onClick={() => setCompareOpen(true)}
-                          style={{
-                            width: "100%", padding: "10px 14px", borderRadius: 10,
-                            background: "#f59e0b",
-                            border: "1px solid #d97706",
-                            color: "#1f1300", fontSize: 13, fontWeight: 800,
-                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {compareInPlanLabel(lang, trips.length)}
-                        </button>
-                      </div>
-                    )}
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        type="button"
+                          label={lang === "th" ? "เปรียบเทียบ" : "Compare"}
+                          fg="#1f1300"
+                          bg="#f59e0b"
+                          border="#d97706"
+                          icon={
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="17 1 21 5 17 9"/>
+                              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                              <polyline points="7 23 3 19 7 15"/>
+                              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                            </svg>
+                          }
+                        />
+                      )}
+                      <PlanActionButton
                         onClick={() => setShowShareCard(true)}
-                        style={{
-                          width: "100%", padding: "12px", borderRadius: 10,
-                          background: "var(--plan-surface-alt)",
-                          border: "1px solid var(--plan-border-soft)",
-                          color: "var(--plan-fg)",
-                          fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                        }}
-                      >
-                        📤 {lang === "th" ? "แชร์แผนทริป" : "Share itinerary"}
-                      </button>
+                        label={lang === "th" ? "แชร์" : "Share"}
+                        fg="var(--plan-fg)"
+                        bg="var(--plan-surface-alt)"
+                        border="var(--plan-border-soft)"
+                        icon={
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="18" cy="5" r="3"/>
+                            <circle cx="6" cy="12" r="3"/>
+                            <circle cx="18" cy="19" r="3"/>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                          </svg>
+                        }
+                      />
                     </div>
                   </div>
                 )}
@@ -686,5 +686,42 @@ function AddItemSheet({ lang, onClose, onPick }: {
         </button>
       </div>
     </div>
+  );
+}
+
+// ── PlanActionButton ────────────────────────────────────────────────────────
+// Circular icon button + label below. Used for the bottom action row
+// (Add / Compare / Share) so the three CTAs read as a single bar.
+function PlanActionButton({ onClick, icon, label, bg, fg, border }: {
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  bg: string; fg: string; border: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
+        background: "transparent", border: "none", padding: 0,
+        cursor: "pointer", fontFamily: "inherit",
+      }}
+    >
+      <span style={{
+        width: 52, height: 52, borderRadius: "50%",
+        background: bg,
+        border: `1px solid ${border}`,
+        color: fg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+        transition: "transform 0.12s ease",
+      }}>
+        {icon}
+      </span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--plan-fg-muted)", letterSpacing: "0.01em" }}>
+        {label}
+      </span>
+    </button>
   );
 }
