@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getPlans, createPlan, deletePlan, getDeviceId, tripCount, pullPlansFromServer, type UserPlan } from "@/lib/plan-store";
+import { getPlans, createPlan, deletePlan, getDeviceId, planCount, pullPlansFromServer, type UserPlan } from "@/lib/plan-store";
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 import ThemeToggle from "./plan/ThemeToggle";
@@ -373,8 +373,8 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
   const [badge, setBadge] = useState(0);
 
   useEffect(() => {
-    setBadge(tripCount());
-    const handler = () => setBadge(tripCount());
+    setBadge(planCount());
+    const handler = () => setBadge(planCount());
     window.addEventListener("myplan-change", handler);
     return () => window.removeEventListener("myplan-change", handler);
   }, []);

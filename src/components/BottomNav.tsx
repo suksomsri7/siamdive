@@ -25,6 +25,13 @@ export default function BottomNav() {
     return () => window.removeEventListener("myplan-change", handler);
   }, []);
 
+  // Re-read on every route change too. Some pages mutate plans without
+  // dispatching myplan-change (e.g. a deep link landing flow). Cheap
+  // localStorage read on each navigation keeps the badge honest.
+  useEffect(() => {
+    setPlanBadge(planCount());
+  }, [pathname]);
+
   const handleTap = (id: string, action: () => void) => {
     setActive(id);
     action();
