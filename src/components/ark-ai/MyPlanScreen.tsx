@@ -159,7 +159,10 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
         transition: "background 0.2s, color 0.2s",
       }}>
         {building ? (
-          <BuildingOverlay lang={lang} />
+          // PlanDetail-shaped skeleton instead of a blocking overlay — the
+          // user lands on the plan-page layout immediately and content fades
+          // in once /api/ark-ai/build-plan returns.
+          <PlanBuildingSkeleton lang={lang} />
         ) : buildError ? (
           <BuildErrorState
             lang={lang}
@@ -231,68 +234,93 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
   );
 }
 
-function BuildingOverlay({ lang }: { lang: string }) {
+// PlanBuildingSkeleton — mirrors PlanDetail layout while /api/ark-ai/build-plan
+// is still resolving. Cover, plan-name strip, and 3 trip cards render as
+// pulsing placeholders; a small status pill in the corner names the current
+// build step so the user knows it's actually working. When build-plan
+// returns the parent swaps this for real PlanDetail and content fades in.
+function PlanBuildingSkeleton({ lang }: { lang: string }) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const steps = [L("buildingStepSearch"), L("buildingStepSchedules"), L("buildingStepPicking"), L("buildingStepAlmost")];
   const [stepIdx, setStepIdx] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1200);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 1200);
+    return () => clearInterval(timer);
   }, [steps.length]);
+
   return (
-    <div style={{
-      flex: 1, display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      padding: "32px 24px", textAlign: "center",
-    }}>
-      <div style={{
-        width: 64, height: 64, marginBottom: 24,
-        borderRadius: "50%", background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: "0 8px 32px rgba(59,130,246,0.45)",
-        animation: "buildPulse 1.6s ease-in-out infinite",
+    <div style={{ flex: 1, overflowY: "auto", position: "relative" }}>
+      <style>{`
+        @keyframes skelPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.95; } }
+        @keyframes skelFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes skelShimmer {
+          0% { background-position: -200px 0; }
+          100% { background-position: calc(100% + 200px) 0; }
+        }
+        .skel {
+          background: var(--plan-surface-alt);
+          background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+          background-size: 200px 100%;
+          background-repeat: no-repeat;
+          animation: skelShimmer 1.8s linear infinite;
+        }
+        .skel-pulse { animation: skelPulse 1.6s ease-in-out infinite; }
+        .skel-fade { animation: skelFade 0.45s ease-out both; }
+      `}</style>
+
+      {/* Cover hero placeholder */}
+      <div className="skel skel-fade" style={{
+        position: "relative", width: "100%", aspectRatio: "21/9",
+        borderRadius: 0,
       }}>
-        <img src="/ai-mask.png" alt="" width={36} height={36} style={{ filter: "brightness(1.15)" }} />
+        <div style={{ position: "absolute", bottom: 12, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="skel skel-pulse" style={{ height: 24, width: "65%", borderRadius: 6, background: "rgba(255,255,255,0.10)" }} />
+        </div>
+        {/* Building status pill — replaces the social mini-pill while
+            we wait. Gives the user a sense of activity without a blocking
+            overlay. */}
+        <div style={{
+          position: "absolute", bottom: 10, right: 12,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "5px 11px",
+          background: "rgba(0,0,0,0.65)",
+          backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+          borderRadius: 999,
+          border: "1px solid rgba(96,165,250,0.4)",
+        }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: "#3b82f6",
+            animation: "skelPulse 0.8s ease-in-out infinite",
+          }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.01em" }}>
+            {steps[stepIdx]}
+          </span>
+        </div>
       </div>
-      <p style={{ fontSize: 18, fontWeight: 800, color: "#f5f5f5", marginBottom: 6 }}>
-        {L("aiBuildingPlan")}
-      </p>
-      <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 28, lineHeight: 1.5, maxWidth: 320 }}>
-        {L("matchingPreferences")}
-      </p>
-      <div style={{
-        width: "100%", maxWidth: 320,
-        display: "flex", flexDirection: "column", gap: 10,
-      }}>
-        {steps.map((s, i) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "10px 14px", borderRadius: 10,
-            background: i === stepIdx ? "rgba(59,130,246,0.12)" : "transparent",
-            border: i === stepIdx ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
-            opacity: i <= stepIdx ? 1 : 0.35,
-            transition: "all 0.3s",
-          }}>
-            <div style={{
-              width: 18, height: 18, borderRadius: "50%",
-              background: i < stepIdx ? "#22c55e" : i === stepIdx ? "#3b82f6" : "#1f2937",
-              flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.3s",
+
+      {/* Trip card skeletons — staggered fade-in so they look like they're
+          arriving from the API one at a time. */}
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i}
+            style={{
+              background: "var(--plan-surface)",
+              border: "1px solid var(--plan-border-soft)",
+              borderRadius: 12,
+              padding: 12,
+              display: "flex", gap: 10,
+              animation: `skelFade 0.5s ${i * 0.15}s ease-out both`,
             }}>
-              {i < stepIdx ? (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              ) : i === stepIdx ? (
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", animation: "buildDot 0.8s ease-in-out infinite" }} />
-              ) : null}
+            <div className="skel skel-pulse" style={{ width: 48, height: 36, borderRadius: 8, background: "var(--plan-surface-alt)", flexShrink: 0 }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="skel skel-pulse" style={{ height: 14, width: "70%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
+              <div className="skel skel-pulse" style={{ height: 11, width: "45%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
+              <div className="skel skel-pulse" style={{ height: 11, width: "30%", borderRadius: 4, background: "var(--plan-surface-alt)" }} />
             </div>
-            <p style={{ fontSize: 13, color: i === stepIdx ? "#f5f5f5" : "#9ca3af", textAlign: "left", margin: 0 }}>{s}</p>
           </div>
         ))}
       </div>
-      <style>{`
-        @keyframes buildPulse { 0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(59,130,246,0.35); } 50% { transform: scale(1.06); box-shadow: 0 12px 40px rgba(59,130,246,0.55); } }
-        @keyframes buildDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-      `}</style>
     </div>
   );
 }
