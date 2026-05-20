@@ -42,9 +42,20 @@ export type SlotField = keyof Slots;
 
 export const REQUIRED_FIELDS: SlotField[] = ["dates", "headcount", "region"];
 
+// Liveaboard / dive-resort trips don't require an explicit headcount —
+// cabins are sold by capacity, the user usually already knows their group,
+// and asking just adds friction (user feedback 2026-05-21).
+function requiredFieldsFor(slots: Slots | null | undefined): SlotField[] {
+  const cats = slots?.categories || [];
+  const liveaboardOnly = cats.length > 0 && cats.every(c => c === "liveaboard");
+  if (liveaboardOnly) return ["dates", "region"];
+  return REQUIRED_FIELDS;
+}
+
 export function isComplete(slots: Slots | null | undefined): boolean {
   if (!slots) return false;
-  return REQUIRED_FIELDS.every(f => {
+  const required = requiredFieldsFor(slots);
+  return required.every(f => {
     const v = slots[f];
     if (v == null) return false;
     if (Array.isArray(v)) return v.length > 0;
