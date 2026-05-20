@@ -413,7 +413,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         <PlanActionButton
                           onClick={() => setCompareOpen(true)}
                           label={lang === "th" ? "เปรียบเทียบ" : "Compare"}
-                          fg="#1f1300"
+                          fg="#ffffff"
                           bg="#f59e0b"
                           border="#d97706"
                           icon={
@@ -429,9 +429,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       <PlanActionButton
                         onClick={() => setShowShareCard(true)}
                         label={lang === "th" ? "แชร์" : "Share"}
-                        fg="var(--plan-fg)"
-                        bg="var(--plan-surface-alt)"
-                        border="var(--plan-border-soft)"
+                        fg="#ffffff"
+                        bg="#6366f1"
+                        border="#4f46e5"
                         icon={
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <circle cx="18" cy="5" r="3"/>
@@ -444,11 +444,15 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       />
                       {trips.some(tr => tr.schedule?.departureDate) && (
                         <PlanActionButton
+                          // Contact opens the channel sheet (Line / WhatsApp /
+                          // Messenger / WeChat / Kakao) directly — the email
+                          // gate is bypassed so users see the channels first.
+                          // The optional Email: line in the message is only
+                          // appended when owner.email is already on file.
                           onClick={() => {
                             const msg = buildBookingMessage(trips, plan.logistics, plan.shortId, plan.owner.email, lang);
                             setContactMessage(msg);
-                            if (plan.owner.email) setShowChannelSheet(true);
-                            else setEmailGateAction("contact");
+                            setShowChannelSheet(true);
                           }}
                           label={lang === "th" ? "ติดต่อ" : "Contact"}
                           fg="#ffffff"
@@ -637,8 +641,22 @@ function AddItemSheet({ lang, onClose, onPick }: {
         </p>
 
         {([
-          { type: "FLIGHT" as const, label: addSheetT("flight", lang), icon: "✈️" },
-          { type: "HOTEL"  as const, label: addSheetT("hotel",  lang), icon: "🏨" },
+          {
+            type: "FLIGHT" as const, label: addSheetT("flight", lang),
+            icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+              </svg>
+            ),
+          },
+          {
+            type: "HOTEL" as const, label: addSheetT("hotel", lang),
+            icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v3"/>
+              </svg>
+            ),
+          },
         ]).map((row) => (
           <div key={row.type} style={{
             background: "var(--plan-surface)",
@@ -646,7 +664,7 @@ function AddItemSheet({ lang, onClose, onPick }: {
             borderRadius: 12, padding: 12, marginBottom: 10,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{row.icon}</span>
+              <span style={{ color: "#93c5fd", display: "flex", alignItems: "center", justifyContent: "center" }}>{row.icon}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: "var(--plan-fg)" }}>{row.label}</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>

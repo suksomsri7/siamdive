@@ -892,8 +892,33 @@ const ITEM_TYPE_LABEL: Record<string, Record<string, string>> = {
   TRANSFER: { th: "การเดินทาง", en: "Transfer" },
   NOTE:     { th: "บันทึก",    en: "Note" },
 };
-const ITEM_TYPE_EMOJI: Record<string, string> = {
-  FLIGHT: "✈️", HOTEL: "🏨", ACTIVITY: "🎯", TRANSFER: "🚗", NOTE: "📝",
+const ITEM_TYPE_GLYPH: Record<string, React.ReactNode> = {
+  FLIGHT: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+    </svg>
+  ),
+  HOTEL: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v3"/>
+    </svg>
+  ),
+  ACTIVITY: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
+  TRANSFER: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/>
+      <circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>
+    </svg>
+  ),
+  NOTE: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </svg>
+  ),
 };
 
 function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
@@ -901,7 +926,7 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
   onRemove: () => void; onEdit: () => void;
 }) {
   const typeLabel = (ITEM_TYPE_LABEL[item.type]?.[lang]) || ITEM_TYPE_LABEL[item.type]?.en || item.type;
-  const icon = ITEM_TYPE_EMOJI[item.type] || "📍";
+  const icon = ITEM_TYPE_GLYPH[item.type];
   const locale = LOCALE_MAP[lang] || "en-US";
   const start = new Date(item.startAt);
   const end = item.endAt ? new Date(item.endAt) : null;
@@ -938,7 +963,7 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
         background: "rgba(59,130,246,0.10)",
         border: "1px solid rgba(96,165,250,0.30)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0, fontSize: 18,
+        flexShrink: 0, color: "#93c5fd",
       }}>
         {icon}
       </div>
