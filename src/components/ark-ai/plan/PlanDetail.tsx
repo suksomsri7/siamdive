@@ -18,6 +18,7 @@ import ItineraryShareCard from "./ItineraryShareCard";
 import SharePlanSheet from "./SharePlanSheet";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import ThemeToggle from "./ThemeToggle";
+import LangSwitch from "./LangSwitch";
 import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
@@ -299,7 +300,10 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           </p>
         )}
 
-        <ThemeToggle />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <LangSwitch />
+          <ThemeToggle />
+        </div>
       </div>
 
       <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={handleCoverUpload} />

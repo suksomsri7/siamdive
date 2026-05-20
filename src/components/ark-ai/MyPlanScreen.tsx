@@ -5,6 +5,7 @@ import { getPlans, createPlan, deletePlan, getDeviceId, planCount, pullPlansFrom
 import PlanList from "./plan/PlanList";
 import PlanDetail from "./plan/PlanDetail";
 import ThemeToggle from "./plan/ThemeToggle";
+import LangSwitch from "./plan/LangSwitch";
 import { t, planDeletePermanentLabel } from "@/lib/ark-ai/i18n";
 
 type Props = {
@@ -210,7 +211,10 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
                 </svg>
               </button>
               <p style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "var(--plan-fg)" }}>My Plans</p>
-              <ThemeToggle />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <LangSwitch />
+                <ThemeToggle />
+              </div>
             </div>
 
             {/* Plan List */}
