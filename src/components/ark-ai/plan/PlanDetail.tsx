@@ -9,7 +9,7 @@ import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
-import PlanBookBar from "./PlanBookBar";
+import PlanBookBar, { buildBookingMessage } from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
 import { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
@@ -342,7 +342,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             </div>
           </div>
 
-          {/* Members strip */}
+          {/* Members strip — owner + up to 5 member avatars. The "+" add
+              button was removed per user feedback; member management now
+              lives entirely behind the Invite / Share flow. */}
           <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--plan-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--plan-fg)", border: "2px solid var(--plan-border-soft)" }}>
               {(plan.owner.name || plan.owner.email || "O")[0].toUpperCase()}
@@ -352,15 +354,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                 {(m.name || m.email)[0].toUpperCase()}
               </div>
             ))}
-            {isOwner && (
-              <button onClick={() => plan.owner.email ? setShowMembers(true) : setEmailGateAction("members")} style={{
-                width: 28, height: 28, borderRadius: "50%", background: "transparent",
-                border: "2px dashed var(--plan-border-soft)", display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "var(--plan-fg-subtle)", fontSize: 14,
-              }}>
-                +
-              </button>
-            )}
           </div>
 
           {tabsBar}
@@ -449,6 +442,25 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                           </svg>
                         }
                       />
+                      {trips.some(tr => tr.schedule?.departureDate) && (
+                        <PlanActionButton
+                          onClick={() => {
+                            const msg = buildBookingMessage(trips, plan.logistics, plan.shortId, plan.owner.email, lang);
+                            setContactMessage(msg);
+                            if (plan.owner.email) setShowChannelSheet(true);
+                            else setEmailGateAction("contact");
+                          }}
+                          label={lang === "th" ? "ติดต่อ" : "Contact"}
+                          fg="#ffffff"
+                          bg="#10b981"
+                          border="#059669"
+                          icon={
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                            </svg>
+                          }
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -463,23 +475,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         </div>
 
         {tab === "itinerary" && trips.length > 0 && (
-          <PlanBookBar
-            trips={trips}
-            logistics={plan.logistics}
-            planShortId={plan.shortId}
-            ownerEmail={plan.owner.email}
-            lang={lang}
-            slots={slots}
-            onContact={(msg) => {
-              setContactMessage(msg);
-              if (plan.owner.email) {
-                setShowChannelSheet(true);
-              } else {
-                setEmailGateAction("contact");
-              }
-            }}
-            onInvite={() => plan.owner.email ? handleShare() : setEmailGateAction("share")}
-          />
+          <PlanBookBar trips={trips} lang={lang} slots={slots} />
         )}
 
         </>
