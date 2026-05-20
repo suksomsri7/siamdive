@@ -53,7 +53,7 @@ const T: Record<string, Record<string, string>> = {
   loadingCopy: { th: "กำลังคัดลอก…",               en: "Copying…" },
   err:         { th: "ลองอีกครั้งครับ",            en: "Something went wrong, try again" },
   tripsHead:   { th: "ทริปในแพลน",                en: "Trips in this plan" },
-  createdBy:   { th: "สร้างโดย",                   en: "Created by" },
+  enterSite:   { th: "เข้าสู่หน้าเว็บ",            en: "Enter website" },
 };
 const L = (k: keyof typeof T, lang: string) => T[k][lang] || T[k].en;
 
@@ -84,7 +84,6 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
   // Fall back to the first trip's cover when the plan itself has none —
   // matches what SharedPlanClient does so the hero never renders empty.
   const cover = plan.coverUrl || trips.find(t => t.cover)?.cover || null;
-  const createdDate = new Date(plan.createdAt).toLocaleDateString(isTh ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,10 +184,23 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
           </div>
         )}
 
-        {/* Meta */}
-        <div style={{ textAlign: "center", fontSize: 11, color: "#555", margin: "24px 0 0" }}>
-          {plan.ownerName && <span>{L("createdBy", lang)} <span style={{ color: "#888" }}>{plan.ownerName}</span> · </span>}
-          <span>{createdDate}</span>
+        {/* Enter-site link — gives recipients a soft path out to the main
+            SIAMDIVE home if they're not ready to join yet. */}
+        <div style={{ textAlign: "center", margin: "28px 0 0" }}>
+          <Link href={`/${lang}`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "10px 22px", borderRadius: 999,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              color: "#ddd", fontSize: 12.5, fontWeight: 700,
+              textDecoration: "none",
+            }}>
+            {L("enterSite", lang)}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </Link>
         </div>
       </div>
 
