@@ -80,7 +80,9 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
 
   const trips = (plan.trips as PlanTrip[]) || [];
   const status = STATUS_LABEL[plan.status] || STATUS_LABEL.PLANNING;
-  const cover = plan.coverUrl;
+  // Fall back to the first trip's cover when the plan itself has none —
+  // matches what SharedPlanClient does so the hero never renders empty.
+  const cover = plan.coverUrl || trips.find(t => t.cover)?.cover || null;
   const createdDate = new Date(plan.createdAt).toLocaleDateString(isTh ? "th-TH" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,53 +113,49 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         @keyframes joinModalIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
-      {/* Sticky invite banner. Renders the role badge + Join / Copy CTAs so
-          the recipient never loses sight of the action they came here to do
-          while scrolling through the plan. */}
+      {/* Sticky invite bar. Single-row layout: subtle role chip on the left,
+          two action buttons on the right. Plan name lives in the hero below,
+          so we don't repeat it here — the bar's only job is to keep Join +
+          Copy one tap away. */}
       <div style={{
         position: "sticky", top: 0, zIndex: 30,
-        background: "rgba(13,13,13,0.95)",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "rgba(10,10,10,0.92)",
+        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
         padding: "10px 14px",
         animation: "joinBannerSlide 0.3s ease-out both",
       }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
-              📨 {L("invited", lang)}
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {plan.name}
-              <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
-                background: plan.role === "EDITOR" ? "rgba(245,158,11,0.18)" : "rgba(59,130,246,0.18)",
-                color: plan.role === "EDITOR" ? "#fbbf24" : "#93c5fd",
-                border: `1px solid ${plan.role === "EDITOR" ? "rgba(245,158,11,0.4)" : "rgba(96,165,250,0.4)"}`,
-              }}>
-                {plan.role === "EDITOR" ? `✏️ ${L("role_edit", lang)}` : `👁 ${L("role_view", lang)}`}
-              </span>
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onClick={() => { setMode("join"); setError(null); }}
-              style={{
-                padding: "8px 14px", borderRadius: 8,
-                background: "#3b82f6", border: "1px solid #2563eb",
-                color: "#fff", fontSize: 12, fontWeight: 800,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>
-              🤝 {L("join", lang)}
-            </button>
-            <button onClick={() => { setMode("copy"); setError(null); }}
-              style={{
-                padding: "8px 14px", borderRadius: 8,
-                background: "#10b981", border: "1px solid #059669",
-                color: "#fff", fontSize: 12, fontWeight: 800,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>
-              📋 {L("copy", lang)}
-            </button>
-          </div>
+        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "4px 10px", borderRadius: 999,
+            fontSize: 11, fontWeight: 700,
+            background: plan.role === "EDITOR" ? "rgba(245,158,11,0.12)" : "rgba(96,165,250,0.12)",
+            color:      plan.role === "EDITOR" ? "#fbbf24"               : "#93c5fd",
+            flexShrink: 0,
+          }}>
+            {plan.role === "EDITOR" ? "✏️" : "👁"} {plan.role === "EDITOR" ? L("role_edit", lang) : L("role_view", lang)}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => { setMode("copy"); setError(null); }}
+            style={{
+              padding: "8px 12px", borderRadius: 8,
+              background: "transparent", border: "1px solid rgba(255,255,255,0.10)",
+              color: "#ddd", fontSize: 12.5, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>
+            {L("copy", lang)}
+          </button>
+          <button onClick={() => { setMode("join"); setError(null); }}
+            style={{
+              padding: "8px 16px", borderRadius: 8,
+              background: "#3b82f6", border: "1px solid #2563eb",
+              color: "#fff", fontSize: 12.5, fontWeight: 800,
+              cursor: "pointer", fontFamily: "inherit",
+              boxShadow: "0 1px 6px rgba(59,130,246,0.35)",
+            }}>
+            {L("join", lang)}
+          </button>
         </div>
       </div>
 
