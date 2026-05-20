@@ -76,7 +76,6 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
   const router = useRouter();
   const isTh = lang === "th";
   const [mode, setMode]       = useState<Mode | null>(null);
-  const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -126,7 +125,6 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim() || undefined,
           email: email.trim(),
           deviceId: getDeviceId(),
         }),
@@ -202,24 +200,33 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1.2 }}>{plan.name}</h1>
           </div>
-        </div>
 
-        {/* Social stats — Followers / Views / Shares */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 28, margin: "18px 0 22px" }}>
-          {[
-            { label: L("followers", lang), value: plan.followerCount },
-            { label: L("views",     lang), value: plan.viewCount },
-            { label: L("shares",    lang), value: plan.shareCount },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 22, fontWeight: 900, color: "#f5f5f5", margin: 0 }}>
-                {s.value.toLocaleString()}
-              </p>
-              <p style={{ fontSize: 10, color: "#666", textTransform: "uppercase", letterSpacing: "0.05em", margin: "2px 0 0" }}>
-                {s.label}
-              </p>
-            </div>
-          ))}
+          {/* Social mini-stats — bottom-right of the cover. Followers + Views
+              only (Shares removed per user feedback). Compact pill so the
+              cover still reads as the focal element. */}
+          <div style={{
+            position: "absolute", bottom: 10, right: 12,
+            display: "flex", gap: 10,
+            padding: "5px 10px",
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+            borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.12)",
+          }}>
+            <span style={{ fontSize: 11, color: "#fff", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              {plan.followerCount.toLocaleString()}
+            </span>
+            <span style={{ fontSize: 11, color: "#fff", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              {plan.viewCount.toLocaleString()}
+            </span>
+          </div>
         </div>
 
         {/* Trips timeline (read-only) */}
@@ -297,15 +304,10 @@ export default function JoinPlanClient({ lang, token, plan }: Props) {
             </p>
 
             <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "0 0 4px" }}>
-              {L("yourName", lang)}
-            </label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L("namePh", lang)} style={inputStyle} />
-
-            <label style={{ display: "block", fontSize: 12, color: "#aaa", margin: "12px 0 4px" }}>
               {L("email", lang)} *
             </label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={L("emailPh", lang)}
-              type="email" required style={inputStyle} />
+              type="email" autoFocus required style={inputStyle} />
 
             {error && (
               <p style={{ fontSize: 12, color: "#ef4444", margin: "10px 0 0" }}>{error}</p>

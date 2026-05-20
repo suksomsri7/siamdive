@@ -61,6 +61,13 @@ export type UserPlan = {
   logistics?: PlanLogistics;
   createdAt: string;
   updatedAt: string;
+  // Social counters surfaced on PlanList / PlanDetail. Populated by
+  // pullPlansFromServer and the /api/plans GET response. Optional so
+  // legacy local-only plans (never synced) don't blow up.
+  memberCount?:  number;
+  followerCount?: number;
+  viewCount?:    number;
+  shareCount?:   number;
 };
 
 // ── Device ID ────────────────────────────────────────────────────────────────
@@ -231,19 +238,30 @@ export async function pullPlansFromServer(): Promise<void> {
   try {
     const res = await fetch(`/api/plans?deviceId=${encodeURIComponent(deviceId)}`);
     if (!res.ok) return;
-    const data = await res.json() as { plans?: Array<UserPlan & { shortId?: string }>; email?: string | null };
+    const data = await res.json() as {
+      plans?: Array<UserPlan & {
+        shortId?: string;
+        memberCount?: number;
+        viewCount?: number;
+        shareCount?: number;
+      }>;
+      email?: string | null;
+    };
     if (!data.plans?.length) return;
 
     const local = readPlans();
     const localIds = new Set(local.map(p => p.id));
     const additions = data.plans.filter(p => !localIds.has(p.id)).map(p => ({
-      id:        p.id,
-      name:      p.name,
-      coverUrl:  p.coverUrl,
-      startDate: p.startDate ?? null,
-      trips:     p.trips || [],
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
+      id:           p.id,
+      name:         p.name,
+      coverUrl:     p.coverUrl,
+      startDate:    p.startDate ?? null,
+      trips:        p.trips || [],
+      createdAt:    p.createdAt,
+      updatedAt:    p.updatedAt,
+      memberCount:  p.memberCount  ?? 0,
+      viewCount:    p.viewCount    ?? 0,
+      shareCount:   p.shareCount   ?? 0,
     } as UserPlan));
 
     if (additions.length === 0) return;

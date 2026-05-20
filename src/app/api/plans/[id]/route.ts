@@ -66,6 +66,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         authorEmail: n.authorEmail, createdAt: n.createdAt.toISOString(),
       })),
       chatCount: plan._count.chatMessages,
+      viewCount: plan.viewCount,
+      shareCount: plan.shareCount,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
     });

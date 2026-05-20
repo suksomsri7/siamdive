@@ -33,6 +33,8 @@ type PlanData = {
   media: { id: string; url: string; thumbUrl: string | null; type: string; uploadedBy: string; caption: string | null; createdAt: string }[];
   checklists: { id: string; category: string; item: string; assignedTo: string | null; checked: boolean; checkedBy: string | null }[];
   chatCount: number;
+  viewCount?: number;
+  shareCount?: number;
 };
 
 type Tab = "itinerary" | "media" | "checklist" | "chat";
@@ -338,9 +340,32 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             )}
             <div style={{ position: "absolute", bottom: 12, left: 16, right: 16 }}>
               <p style={{ fontSize: 20, fontWeight: 900, color: "var(--plan-fg)" }}>{plan.name}</p>
-              <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", marginTop: 2 }}>
-                {trips.length} {L("tripsLower")} · {plan.members.length + 1} {L("membersLower")}
-              </p>
+            </div>
+            {/* Social mini-stats — bottom-right of cover. Followers + Views
+                only, no Shares per user request. Members count = followers
+                (excludes owner since they don't follow their own plan). */}
+            <div style={{
+              position: "absolute", bottom: 10, right: 12,
+              display: "flex", gap: 10,
+              padding: "5px 10px",
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}>
+              <span style={{ fontSize: 11, color: "#fff", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                {plan.members.length.toLocaleString()}
+              </span>
+              <span style={{ fontSize: 11, color: "#fff", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                {(plan.viewCount ?? 0).toLocaleString()}
+              </span>
             </div>
           </div>
 

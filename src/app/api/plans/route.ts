@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 function planJson(p: {
   id: string; shortId: string; name: string; coverUrl: string | null;
   status: string; trips: unknown;
+  viewCount?: number; shareCount?: number;
   createdAt: Date; updatedAt: Date;
   _count?: { members: number; media: number };
 }) {
@@ -15,9 +16,11 @@ function planJson(p: {
     status: p.status,
     trips: p.trips,
     memberCount: p._count?.members ?? 0,
-    mediaCount: p._count?.media ?? 0,
-    createdAt: p.createdAt.toISOString(),
-    updatedAt: p.updatedAt.toISOString(),
+    mediaCount:  p._count?.media   ?? 0,
+    viewCount:   p.viewCount  ?? 0,
+    shareCount:  p.shareCount ?? 0,
+    createdAt:   p.createdAt.toISOString(),
+    updatedAt:   p.updatedAt.toISOString(),
   };
 }
 

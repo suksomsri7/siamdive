@@ -139,8 +139,21 @@ function PlanCard({ plan, lang, onOpen, onDelete }: {
         <p style={{ fontSize: 13, fontWeight: 800, color: "var(--plan-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {plan.name}
         </p>
-        <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", marginTop: 2 }}>
-          {trips.length} {L("tripsLower")}
+        {/* Followers + Views replace the trip count per user feedback. */}
+        <p style={{ fontSize: 11, color: "var(--plan-fg-muted)", marginTop: 4, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            {(plan.memberCount ?? 0).toLocaleString()}
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            {(plan.viewCount ?? 0).toLocaleString()}
+          </span>
         </p>
       </div>
     </div>
