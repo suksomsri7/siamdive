@@ -873,10 +873,30 @@ model UserPlan {
   activities    PlanActivity[]
   notifications PlanNotification[]
   items         PlanItem[]
+  shareTokens   PlanShareToken[]
 
   @@index([userId])
   @@index([shortId])
   @@index([userId, planSignature])
+}
+
+// ── PlanShareToken ───────────────────────────────────────────────────────────
+// Permission-bound link the owner generates from the share sheet. One token
+// per (plan, role) pair — when an owner re-opens the share sheet for VIEWER
+// it reuses the existing token instead of rotating, so previously sent links
+// stay valid until the owner explicitly revokes.
+// Recipients hit /plan/[shortId]/join?t={token} to either join as a member
+// with the token's role or fork the plan into their own copy.
+model PlanShareToken {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  token     String   @unique @default(cuid())
+  role      PlanRole
+  createdAt DateTime @default(now())
+
+  @@unique([planId, role])
+  @@index([planId])
 }
 
 // ── PlanMember ───────────────────────────────────────────────────────────────

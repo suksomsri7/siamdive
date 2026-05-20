@@ -15,6 +15,7 @@ import { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
 import SearchResultModal from "./SearchResultModal";
 import ItineraryShareCard from "./ItineraryShareCard";
+import SharePlanSheet from "./SharePlanSheet";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import ThemeToggle from "./ThemeToggle";
 import CompareSheet from "../CompareSheet";
@@ -70,6 +71,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [itemsRefresh, setItemsRefresh] = useState(0);
   const [searchModal, setSearchModal] = useState<{ type: "FLIGHT" | "HOTEL" } | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [showSharePlan, setShowSharePlan] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -427,7 +429,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         />
                       )}
                       <PlanActionButton
-                        onClick={() => setShowShareCard(true)}
+                        onClick={() => setShowSharePlan(true)}
                         label={lang === "th" ? "แชร์" : "Share"}
                         fg="#ffffff"
                         bg="#6366f1"
@@ -553,6 +555,16 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           trips={trips}
           lang={lang}
           onClose={() => setShowShareCard(false)}
+        />
+      )}
+
+      {showSharePlan && (
+        <SharePlanSheet
+          planId={planId}
+          planShortId={plan.shortId}
+          planName={plan.name}
+          lang={lang}
+          onClose={() => setShowSharePlan(false)}
         />
       )}
 
