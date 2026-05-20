@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import PlanNotificationsBanner from "@/components/ark-ai/plan/PlanNotificationsBanner";
 import CompareSheet from "@/components/ark-ai/CompareSheet";
 import type { PlanTrip } from "@/lib/plan-store";
+
+type SharedLang = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
+const SHARED_LANGS: { code: SharedLang; label: string; flag: string; native: string }[] = [
+  { code: "en", label: "EN", flag: "🇬🇧", native: "English"  },
+  { code: "th", label: "TH", flag: "🇹🇭", native: "ภาษาไทย"   },
+  { code: "cn", label: "CN", flag: "🇨🇳", native: "中文"      },
+  { code: "ja", label: "JA", flag: "🇯🇵", native: "日本語"    },
+  { code: "ko", label: "KO", flag: "🇰🇷", native: "한국어"    },
+  { code: "de", label: "DE", flag: "🇩🇪", native: "Deutsch"  },
+  { code: "fr", label: "FR", flag: "🇫🇷", native: "Français" },
+  { code: "ru", label: "RU", flag: "🇷🇺", native: "Русский"  },
+];
 
 type Trip = {
   boatId: string; title: string; slug?: string; type: string; area?: string; cover?: string;
@@ -38,7 +52,26 @@ const STATUS_LABEL: Record<string, { th: string; en: string; color: string }> = 
 export default function SharedPlanClient({ plan, currentLang }: Props) {
   const [copied, setCopied] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const isTh = currentLang === "th";
+  const router = useRouter();
+
+  const switchLang = (next: SharedLang) => {
+    if (next === currentLang) { setLangOpen(false); return; }
+    try { document.cookie = `NEXT_LOCALE=${next};path=/;max-age=31536000;samesite=lax`; } catch {}
+    const path = window.location.pathname + window.location.search;
+    const newPath = path.replace(/^\/[a-z]{2}(\/|$)/, `/${next}$1`);
+    router.replace(newPath);
+    setLangOpen(false);
+  };
+  const currentLangObj = SHARED_LANGS.find(l => l.code === (currentLang as SharedLang)) || SHARED_LANGS[0];
+
+  useEffect(() => {
+    if (!langOpen) return;
+    const fn = () => setLangOpen(false);
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [langOpen]);
 
   const compareTrips = plan.trips.map(t => ({
     boatId: t.boatId,
@@ -74,8 +107,66 @@ export default function SharedPlanClient({ plan, currentLang }: Props) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", paddingTop: 60 }}>
-      <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 16px 60px" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a" }}>
+      {/* Sticky top bar — Ark AI logo on the left, language switcher on
+          the right. The public plan view sits outside the main Navbar
+          layout, so we carry our own minimal header. */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 30,
+        background: "rgba(10,10,10,0.92)",
+        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        padding: "10px 14px",
+      }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <Link href={`/${currentLang}`} aria-label="SIAMDIVE"
+            style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/ai-mask.png" alt="SIAMDIVE" width={32} height={32} style={{ filter: "brightness(1.1)" }} />
+          </Link>
+          <div style={{ position: "relative" }}>
+            <button onClick={(e) => { e.stopPropagation(); setLangOpen(v => !v); }} aria-label="Language"
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.10)",
+                borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+                fontFamily: "inherit",
+              }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#ccc" }}>{currentLangObj.label}</span>
+              <svg width="9" height="6" viewBox="0 0 10 6" fill="none" style={{ transition: "transform 0.2s", transform: langOpen ? "rotate(180deg)" : "none" }}>
+                <path d="M1 1l4 4 4-4" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {langOpen && (
+              <div onClick={(e) => e.stopPropagation()} style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                background: "rgba(13,13,13,0.98)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12, padding: 6, minWidth: 170,
+                boxShadow: "0 16px 40px rgba(0,0,0,0.6)", zIndex: 200,
+              }}>
+                {SHARED_LANGS.map(l => (
+                  <button key={l.code} onClick={() => switchLang(l.code)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "9px 12px", borderRadius: 8,
+                      background: currentLang === l.code ? "rgba(59,130,246,0.15)" : "transparent",
+                      border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.15s",
+                      fontFamily: "inherit",
+                    }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{l.flag}</span>
+                    <span style={{ fontSize: 13, color: currentLang === l.code ? "#60a5fa" : "#999", fontWeight: currentLang === l.code ? 700 : 400 }}>{l.native}</span>
+                    <span style={{ marginLeft: "auto", fontSize: 10, color: "#444", fontWeight: 700 }}>{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 60px" }}>
 
         {/* Hero */}
         <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", borderRadius: 16, overflow: "hidden", background: "linear-gradient(135deg, #0f172a, #1e3a5f)", marginBottom: 20 }}>
