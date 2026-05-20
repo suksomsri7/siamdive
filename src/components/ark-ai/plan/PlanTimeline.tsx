@@ -280,6 +280,19 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     setExpanded(!expanded);
   };
 
+  // Lock body scroll + listen for Escape while the detail modal is open.
+  useEffect(() => {
+    if (!expanded) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
+
   const handleRemove = () => {
     removeTripByIndex(planId, originalIdx);
     onRemoved?.();
@@ -433,141 +446,31 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             </div>
           )}
 
-          {/* Expand/collapse toggle */}
-          <button
-            onClick={handleToggle}
-            style={{
-              width: "100%", padding: "8px 12px",
-              background: "transparent", border: "none", borderTop: "1px solid var(--plan-border-soft)",
-              color: "var(--plan-fg-subtle)", fontSize: 11, fontWeight: 600, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-            {expanded
-              ? L("hideDetails")
-              : L("viewDetails")}
-          </button>
-
-          {/* Expanded schedule detail — fetched from API */}
-          {expanded && (
-            <div style={{
-              overflow: "hidden",
-              borderTop: "1px solid var(--plan-border-soft)",
-              padding: "12px",
-            }}>
-              <style>{`
-                .rich-content { font-size: 15px; color: var(--plan-fg-muted); line-height: 1.8; }
-                .rich-content p { margin: 0 0 14px; }
-                .rich-content p:last-child { margin-bottom: 0; }
-                .rich-content h1, .rich-content h2, .rich-content h3, .rich-content h4 {
-                  color: var(--plan-fg); font-weight: 800; margin: 22px 0 10px; line-height: 1.3;
-                }
-                .rich-content h1 { font-size: 22px; }
-                .rich-content h2 { font-size: 19px; }
-                .rich-content h3 { font-size: 16px; }
-                .rich-content h4 { font-size: 14px; }
-                .rich-content ul, .rich-content ol { margin: 0 0 14px; padding-left: 22px; }
-                .rich-content li { margin-bottom: 6px; }
-                .rich-content a { color: #60a5fa; text-decoration: underline; }
-                .rich-content strong, .rich-content b { color: var(--plan-fg); font-weight: 700; }
-                .rich-content em, .rich-content i { font-style: italic; }
-                .rich-content blockquote {
-                  margin: 14px 0; padding: 10px 16px; border-left: 3px solid #3b82f6;
-                  background: var(--plan-border-soft); color: var(--plan-fg-muted); border-radius: 0 8px 8px 0;
-                }
-                .rich-content img { max-width: 100%; border-radius: 10px; margin: 12px 0; }
-                .rich-content hr { border: none; border-top: 1px solid var(--plan-border); margin: 18px 0; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-              `}</style>
-              {detailLoading && <ScheduleDetailSkeleton lang={lang} />}
-
-              {!detailLoading && detail && (() => {
-                const b = detail.boat;
-                const s = detail.schedule;
-                // The schedule content already feeds the day-by-day timeline
-                // above. Strip its "กำหนดการ" / "Itinerary" section here so
-                // the detail panel surfaces the OTHER info (price/included/
-                // contact/notes) without duplicating what the timeline shows.
-                const sContentTrimmed = stripScheduleFromContent(s?.content);
-                const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || sContentTrimmed);
-                if (!hasAny) return (
-                  <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
-                    {L("noAdditionalDetails")}
-                  </p>
-                );
-                return (
-                  <>
-                    {/* Boat-level content (main description from backoffice liveaboard detail) */}
-                    {b?.excerpt && (
-                      <div className="rich-content" style={{ marginBottom: 12 }}
-                        dangerouslySetInnerHTML={{ __html: b.excerpt }} />
-                    )}
-                    {b?.content && (
-                      <div className="rich-content" style={{ marginBottom: (s?.excerpt || s?.route || s?.content) ? 16 : 0 }}
-                        dangerouslySetInnerHTML={{ __html: b.content }} />
-                    )}
-
-                    {/* Schedule-specific content (per-departure info) */}
-                    {s?.excerpt && (
-                      <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-                          {label("excerpt")}
-                        </p>
-                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.excerpt }} />
-                      </div>
-                    )}
-                    {s?.route && (
-                      <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-                          {label("route")}
-                        </p>
-                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: s.route }} />
-                      </div>
-                    )}
-                    {sContentTrimmed && (
-                      <div>
-                        <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
-                          {label("content")}
-                        </p>
-                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
-              {!detailLoading && !detail && (
-                <p style={{ fontSize: 12, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "8px 0" }}>
-                  {L("cantLoadDetails")}
-                </p>
-              )}
-
-              {/* Bottom collapse — saves the user a long scroll back up
-                  after reading a multi-screen operator description. */}
-              {!detailLoading && (
-                <button
-                  onClick={handleToggle}
-                  style={{
-                    width: "100%", marginTop: 14, padding: "8px 12px",
-                    background: "transparent", border: "1px solid var(--plan-border-soft)", borderRadius: 8,
-                    color: "var(--plan-fg-subtle)", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ transform: "rotate(180deg)" }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                  {L("hideDetails")}
-                </button>
-              )}
-            </div>
-          )}
+          {/* "View details" — bottom-right pill. Click opens a fullscreen
+              modal instead of the previous inline pull-down panel. */}
+          <div style={{ padding: "2px 12px 12px", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={handleToggle}
+              style={{
+                padding: "6px 12px 6px 14px",
+                borderRadius: 999,
+                background: "rgba(59,130,246,0.14)",
+                border: "1px solid rgba(96,165,250,0.30)",
+                color: "#93c5fd",
+                fontSize: 11.5, fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4,
+                fontFamily: "inherit",
+                letterSpacing: "0.01em",
+              }}
+            >
+              {L("viewDetails")}
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
 
         </div>
       </div>
@@ -722,6 +625,125 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               onClose={() => setPickerOpen(false)}
               onAdded={() => setPickerOpen(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Detail modal — fullscreen overlay opened from the bottom-right
+          "View details" pill. Replaces the inline pull-down panel so the
+          boat/schedule write-up gets the whole viewport. */}
+      {expanded && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 1100,
+            background: "var(--plan-bg, #0d0d0d)",
+            overflowY: "auto",
+            animation: "tripDetailIn 0.32s cubic-bezier(0.22,1,0.36,1) both",
+          }}
+        >
+          <style>{`
+            @keyframes tripDetailIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            .trip-rich { font-size: 15px; color: var(--plan-fg-muted); line-height: 1.75; }
+            .trip-rich p { margin: 0 0 14px; }
+            .trip-rich p:last-child { margin-bottom: 0; }
+            .trip-rich h1, .trip-rich h2, .trip-rich h3, .trip-rich h4 {
+              color: var(--plan-fg); font-weight: 800; margin: 22px 0 10px; line-height: 1.3;
+            }
+            .trip-rich h1 { font-size: 22px; }
+            .trip-rich h2 { font-size: 19px; }
+            .trip-rich h3 { font-size: 16px; }
+            .trip-rich h4 { font-size: 14px; }
+            .trip-rich ul, .trip-rich ol { margin: 0 0 14px; padding-left: 22px; }
+            .trip-rich li { margin-bottom: 6px; }
+            .trip-rich a { color: #60a5fa; text-decoration: underline; }
+            .trip-rich strong, .trip-rich b { color: var(--plan-fg); font-weight: 700; }
+            .trip-rich em, .trip-rich i { font-style: italic; }
+            .trip-rich blockquote {
+              margin: 14px 0; padding: 10px 16px; border-left: 3px solid #3b82f6;
+              background: var(--plan-surface-alt); color: var(--plan-fg-muted); border-radius: 0 8px 8px 0;
+            }
+            .trip-rich img { max-width: 100%; border-radius: 10px; margin: 12px 0; }
+            .trip-rich hr { border: none; border-top: 1px solid var(--plan-border-soft); margin: 18px 0; }
+          `}</style>
+
+          {/* Sticky top bar with back arrow + trip title */}
+          <div style={{
+            position: "sticky", top: 0, zIndex: 2,
+            background: "var(--plan-bg, #0d0d0d)",
+            borderBottom: "1px solid var(--plan-border-soft)",
+            padding: "12px 16px",
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <button onClick={() => setExpanded(false)} aria-label="Close"
+              style={{ width: 34, height: 34, borderRadius: "50%", background: "transparent", border: "1px solid var(--plan-border-soft)", color: "var(--plan-fg)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 800, color: "var(--plan-fg)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trip.title}</p>
+              <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", margin: "1px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {TYPE_LABEL[trip.type] || trip.type}
+                {sched.departureDate && ` · ${
+                  sched.returnDate && sched.returnDate !== sched.departureDate
+                    ? `${fmtDate(sched.departureDate, lang)} → ${fmtDate(sched.returnDate, lang)}`
+                    : fmtDate(sched.departureDate, lang)
+                }`}
+              </p>
+            </div>
+          </div>
+
+          {/* Scrollable detail body */}
+          <div style={{ maxWidth: 720, margin: "0 auto", padding: "18px 20px 60px" }}>
+            {detailLoading && <ScheduleDetailSkeleton lang={lang} />}
+
+            {!detailLoading && detail && (() => {
+              const b = detail.boat;
+              const s = detail.schedule;
+              const sContentTrimmed = stripScheduleFromContent(s?.content);
+              const hasAny = !!(b?.excerpt || b?.content || s?.excerpt || s?.route || sContentTrimmed);
+              if (!hasAny) return (
+                <p style={{ fontSize: 13, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "16px 0" }}>
+                  {L("noAdditionalDetails")}
+                </p>
+              );
+              return (
+                <>
+                  {b?.excerpt && (
+                    <div className="trip-rich" style={{ marginBottom: 14 }}
+                      dangerouslySetInnerHTML={{ __html: b.excerpt }} />
+                  )}
+                  {b?.content && (
+                    <div className="trip-rich" style={{ marginBottom: (s?.excerpt || s?.route || sContentTrimmed) ? 18 : 0 }}
+                      dangerouslySetInnerHTML={{ __html: b.content }} />
+                  )}
+                  {s?.excerpt && (
+                    <div style={{ marginBottom: 14 }}>
+                      <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("excerpt")}</p>
+                      <div className="trip-rich" dangerouslySetInnerHTML={{ __html: s.excerpt }} />
+                    </div>
+                  )}
+                  {s?.route && (
+                    <div style={{ marginBottom: 14 }}>
+                      <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("route")}</p>
+                      <div className="trip-rich" dangerouslySetInnerHTML={{ __html: s.route }} />
+                    </div>
+                  )}
+                  {sContentTrimmed && (
+                    <div>
+                      <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("content")}</p>
+                      <div className="trip-rich" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {!detailLoading && !detail && (
+              <p style={{ fontSize: 13, color: "var(--plan-fg-subtle)", textAlign: "center", padding: "16px 0" }}>
+                {L("cantLoadDetails")}
+              </p>
+            )}
           </div>
         </div>
       )}
