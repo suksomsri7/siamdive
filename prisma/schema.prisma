@@ -828,10 +828,15 @@ model PlanUser {
   email               String?
   name                String?
   avatarUrl           String?
-  // Last few ARK_AI plans this user explicitly deleted, kept so /api/ark-ai/build-plan
-  // can ask "you just deleted this — recreate?" instead of silently rebuilding the
-  // same trip from a stale chat thread. Shape: [{sig:string, name:string, at:string(ISO)}].
-  // Cap at last 20 entries; entries older than 24h are ignored at read time.
+  // Set by /api/plans/line-link when a user opens the LINE LIFF entry point.
+  // Lets one human's plans follow them across devices once they tap the LINE
+  // rich menu — the LIFF SDK gives us a stable LINE userId without a magic
+  // link / password flow. lineDisplayName / linePictureUrl mirror name/avatarUrl
+  // but kept separate so a user who later sets their own avatar via the web
+  // app doesn't lose the LINE profile snapshot.
+  lineUserId          String?    @unique
+  lineDisplayName    String?
+  linePictureUrl     String?
   recentlyDeletedSigs Json       @default("[]")
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt

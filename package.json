@@ -15,6 +15,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/noto-sans-osage": "^5.2.7",
     "@fontsource/prompt": "^5.2.8",
+    "@line/liff": "^2.29.0",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "bcryptjs": "^3.0.3",

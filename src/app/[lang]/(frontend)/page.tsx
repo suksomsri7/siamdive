@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import HeroSlider from "@/components/HeroSlider";
 import HomeContent, { type Section } from "@/components/HomeContent";
+import MenuDeepLink from "@/components/MenuDeepLink";
 import {
   trendingBoatIdsByType,
   trendingUpcomingScheduleIds,
@@ -425,6 +426,7 @@ export default async function HomePage({ params }: { params: Promise<{ lang: str
 
   return (
     <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
+      <MenuDeepLink />
       <HomeContent sections={sections} lang={l} />
     </main>
   );
