@@ -64,6 +64,7 @@ export default function Navbar() {
   };
 
   const [scrolled,       setScrolled]       = useState(false);
+  const [hidden,         setHidden]         = useState(false);
   const [langOpen,       setLangOpen]       = useState(false);
   const [arkOpen,        setArkOpen]        = useState(false);
   const [planOpen,       setPlanOpen]       = useState(false);
@@ -71,13 +72,47 @@ export default function Navbar() {
   const [planBuilding,   setPlanBuilding]   = useState(false);
   const [contactOpen,    setContactOpen]    = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
+  const scrollTicking = useRef(false);
+  // Refs that mirror the open-dropdown states so the scroll handler can read
+  // the latest value without re-attaching the listener on every state change.
+  const langOpenRef = useRef(false);
+  const contactOpenRef = useRef(false);
+  useEffect(() => { langOpenRef.current = langOpen; }, [langOpen]);
+  useEffect(() => { contactOpenRef.current = contactOpen; }, [contactOpen]);
 
   useEffect(() => { initPlanStore(); }, []);
 
+  // Scroll-driven nav state:
+  // - `scrolled` controls the glass background once past the hero band
+  // - `hidden` slides the bar out of view when the user is scrolling down,
+  //   and back in when they scroll up. We always reveal it near the top,
+  //   and never hide while a dropdown is open (would orphan its popover).
+  // The 6px direction-delta threshold absorbs the natural jitter from
+  // momentum scrolling on iOS, preventing the bar from flickering.
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
+    const onScroll = () => {
+      if (scrollTicking.current) return;
+      scrollTicking.current = true;
+      requestAnimationFrame(() => {
+        const y = Math.max(0, window.scrollY);
+        const delta = y - lastScrollY.current;
+        setScrolled(y > 40);
+        if (langOpenRef.current || contactOpenRef.current) {
+          setHidden(false);
+        } else if (y < 80) {
+          setHidden(false);
+        } else if (delta > 6) {
+          setHidden(true);
+        } else if (delta < -6) {
+          setHidden(false);
+        }
+        lastScrollY.current = y;
+        scrollTicking.current = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
@@ -157,8 +192,10 @@ export default function Navbar() {
         style={{
           background: scrolled ? "rgba(13,13,13,0.97)" : "linear-gradient(to bottom, rgba(0,0,0,0.75), transparent)",
           borderBottom: scrolled ? "1px solid rgba(255,255,255,0.05)" : "none",
-          transition: "background 0.4s, border-color 0.4s",
+          transform: hidden ? "translateY(-100%)" : "translateY(0)",
+          transition: "transform 0.45s cubic-bezier(0.22,1,0.36,1), background 0.4s, border-color 0.4s",
           backdropFilter: scrolled ? "blur(12px)" : "none",
+          willChange: "transform",
         }}
       >
         <nav style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
