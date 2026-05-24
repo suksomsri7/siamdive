@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       status: true,
+      category: true,
       covers: true,
       createdAt: true,
       updatedAt: true,

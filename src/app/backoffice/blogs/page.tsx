@@ -13,6 +13,18 @@ const STATUS_LABEL: Record<string, string> = {
   APPROVED: "Approved",
   PUBLISHED: "เผยแพร่",
 };
+const CATEGORIES_ALL = ["ทั้งหมด", "DIVE_SITES", "MARINE_LIFE", "GEAR", "WHY_THAILAND", "SAFETY", "EDUCATION", "CONSERVATION", "WORLD_DIVE_SITES"];
+const CATEGORY_LABEL: Record<string, string> = {
+  ทั้งหมด: "ทั้งหมด",
+  DIVE_SITES: "Dive Sites",
+  MARINE_LIFE: "Marine Life",
+  GEAR: "Gear",
+  WHY_THAILAND: "Why Thailand",
+  SAFETY: "Safety",
+  EDUCATION: "Education",
+  CONSERVATION: "Conservation",
+  WORLD_DIVE_SITES: "World Sites",
+};
 const LANGS_ALL = ["ทั้งหมด", "en", "th", "cn", "de", "fr", "ru", "ko", "ja"];
 
 type LangKey = "en" | "th" | "cn" | "de" | "fr" | "ru" | "ko" | "ja";
@@ -29,8 +41,9 @@ type BlogStatusLower = "draft" | "approved" | "published";
 // Lean shape returned by GET /api/blogs (list endpoint). Heavy translation
 // fields (content/excerpt/keywords/og*) and videos are NOT included — fetch
 // the full row via GET /api/blogs/[id] when opening the edit panel.
+type BlogCategory = "DIVE_SITES" | "MARINE_LIFE" | "GEAR" | "WHY_THAILAND" | "SAFETY" | "EDUCATION" | "CONSERVATION" | "WORLD_DIVE_SITES";
 type BlogListRow = {
-  id: string; status: BlogStatusUpper; covers: string[];
+  id: string; status: BlogStatusUpper; category: BlogCategory | null; covers: string[];
   translations: { lang: string; title: string; slug: string }[];
   createdAt: string; updatedAt: string;
 };
@@ -486,6 +499,7 @@ export default function BlogsPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ทั้งหมด");
+  const [categoryFilter, setCategoryFilter] = useState("ทั้งหมด");
   const [langFilter, setLangFilter] = useState("ทั้งหมด");
   const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -512,6 +526,7 @@ export default function BlogsPage() {
     const title = b.translations.find((t) => t.lang === "th")?.title ?? b.translations.find((t) => t.lang === "en")?.title ?? b.translations[0]?.title ?? "";
     return title.toLowerCase().includes(search.toLowerCase()) &&
       (statusFilter === "ทั้งหมด" || b.status === statusFilter) &&
+      (categoryFilter === "ทั้งหมด" || b.category === categoryFilter) &&
       (langFilter === "ทั้งหมด" || b.translations.some((t) => t.lang === langFilter));
   });
 
@@ -642,6 +657,15 @@ export default function BlogsPage() {
             </button>
           ))}
         </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#2a2a2a", marginRight: 2 }}>หมวด:</span>
+          {CATEGORIES_ALL.map((c) => (
+            <button key={c} onClick={() => setCategoryFilter(c)}
+              style={{ fontSize: 11, fontWeight: 600, padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: categoryFilter === c ? "#8b5cf6" : "#181818", color: categoryFilter === c ? "#fff" : "#444" }}>
+              {CATEGORY_LABEL[c] ?? c}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -661,7 +685,10 @@ export default function BlogsPage() {
               <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 70px 130px", padding: "12px 16px", borderBottom: i < filtered.length - 1 ? "1px solid #161616" : "none", alignItems: "center", fontSize: 13 }}>
                 <div style={{ paddingRight: 12, overflow: "hidden" }}>
                   <p style={{ fontWeight: 500, color: "#ccc", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{title}</p>
-                  <p style={{ fontSize: 10, color: "#2a2a2a" }}>{date}</p>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 10, color: "#2a2a2a" }}>{date}</span>
+                    {b.category && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 4, background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>{CATEGORY_LABEL[b.category] ?? b.category}</span>}
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                   {b.translations.map((t) => (
