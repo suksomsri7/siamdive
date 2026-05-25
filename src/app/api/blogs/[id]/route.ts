@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { status, covers, imageIds, videos, translations, mjPrompt } = body;
+  const { status, covers, imageIds, videos, translations, mjPrompt, category } = body;
 
   // Resolve target status through transition validator. If no status is
   // provided, keep the current one.
@@ -56,6 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: {
       status: nextStatus,
+      ...(category !== undefined && { category }),
       covers: covers ?? [],
       ...(imageIds !== undefined && { imageIds }),
       ...(mjPrompt !== undefined && { mjPrompt }),
@@ -96,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!blog) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { mjPrompt, status, covers, imageIds } = body;
+  const { mjPrompt, status, covers, imageIds, category } = body;
   const translations = body.translations as { lang: string; title: string; slug?: string; excerpt?: string; content?: string; keywords?: string[]; ogTitle?: string; ogDescription?: string; ogImage?: string }[] ?? [];
 
   const valid = translations.filter((t) => t.lang && t.title?.trim());
@@ -119,12 +120,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     );
   }
 
-  // Update blog-level fields (mjPrompt, status, covers, imageIds) in a single call
+  // Update blog-level fields (mjPrompt, status, covers, imageIds, category) in a single call
   const blogUpdates: Record<string, unknown> = {};
   if (mjPrompt !== undefined) blogUpdates.mjPrompt = mjPrompt;
   if (requestedStatus) blogUpdates.status = requestedStatus;
   if (covers !== undefined) blogUpdates.covers = covers;
   if (imageIds !== undefined) blogUpdates.imageIds = imageIds;
+  if (category !== undefined) blogUpdates.category = category;
   if (Object.keys(blogUpdates).length > 0) {
     await prisma.blog.update({ where: { id }, data: blogUpdates });
   }

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!canDo(auth, "blogs.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { status, covers, imageIds, videos, translations, mjPrompt } = body;
+  const { status, covers, imageIds, videos, translations, mjPrompt, category } = body;
 
   const valid = (translations as { lang: string; title: string; slug?: string; excerpt?: string; content?: string; keywords?: string[]; ogTitle?: string; ogDescription?: string; ogImage?: string }[] ?? [])
     .filter((t) => t.lang && t.title?.trim());
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
   const blog = await prisma.blog.create({
     data: {
       status: "DRAFT",
+      category: category ?? undefined,
       covers: covers ?? [],
       imageIds: imageIds ?? [],
       mjPrompt: mjPrompt ?? "",
