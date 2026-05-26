@@ -17,6 +17,8 @@ import SearchResultModal from "./SearchResultModal";
 import ItineraryShareCard from "./ItineraryShareCard";
 import SharePlanSheet from "./SharePlanSheet";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
+import GapSuggestions from "./GapSuggestions";
+import SuggestedBlogs from "./SuggestedBlogs";
 import ThemeToggle from "./ThemeToggle";
 import LangSwitch from "./LangSwitch";
 import CompareSheet from "../CompareSheet";
@@ -77,6 +79,10 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [showSharePlan, setShowSharePlan] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<{
+    gaps: Array<{ start: string; end: string; days: number; trips: unknown[] }>;
+    blogs: Array<{ blogId: string; title: string; slug: string; excerpt: string; cover: string | null; category: string }>;
+  } | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -138,6 +144,20 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       .catch(() => {});
     return () => { cancelled = true; };
   }, [planId, itemsRefresh]);
+
+  // Fetch smart suggestions (gap-fill trips + contextual blogs)
+  useEffect(() => {
+    if (!plan || plan.trips.length === 0) {
+      setSuggestions(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/plans/${planId}/suggestions?deviceId=${encodeURIComponent(deviceId)}&lang=${lang}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d) setSuggestions(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [planId, plan?.trips.length, lang, deviceId]);
 
   const handleItemRemove = async (id: string) => {
     setPlanItems(prev => prev.filter(i => i.id !== id));
@@ -412,6 +432,26 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                     <div style={{ marginTop: 18 }}>
                       <PrepBlock trips={trips} lang={lang} />
                     </div>
+
+                    {/* Smart suggestions: gap-fill trips + contextual blogs */}
+                    {suggestions?.gaps && suggestions.gaps.length > 0 && (
+                      <GapSuggestions
+                        planId={planId}
+                        gaps={suggestions.gaps as never}
+                        lang={lang}
+                        onTripAdded={() => {
+                          const localPlans = getPlans();
+                          const local = localPlans.find((p) => p.id === planId);
+                          if (local) {
+                            setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
+                          }
+                        }}
+                      />
+                    )}
+                    {suggestions?.blogs && suggestions.blogs.length > 0 && (
+                      <SuggestedBlogs blogs={suggestions.blogs} lang={lang} />
+                    )}
+
                     {/* Bottom action row — three circular icon buttons on a
                         single line. Add (blue) opens the AI/manual sheet,
                         Compare (amber) shows only with 2+ trips, Share is
