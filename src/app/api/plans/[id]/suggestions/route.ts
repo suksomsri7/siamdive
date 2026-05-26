@@ -381,6 +381,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const msg = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : "";
     console.error("[plan-suggestions]", msg, stack);
-    return NextResponse.json({ error: "server_error", detail: msg }, { status: 500 });
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }
