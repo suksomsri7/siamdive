@@ -116,7 +116,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         where: {
           status: "OPEN",
           departureDate: { gte: now },
-          boat: { status: "PUBLISHED", featured: true },
+          boat: { status: "PUBLISHED" },
         },
         include: {
           boat: {
