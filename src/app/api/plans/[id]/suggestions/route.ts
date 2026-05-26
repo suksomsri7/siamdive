@@ -21,12 +21,16 @@ type Gap = {
 const pickByLang = <T extends { lang: string }>(arr: T[], lang: string) =>
   arr.find((t) => t.lang === lang) || arr.find((t) => t.lang === "en") || arr[0];
 
+function toDateStr(s: string): string {
+  return s.length > 10 ? s.slice(0, 10) : s;
+}
+
 function computeGaps(trips: PlanTripJson[]): Gap[] {
   const scheduled = trips
     .filter((t) => t.schedule?.departureDate)
     .map((t) => ({
-      dep: t.schedule!.departureDate!,
-      ret: t.schedule!.returnDate || t.schedule!.departureDate!,
+      dep: toDateStr(t.schedule!.departureDate!),
+      ret: toDateStr(t.schedule!.returnDate || t.schedule!.departureDate!),
     }))
     .sort((a, b) => a.dep.localeCompare(b.dep));
 
@@ -295,8 +299,10 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     }
 
     return NextResponse.json({ gaps: gapResults, blogs });
-  } catch (err) {
-    console.error("[plan-suggestions]", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : "";
+    console.error("[plan-suggestions]", msg, stack);
+    return NextResponse.json({ error: "server_error", detail: msg }, { status: 500 });
   }
 }
