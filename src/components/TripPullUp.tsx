@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { pushRecentBoat } from "@/lib/recentlyViewed";
-import { addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
+import { addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, getPlans, type PlanTrip, type PlanTripSchedule, type DateConflict } from "@/lib/plan-store";
 import { addPendingPick } from "@/lib/pending-picks";
 import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
 import DateConflictModal from "./ark-ai/plan/DateConflictModal";
@@ -551,16 +551,26 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     setPlanConflicts([]);
   };
 
-  // The "+" button no longer writes directly to the plan. Per the new flow,
-  // the user picks trips through Ark AI — the chat collects the rest of the
-  // trip details (transport, equipment, special needs) and the user explicitly
-  // builds a plan when satisfied. Adding a pending pick + opening the chat
-  // gives the AI a starting point; the plan only materializes on $$BUILD$$.
   const handleAddToPlan = (sched: ScheduleData | null) => {
     const t = buildPlanTrip(sched);
-    addPendingPick(t);
-    onClose();
-    setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100);
+    const plans = getPlans();
+    if (plans.length === 0) {
+      addPendingPick(t);
+      onClose();
+      setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100);
+      return;
+    }
+    setPendingPlanTrip(t);
+    if (plans.length === 1) {
+      const plan = plans[0];
+      if (t.schedule?.departureDate) {
+        const c = checkDateConflicts(plan.id, t.schedule.departureDate, t.schedule.returnDate ?? null);
+        if (c.length > 0) { setPlanTargetId(plan.id); setPlanConflicts(c); return; }
+      }
+      doAddToPlan(plan.id, t);
+      return;
+    }
+    setShowPlanSelector(true);
   };
 
   const handlePlanSelected = (planId: string) => {
