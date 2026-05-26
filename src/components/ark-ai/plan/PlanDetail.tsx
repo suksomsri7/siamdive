@@ -19,6 +19,7 @@ import SharePlanSheet from "./SharePlanSheet";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import GapSuggestions from "./GapSuggestions";
 import SuggestedBlogs from "./SuggestedBlogs";
+import PopularTripsSection from "./PopularTrips";
 import ThemeToggle from "./ThemeToggle";
 import LangSwitch from "./LangSwitch";
 import CompareSheet from "../CompareSheet";
@@ -82,6 +83,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [suggestions, setSuggestions] = useState<{
     gaps: Array<{ start: string; end: string; days: number; trips: unknown[] }>;
     blogs: Array<{ blogId: string; title: string; slug: string; excerpt: string; cover: string | null; category: string }>;
+    popular?: Array<unknown>;
   } | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -145,12 +147,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     return () => { cancelled = true; };
   }, [planId, itemsRefresh]);
 
-  // Fetch smart suggestions (gap-fill trips + contextual blogs)
+  // Fetch smart suggestions (gap-fill trips + contextual blogs + popular for empty plans)
   useEffect(() => {
-    if (!plan || plan.trips.length === 0) {
-      setSuggestions(null);
-      return;
-    }
+    if (!plan) return;
     let cancelled = false;
     fetch(`/api/plans/${planId}/suggestions?deviceId=${encodeURIComponent(deviceId)}&lang=${lang}`)
       .then(r => r.ok ? r.json() : null)
@@ -408,14 +407,30 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             {tab === "itinerary" && (
               <div>
                 {trips.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 16px" }}>
-                    <p style={{ fontSize: 14, color: "var(--plan-fg-subtle)", marginBottom: 16 }}>
-                      {L("noTripsYet")}
-                    </p>
-                    <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
-                      style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-                      {L("recommendedTripsFromAi")}
-                    </button>
+                  <div style={{ padding: "24px 0" }}>
+                    <div style={{ textAlign: "center", marginBottom: 20 }}>
+                      <p style={{ fontSize: 14, color: "var(--plan-fg-subtle)", marginBottom: 16 }}>
+                        {L("noTripsYet")}
+                      </p>
+                      <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("open-ark-ai")), 100); }}
+                        style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#1e40af", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                        {L("recommendedTripsFromAi")}
+                      </button>
+                    </div>
+                    {suggestions?.popular && suggestions.popular.length > 0 && (
+                      <PopularTripsSection
+                        planId={planId}
+                        trips={suggestions.popular as never}
+                        lang={lang}
+                        onTripAdded={() => {
+                          const localPlans = getPlans();
+                          const local = localPlans.find((p) => p.id === planId);
+                          if (local) {
+                            setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
+                          }
+                        }}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div>

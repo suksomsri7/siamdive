@@ -109,6 +109,84 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       ? (plan.trips as PlanTripJson[])
       : [];
 
+    // ── 0-trip plan: return popular upcoming trips ──
+    if (rawTrips.length === 0) {
+      const now = new Date();
+      const popularSchedules = await prisma.schedule.findMany({
+        where: {
+          status: "OPEN",
+          departureDate: { gte: now },
+          boat: { status: "PUBLISHED", featured: true },
+        },
+        include: {
+          boat: {
+            include: {
+              translations: { select: { lang: true, title: true, slug: true } },
+              serviceAreas: {
+                include: {
+                  serviceArea: { include: { translations: { select: { lang: true, name: true } } } },
+                },
+              },
+            },
+          },
+          translations: { select: { lang: true, title: true, route: true, itinerary: true } },
+          packages: {
+            include: {
+              package: { include: { priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } } } },
+              priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
+            },
+          },
+        },
+        orderBy: { departureDate: "asc" },
+        take: 12,
+      });
+
+      // Dedupe by boat
+      const seenBoats = new Set<string>();
+      const popular = popularSchedules
+        .filter((s) => {
+          if (seenBoats.has(s.boatId)) return false;
+          seenBoats.add(s.boatId);
+          return true;
+        })
+        .slice(0, 6)
+        .map((s) => {
+          const bt = pickByLang(s.boat.translations, lang);
+          const areaTrans = s.boat.serviceAreas[0]?.serviceArea
+            ? pickByLang(s.boat.serviceAreas[0].serviceArea.translations, lang)
+            : null;
+          const st = pickByLang(s.translations, lang);
+          const allPrices: number[] = [];
+          for (const sp of s.packages) {
+            const tiers = sp.priceTiers.length ? sp.priceTiers : sp.package.priceTiers;
+            for (const t of tiers) {
+              const price = t.salePrice ?? t.regularPrice;
+              if (price > 0) allPrices.push(price);
+            }
+          }
+          return {
+            boatId: s.boatId,
+            title: bt?.title || s.boat.name,
+            slug: bt?.slug || s.boatId,
+            type: s.boat.type,
+            area: areaTrans?.name || "",
+            cover: s.boat.covers?.[0] || null,
+            schedule: {
+              scheduleId: s.id,
+              departureDate: s.departureDate?.toISOString().slice(0, 10) || "",
+              returnDate: s.returnDate?.toISOString().slice(0, 10) || null,
+              title: st?.title || bt?.title || s.boat.name,
+              route: st?.route || "",
+              itinerary: st?.itinerary || "",
+              priceMin: allPrices.length ? Math.min(...allPrices) : 0,
+              priceMax: allPrices.length ? Math.max(...allPrices) : 0,
+            },
+          };
+        });
+
+      return NextResponse.json({ gaps: [], blogs: [], popular });
+    }
+
     // Collect boatIds and existing scheduleIds
     const boatIds = rawTrips
       .map((t) => t.boatId)
