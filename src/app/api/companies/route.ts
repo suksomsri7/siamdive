@@ -19,10 +19,17 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
   if (!canDo(auth, "companies.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { logo, phone, email, lineId, status, covers, photos, translations } = await req.json();
+  const {
+    logo, phone, email, lineId,
+    website, facebookUrl, instagramUrl, youtubeUrl,
+    whatsApp, wechat, contactName, internalNote,
+    status, covers, photos, translations,
+  } = await req.json();
   const company = await prisma.company.create({
     data: {
       logo, phone, email, lineId,
+      website, facebookUrl, instagramUrl, youtubeUrl,
+      whatsApp, wechat, contactName, internalNote,
       status: status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
       covers: covers ?? [],
       photos: photos ?? [],

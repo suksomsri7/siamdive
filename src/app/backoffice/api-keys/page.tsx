@@ -23,17 +23,20 @@ const PERM_GROUPS = [
     ],
   },
   {
-    label: "คอร์สดำน้ำ", icon: "🎓",
+    label: "คอร์สดำน้ำ / ครูสอน", icon: "🎓",
     items: [
-      { key: "scuba-courses",    label: "🎓 Scuba Courses",    actions: ["read","write","delete"] as Action[] },
-      { key: "freedive-courses", label: "🫁 Freedive Courses", actions: ["read","write","delete"] as Action[] },
+      { key: "scuba-courses",       label: "🎓 Scuba Courses",        actions: ["read","write","delete"] as Action[] },
+      { key: "freedive-courses",    label: "🫁 Freedive Courses",     actions: ["read","write","delete"] as Action[] },
+      { key: "scuba-instructor",    label: "👨‍🏫 Scuba Instructor",   actions: ["read","write","delete"] as Action[] },
+      { key: "freedive-instructor", label: "👩‍🏫 Freedive Instructor", actions: ["read","write","delete"] as Action[] },
     ],
   },
   {
     label: "ข้อมูลส่วนกลาง", icon: "🏢",
     items: [
-      { key: "companies",     label: "Companies / บริษัท",   actions: ["read","write","delete"] as Action[] },
-      { key: "service-areas", label: "Service Areas / จุดดำน้ำ", actions: ["read","write","delete"] as Action[] },
+      { key: "companies",       label: "Companies / บริษัท",          actions: ["read","write","delete"] as Action[] },
+      { key: "company-sources", label: "Company Sources / แหล่งข้อมูล", actions: ["read","write","delete"] as Action[] },
+      { key: "service-areas",   label: "Service Areas / จุดดำน้ำ",      actions: ["read","write","delete"] as Action[] },
     ],
   },
   {

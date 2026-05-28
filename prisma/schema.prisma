@@ -105,18 +105,45 @@ model BlogVideo {
 // ── Company ───────────────────────────────────────────────────────────────────
 
 model Company {
-  id           String               @id @default(cuid())
-  logo         String?
-  phone        String?
-  email        String?
-  lineId       String?
-  status       ActiveStatus         @default(ACTIVE)
-  covers       String[]
-  photos       String[]
-  boats        Boat[]
-  translations CompanyTranslation[]
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id            String               @id @default(cuid())
+  logo          String?
+  phone         String?
+  email         String?
+  lineId        String?
+  website       String?
+  facebookUrl   String?
+  instagramUrl  String?
+  youtubeUrl    String?
+  whatsApp      String?
+  wechat        String?
+  contactName   String?
+  internalNote  String?              @db.Text
+  status        ActiveStatus         @default(ACTIVE)
+  covers        String[]
+  photos        String[]
+  boats         Boat[]
+  translations  CompanyTranslation[]
+  sources       CompanySource[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model CompanySource {
+  id          String   @id @default(cuid())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   String
+  type        String
+  url         String?
+  content     String?  @db.Text
+  filename    String?
+  collectedAt DateTime @default(now())
+  collectedBy String?
+  note        String?
+  boatId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, type])
+  @@index([boatId])
 }
 
 model CompanyTranslation {

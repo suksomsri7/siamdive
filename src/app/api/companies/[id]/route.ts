@@ -19,12 +19,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!canDo(auth, "companies.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const { logo, phone, email, lineId, status, covers, photos, translations } = await req.json();
+  const {
+    logo, phone, email, lineId,
+    website, facebookUrl, instagramUrl, youtubeUrl,
+    whatsApp, wechat, contactName, internalNote,
+    status, covers, photos, translations,
+  } = await req.json();
   await prisma.companyTranslation.deleteMany({ where: { companyId: id } });
   const c = await prisma.company.update({
     where: { id },
     data: {
       logo, phone, email, lineId,
+      website, facebookUrl, instagramUrl, youtubeUrl,
+      whatsApp, wechat, contactName, internalNote,
       status: status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
       covers: covers ?? [],
       photos: photos ?? [],
