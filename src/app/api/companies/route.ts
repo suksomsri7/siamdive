@@ -7,8 +7,11 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   if (!canDo(auth, "companies.read")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const minimal = req.nextUrl.searchParams.get("minimal") === "1";
   const companies = await prisma.company.findMany({
-    include: { translations: true, boats: { include: { _count: { select: { schedules: true } } } } },
+    include: minimal
+      ? { translations: { select: { lang: true, name: true } } }
+      : { translations: true, boats: { include: { _count: { select: { schedules: true } } } } },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(companies);

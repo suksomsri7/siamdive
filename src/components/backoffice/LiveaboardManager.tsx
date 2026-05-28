@@ -110,7 +110,7 @@ export default function LiveaboardManager({
 
   const load = useCallback(async () => {
     const [coData, boatData] = await Promise.all([
-      fetch("/api/companies").then(r => r.json()).catch(() => []),
+      fetch("/api/companies?minimal=1").then(r => r.json()).catch(() => []),
       fetch("/api/boats?type=LIVEABOARD").then(r => r.json()).catch(() => []),
     ]);
     setCompanies(Array.isArray(coData) ? coData : []);

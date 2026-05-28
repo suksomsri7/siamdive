@@ -50,7 +50,7 @@ export default function SchedulesPage() {
     const [sc, bo, co] = await Promise.all([
       fetch("/api/schedules").then(r => r.json()).catch(() => []),
       fetch("/api/boats").then(r => r.json()).catch(() => []),
-      fetch("/api/companies").then(r => r.json()).catch(() => []),
+      fetch("/api/companies?minimal=1").then(r => r.json()).catch(() => []),
     ]);
     setSchedules(Array.isArray(sc) ? sc : []);
     setBoats(Array.isArray(bo) ? bo : []);

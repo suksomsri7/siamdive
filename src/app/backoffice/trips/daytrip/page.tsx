@@ -101,7 +101,7 @@ export default function DaytripPage() {
 
   const load = useCallback(async () => {
     const [coData, boatData] = await Promise.all([
-      fetch("/api/companies").then(r => r.json()).catch(() => []),
+      fetch("/api/companies?minimal=1").then(r => r.json()).catch(() => []),
       fetch("/api/boats?type=DAYTRIP").then(r => r.json()).catch(() => []),
     ]);
     setCompanies(Array.isArray(coData) ? coData : []);
