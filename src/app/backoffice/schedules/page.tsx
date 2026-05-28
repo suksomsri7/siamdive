@@ -3,9 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 
 type BoatOption = {
-  id: string; name: string; type: string;
+  id: string; name: string; type: string; companyId: string | null;
   translations: { lang: string; title: string }[];
-  company: { translations: { lang: string; name: string }[] };
+  company: { translations: { lang: string; name: string }[] } | null;
+};
+
+type CompanyOption = {
+  id: string;
+  translations: { lang: string; name: string }[];
 };
 
 type ScheduleRow = {
@@ -25,7 +30,7 @@ const STATUS_STYLE: Record<ScheduleStatus, { bg: string; color: string }> = {
 };
 
 const emptyForm = () => ({
-  boatId: "", departureDate: "", returnDate: "", totalSeats: "", availableSeats: "",
+  companyId: "", boatId: "", departureDate: "", returnDate: "", totalSeats: "", availableSeats: "",
   status: "OPEN" as ScheduleStatus, note: "", itinerary: "",
 });
 type ScheduleForm = ReturnType<typeof emptyForm>;
@@ -33,6 +38,7 @@ type ScheduleForm = ReturnType<typeof emptyForm>;
 export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [boats, setBoats] = useState<BoatOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [boatFilter, setBoatFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -41,19 +47,23 @@ export default function SchedulesPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [sc, bo] = await Promise.all([
+    const [sc, bo, co] = await Promise.all([
       fetch("/api/schedules").then(r => r.json()).catch(() => []),
       fetch("/api/boats").then(r => r.json()).catch(() => []),
+      fetch("/api/companies").then(r => r.json()).catch(() => []),
     ]);
     setSchedules(Array.isArray(sc) ? sc : []);
     setBoats(Array.isArray(bo) ? bo : []);
+    setCompanies(Array.isArray(co) ? co : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const openNew = () => { setForm(emptyForm()); setEditId(null); setPanelOpen(true); };
   const openEdit = (s: ScheduleRow) => {
+    const boat = boats.find(b => b.id === s.boatId);
     setForm({
+      companyId: boat?.companyId ?? "",
       boatId: s.boatId,
       departureDate: s.departureDate ? s.departureDate.slice(0, 10) : "",
       returnDate: s.returnDate ? s.returnDate.slice(0, 10) : "",
@@ -95,6 +105,13 @@ export default function SchedulesPage() {
     const title = b.translations?.find(x => x.lang === "en")?.title;
     return `${co ? co + " · " : ""}${b.name}${title ? " — " + title : ""}`;
   };
+
+  const companyLabel = (c: CompanyOption) =>
+    c.translations?.find(x => x.lang === "en")?.name ?? c.translations?.[0]?.name ?? c.id;
+
+  const formBoatOptions = form.companyId
+    ? boats.filter(b => b.companyId === form.companyId)
+    : boats;
 
   const filtered = schedules.filter(s => {
     if (boatFilter !== "ALL" && s.boatId !== boatFilter) return false;
@@ -201,11 +218,31 @@ export default function SchedulesPage() {
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "20px", paddingBottom: 80, display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
+                <label style={lbl}>บริษัท</label>
+                <select
+                  value={form.companyId}
+                  onChange={e => {
+                    const nextCompanyId = e.target.value;
+                    setForm(f => {
+                      const stillValid = !nextCompanyId || boats.find(b => b.id === f.boatId)?.companyId === nextCompanyId;
+                      return { ...f, companyId: nextCompanyId, boatId: stillValid ? f.boatId : "" };
+                    });
+                  }}
+                  style={inp}
+                >
+                  <option value="">— ทุกบริษัท —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{companyLabel(c)}</option>)}
+                </select>
+              </div>
+              <div>
                 <label style={lbl}>เรือ</label>
                 <select value={form.boatId} onChange={e => setForm(f => ({ ...f, boatId: e.target.value }))} style={inp}>
                   <option value="">— เลือกเรือ —</option>
-                  {boats.map(b => <option key={b.id} value={b.id}>{boatLabel(b)}</option>)}
+                  {formBoatOptions.map(b => <option key={b.id} value={b.id}>{boatLabel(b)}</option>)}
                 </select>
+                {form.companyId && formBoatOptions.length === 0 && (
+                  <div style={{ fontSize: 11, color: "#555", marginTop: 6 }}>บริษัทนี้ยังไม่มีเรือ — เพิ่มเรือที่หน้า Fleet ก่อน</div>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
