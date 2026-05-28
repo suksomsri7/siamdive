@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
   if (!canDo(auth, "service-areas.read")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const areas = await prisma.serviceArea.findMany({
-    include: { translations: true },
+    include: {
+      translations: true,
+      country: { include: { translations: true } },
+    },
     orderBy: { id: "asc" },
   });
   return NextResponse.json(areas);
@@ -21,9 +24,10 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
   if (!canDo(auth, "service-areas.write")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { translations } = await req.json();
+  const { translations, countryId } = await req.json();
   const area = await prisma.serviceArea.create({
     data: {
+      ...(countryId ? { countryId } : {}),
       translations: {
         create: LANGS.map(lang => {
           const tr = (translations ?? []).find((t: { lang: string }) => t.lang === lang) ?? {};
@@ -31,7 +35,10 @@ export async function POST(req: NextRequest) {
         }),
       },
     },
-    include: { translations: true },
+    include: {
+      translations: true,
+      country: { include: { translations: true } },
+    },
   });
   return NextResponse.json(area, { status: 201 });
 }

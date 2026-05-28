@@ -8,7 +8,21 @@ type LangKey = typeof ALL_LANGS[number];
 const LANG_LABELS: Record<LangKey, string> = { en: "EN", th: "TH", cn: "中文", de: "DE", fr: "FR", ru: "RU", ko: "한국어", ja: "日本語" };
 
 type Translation = { lang: string; name: string };
-type ServiceArea = { id: string; translations: Translation[] };
+type Country = {
+  id: string;
+  code: string;
+  flag: string;
+  order: number;
+  status: "ACTIVE" | "INACTIVE";
+  translations: Translation[];
+  _count?: { serviceAreas: number };
+};
+type ServiceArea = {
+  id: string;
+  countryId: string | null;
+  country: Country | null;
+  translations: Translation[];
+};
 type LangForm = Record<LangKey, string>;
 
 const inputStyle = { width: "100%", background: "#111", border: "1px solid #222", borderRadius: 6, padding: "7px 10px", color: "#ddd", fontSize: 13, outline: "none", boxSizing: "border-box" as const };
@@ -18,18 +32,18 @@ function emptyLangForm(): LangForm {
   return Object.fromEntries(ALL_LANGS.map(l => [l, ""])) as LangForm;
 }
 
-type Tab = "service-areas" | "seo" | "branding" | "ai" | "rec-ai";
+type Tab = "countries" | "service-areas" | "seo" | "branding" | "ai" | "rec-ai";
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("service-areas");
+  const [tab, setTab] = useState<Tab>("countries");
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 900 }}>
       <h1 style={{ fontSize: 20, fontWeight: 800, color: "#ccc", marginBottom: 20 }}>Settings</h1>
 
       {/* Sub-menu tabs */}
-      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #1a1a1a", marginBottom: 28 }}>
-        {([["service-areas", "พื้นที่ให้บริการ"], ["seo", "SEO หน้าแรก"], ["branding", "Branding & Watermark"], ["ai", "Ark AI"], ["rec-ai", "Recommendation AI"]] as [Tab, string][]).map(([key, label]) => (
+      <div style={{ display: "flex", gap: 2, borderBottom: "1px solid #1a1a1a", marginBottom: 28, flexWrap: "wrap" }}>
+        {([["countries", "ประเทศ"], ["service-areas", "พื้นที่ให้บริการ"], ["seo", "SEO หน้าแรก"], ["branding", "Branding & Watermark"], ["ai", "Ark AI"], ["rec-ai", "Recommendation AI"]] as [Tab, string][]).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
             style={{ padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: tab === key ? "#e5e5e5" : "#333", borderBottom: tab === key ? "2px solid #3b82f6" : "2px solid transparent", marginBottom: -1 }}>
             {label}
@@ -37,6 +51,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === "countries" && <CountriesPanel />}
       {tab === "service-areas" && <ServiceAreasPanel />}
       {tab === "seo" && <SeoPanel />}
       {tab === "branding" && <BrandingPanel />}
@@ -446,27 +461,258 @@ function SeoPanel() {
   );
 }
 
+// ── Countries Panel ───────────────────────────────────────────────────────────
+
+function pickName(translations: Translation[], lang: LangKey = "en") {
+  return (
+    translations.find(t => t.lang === lang)?.name ||
+    translations.find(t => t.lang === "en")?.name ||
+    translations.find(t => t.name)?.name ||
+    ""
+  );
+}
+
+function CountriesPanel() {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [flag, setFlag] = useState("");
+  const [order, setOrder] = useState(0);
+  const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [langForm, setLangForm] = useState<LangForm>(emptyLangForm());
+  const [activeLang, setActiveLang] = useState<LangKey>("en");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const data = await fetch("/api/countries").then(r => r.json()).catch(() => []);
+    setCountries(Array.isArray(data) ? data : []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openNew = () => {
+    setCode("");
+    setFlag("");
+    setOrder(0);
+    setStatus("ACTIVE");
+    setLangForm(emptyLangForm());
+    setEditId(null);
+    setActiveLang("en");
+    setError(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (c: Country) => {
+    setCode(c.code);
+    setFlag(c.flag);
+    setOrder(c.order);
+    setStatus(c.status);
+    const f = emptyLangForm();
+    for (const tr of c.translations) {
+      if (ALL_LANGS.includes(tr.lang as LangKey)) f[tr.lang as LangKey] = tr.name;
+    }
+    setLangForm(f);
+    setEditId(c.id);
+    setActiveLang("en");
+    setError(null);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => { setFormOpen(false); setEditId(null); setError(null); };
+
+  const save = async () => {
+    if (!code.trim()) {
+      setError("ระบุ Country Code (เช่น TH, MV)");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const translations = ALL_LANGS.map(l => ({ lang: l, name: langForm[l] }));
+    const body = { code: code.trim().toUpperCase(), flag, order, status, translations };
+    const url = editId ? `/api/countries/${editId}` : "/api/countries";
+    const method = editId ? "PUT" : "POST";
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "บันทึกไม่สำเร็จ");
+      return;
+    }
+    await load();
+    closeForm();
+  };
+
+  const del = async (c: Country) => {
+    const count = c._count?.serviceAreas ?? 0;
+    if (count > 0) {
+      alert(`ลบไม่ได้ — มี ${count} พื้นที่ที่อยู่ใต้ประเทศนี้ ย้ายไปประเทศอื่นก่อน`);
+      return;
+    }
+    if (!confirm(`ลบประเทศ ${c.code}?`)) return;
+    const res = await fetch(`/api/countries/${c.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "ลบไม่สำเร็จ");
+      return;
+    }
+    await load();
+  };
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <span style={{ fontSize: 13, color: "#555" }}>จัดการรายชื่อประเทศ — พื้นที่ให้บริการจะอยู่ใต้ประเทศ</span>
+        <button onClick={openNew} style={{ background: "#1a3a1a", border: "1px solid #2a5a2a", color: "#4ade80", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          + เพิ่มประเทศ
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {countries.length === 0 && (
+          <div style={{ fontSize: 12, color: "#2a2a2a", textAlign: "center", padding: "30px 0" }}>ยังไม่มีประเทศ — เพิ่ม TH เป็นตัวแรกเพื่อเริ่ม</div>
+        )}
+        {countries.map(c => {
+          const areaCount = c._count?.serviceAreas ?? 0;
+          return (
+            <div key={c.id} style={{ background: "#090909", border: "1px solid #1a1a1a", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{c.flag || "🏳️"}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "#ccc", fontWeight: 700 }}>{pickName(c.translations, "th") || c.code}</span>
+                  <span style={{ fontSize: 10, color: "#555", fontWeight: 700, background: "#161616", padding: "1px 6px", borderRadius: 4 }}>{c.code}</span>
+                  {c.status === "INACTIVE" && (
+                    <span style={{ fontSize: 9, color: "#ef4444", fontWeight: 700, background: "rgba(239,68,68,0.1)", padding: "1px 6px", borderRadius: 4 }}>INACTIVE</span>
+                  )}
+                  <span style={{ fontSize: 10, color: "#444" }}>{areaCount} พื้นที่</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                  {ALL_LANGS.map(l => {
+                    const name = c.translations.find(t => t.lang === l)?.name;
+                    if (!name) return null;
+                    return (
+                      <span key={l} style={{ fontSize: 10, color: "#333" }}>
+                        <span style={{ color: "#2a2a2a", fontWeight: 700 }}>{LANG_LABELS[l]}</span> {name}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              <button onClick={() => openEdit(c)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button onClick={() => del(c)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {formOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }}>
+          <div onClick={closeForm} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }} />
+          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "min(480px, 100vw)", background: "#0d0d0d", borderLeft: "1px solid #1a1a1a", display: "flex", flexDirection: "column", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #1a1a1a", flexShrink: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#ccc", flex: 1 }}>{editId ? "แก้ไขประเทศ" : "เพิ่มประเทศ"}</span>
+              <button onClick={save} disabled={saving} style={{ background: "#1d4ed8", border: "none", color: "#fff", borderRadius: 7, padding: "7px 18px", fontSize: 12, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                {saving ? "กำลังบันทึก…" : "บันทึก"}
+              </button>
+              <button onClick={closeForm} style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 20, padding: "0 4px", lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {error && (
+                <div style={{ padding: "8px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, color: "#ef4444", fontSize: 12 }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Country Code</label>
+                  <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} style={{ ...inputStyle, textTransform: "uppercase" }} placeholder="TH" maxLength={3} />
+                  <p style={{ fontSize: 10, color: "#333", marginTop: 3 }}>ISO 2-letter (TH, MV, ID)</p>
+                </div>
+                <div>
+                  <label style={labelStyle}>Flag (emoji)</label>
+                  <input value={flag} onChange={e => setFlag(e.target.value)} style={{ ...inputStyle, fontSize: 18 }} placeholder="🇹🇭" />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>ลำดับ</label>
+                  <input type="number" value={order} onChange={e => setOrder(+e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>สถานะ</label>
+                  <select value={status} onChange={e => setStatus(e.target.value as "ACTIVE" | "INACTIVE")} style={inputStyle}>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {ALL_LANGS.map(l => (
+                  <button key={l} onClick={() => setActiveLang(l)}
+                    style={{ padding: "5px 12px", borderRadius: 20, border: activeLang === l ? "none" : "1px solid #222", cursor: "pointer", fontSize: 11, fontWeight: 700, background: activeLang === l ? "#3b82f6" : "transparent", color: activeLang === l ? "#fff" : "#333" }}>
+                    {LANG_LABELS[l]}
+                  </button>
+                ))}
+              </div>
+
+              {ALL_LANGS.map(l => (
+                <div key={l} style={{ display: activeLang === l ? "block" : "none" }}>
+                  <label style={labelStyle}>ชื่อประเทศ ({LANG_LABELS[l]})</label>
+                  <input
+                    value={langForm[l]}
+                    onChange={e => setLangForm(f => ({ ...f, [l]: e.target.value }))}
+                    style={inputStyle}
+                    placeholder={l === "en" ? "Thailand" : l === "th" ? "ประเทศไทย" : ""}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Service Areas Panel ───────────────────────────────────────────────────────
 
 function ServiceAreasPanel() {
   const [areas, setAreas] = useState<ServiceArea[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [langForm, setLangForm] = useState<LangForm>(emptyLangForm());
+  const [countryId, setCountryId] = useState<string>("");
   const [activeLang, setActiveLang] = useState<LangKey>("en");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const data = await fetch("/api/service-areas").then(r => r.json()).catch(() => []);
-    setAreas(Array.isArray(data) ? data : []);
+    const [areasData, countriesData] = await Promise.all([
+      fetch("/api/service-areas").then(r => r.json()).catch(() => []),
+      fetch("/api/countries").then(r => r.json()).catch(() => []),
+    ]);
+    setAreas(Array.isArray(areasData) ? areasData : []);
+    setCountries(Array.isArray(countriesData) ? countriesData : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const openNew = () => {
     setLangForm(emptyLangForm());
+    setCountryId(countries[0]?.id ?? "");
     setEditId(null);
     setActiveLang("en");
+    setError(null);
     setFormOpen(true);
   };
 
@@ -476,23 +722,34 @@ function ServiceAreasPanel() {
       if (ALL_LANGS.includes(tr.lang as LangKey)) f[tr.lang as LangKey] = tr.name;
     }
     setLangForm(f);
+    setCountryId(a.countryId ?? "");
     setEditId(a.id);
     setActiveLang("en");
+    setError(null);
     setFormOpen(true);
   };
 
-  const closeForm = () => { setFormOpen(false); setEditId(null); };
+  const closeForm = () => { setFormOpen(false); setEditId(null); setError(null); };
 
   const save = async () => {
+    if (!countryId) {
+      setError("เลือกประเทศก่อน");
+      return;
+    }
     setSaving(true);
+    setError(null);
     const translations = ALL_LANGS.map(l => ({ lang: l, name: langForm[l] }));
-    if (editId) {
-      await fetch(`/api/service-areas/${editId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ translations }) });
-    } else {
-      await fetch("/api/service-areas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ translations }) });
+    const body = { translations, countryId };
+    const url = editId ? `/api/service-areas/${editId}` : "/api/service-areas";
+    const method = editId ? "PUT" : "POST";
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "บันทึกไม่สำเร็จ");
+      return;
     }
     await load();
-    setSaving(false);
     closeForm();
   };
 
@@ -507,47 +764,78 @@ function ServiceAreasPanel() {
     a.translations.find(t => t.name)?.name ||
     "(ไม่มีชื่อ)";
 
+  // Group areas by country
+  const grouped = new Map<string, { country: Country | null; items: ServiceArea[] }>();
+  for (const a of areas) {
+    const key = a.countryId ?? "__unassigned__";
+    if (!grouped.has(key)) {
+      grouped.set(key, { country: a.country, items: [] });
+    }
+    grouped.get(key)!.items.push(a);
+  }
+  // Order: countries by their `order`, then unassigned last
+  const groups = Array.from(grouped.entries()).sort(([ka, va], [kb, vb]) => {
+    if (ka === "__unassigned__") return 1;
+    if (kb === "__unassigned__") return -1;
+    return (va.country?.order ?? 0) - (vb.country?.order ?? 0);
+  });
+
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <span style={{ fontSize: 13, color: "#555" }}>จัดการรายการพื้นที่ให้บริการ ใช้ในแบบฟอร์มเพิ่มเรือ</span>
-        <button onClick={openNew} style={{ background: "#1a3a1a", border: "1px solid #2a5a2a", color: "#4ade80", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+        <span style={{ fontSize: 13, color: "#555" }}>จัดการรายการพื้นที่ให้บริการ — อยู่ใต้ประเทศ</span>
+        <button onClick={openNew} disabled={countries.length === 0} style={{ background: "#1a3a1a", border: "1px solid #2a5a2a", color: "#4ade80", borderRadius: 7, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: countries.length === 0 ? "not-allowed" : "pointer", opacity: countries.length === 0 ? 0.4 : 1 }}>
           + เพิ่มพื้นที่
         </button>
       </div>
 
-      {/* List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {countries.length === 0 && (
+        <div style={{ padding: 12, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 8, color: "#fbbf24", fontSize: 12, marginBottom: 16 }}>
+          ⚠️ ต้องเพิ่มประเทศก่อนในแท็บ &quot;ประเทศ&quot; — พื้นที่ทุกอันต้องอยู่ใต้ประเทศใดประเทศหนึ่ง
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {areas.length === 0 && (
           <div style={{ fontSize: 12, color: "#2a2a2a", textAlign: "center", padding: "30px 0" }}>ยังไม่มีพื้นที่ให้บริการ</div>
         )}
-        {areas.map(a => (
-          <div key={a.id} style={{ background: "#090909", border: "1px solid #1a1a1a", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 13, color: "#ccc", fontWeight: 600 }}>{getLabel(a)}</span>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                {ALL_LANGS.map(l => {
-                  const name = a.translations.find(t => t.lang === l)?.name;
-                  if (!name) return null;
-                  return (
-                    <span key={l} style={{ fontSize: 10, color: "#333" }}>
-                      <span style={{ color: "#2a2a2a", fontWeight: 700 }}>{LANG_LABELS[l]}</span> {name}
-                    </span>
-                  );
-                })}
-              </div>
+        {groups.map(([key, { country, items }]) => (
+          <div key={key}>
+            <div style={{ fontSize: 12, color: "#666", fontWeight: 700, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 16 }}>{country?.flag || "🏳️"}</span>
+              <span>{country ? (pickName(country.translations, "th") || country.code) : "ยังไม่ได้กำหนดประเทศ"}</span>
+              <span style={{ fontSize: 10, color: "#333" }}>({items.length})</span>
             </div>
-            <button onClick={() => openEdit(a)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button onClick={() => del(a.id)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 8, borderLeft: "1px solid #1a1a1a" }}>
+              {items.map(a => (
+                <div key={a.id} style={{ background: "#090909", border: "1px solid #1a1a1a", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 13, color: "#ccc", fontWeight: 600 }}>{getLabel(a)}</span>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                      {ALL_LANGS.map(l => {
+                        const name = a.translations.find(t => t.lang === l)?.name;
+                        if (!name) return null;
+                        return (
+                          <span key={l} style={{ fontSize: 10, color: "#333" }}>
+                            <span style={{ color: "#2a2a2a", fontWeight: 700 }}>{LANG_LABELS[l]}</span> {name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <button onClick={() => openEdit(a)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button onClick={() => del(a.id)} style={{ background: "none", border: "1px solid #222", color: "#fff", borderRadius: 5, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Form panel */}
       {formOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex" }}>
           <div onClick={closeForm} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)" }} />
@@ -561,7 +849,24 @@ function ServiceAreasPanel() {
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Lang tabs */}
+              {error && (
+                <div style={{ padding: "8px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 6, color: "#ef4444", fontSize: 12 }}>
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label style={labelStyle}>ประเทศ <span style={{ color: "#ef4444" }}>*</span></label>
+                <select value={countryId} onChange={e => setCountryId(e.target.value)} style={inputStyle}>
+                  <option value="">— เลือกประเทศ —</option>
+                  {countries.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.flag} {pickName(c.translations, "th") || c.code} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {ALL_LANGS.map(l => (
                   <button key={l} onClick={() => setActiveLang(l)}
