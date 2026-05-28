@@ -333,11 +333,12 @@ export function BoatForm({ form, onChange, companies, serviceAreas = [], nameLab
         <label style={lbl}>บริษัท / เจ้าของเรือ</label>
         <select value={form.companyId} onChange={e => set("companyId", e.target.value)} style={inp}>
           <option value="">— ไม่ระบุ —</option>
-          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {companies.map(c => <option key={c.id} value={c.id}>{c.name || `(no-name) ${c.id}`}</option>)}
         </select>
-        {companies.length === 0 && (
-          <div style={{ fontSize: 11, color: "#555", marginTop: 6 }}>ยังไม่มีบริษัท — เพิ่มที่หน้า Fleet ก่อน</div>
-        )}
+        <div style={{ fontSize: 11, color: companies.length === 0 ? "#f87171" : "#4ade80", marginTop: 6, fontFamily: "monospace" }}>
+          DEBUG: companies.length = {companies.length}
+          {companies.length > 0 && ` | first: id="${companies[0].id}" name="${companies[0].name}"`}
+        </div>
       </div>
 
       {/* Name + Status + Featured */}
