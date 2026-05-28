@@ -114,9 +114,9 @@ export default function SearchFab() {
         .catch(() => {});
     }
     if (!countries.length) {
-      // withServiceAreas=1 → only countries that have at least one configured
-      // ServiceArea. Countries without any area are hidden from the chip strip.
-      fetch(`/api/public/countries?lang=${lang}&withServiceAreas=1`)
+      // withBoats=1 → only countries with ≥1 PUBLISHED boat linked through a
+      // ServiceArea. Hides chips that would yield zero search results.
+      fetch(`/api/public/countries?lang=${lang}&withBoats=1`)
         .then(r => r.ok ? r.json() : [])
         .then((data: Country[]) => setCountries(Array.isArray(data) ? data : []))
         .catch(() => {});
