@@ -114,7 +114,9 @@ export default function SearchFab() {
         .catch(() => {});
     }
     if (!countries.length) {
-      fetch(`/api/public/countries?lang=${lang}`)
+      // withServiceAreas=1 → only countries that have at least one configured
+      // ServiceArea. Countries without any area are hidden from the chip strip.
+      fetch(`/api/public/countries?lang=${lang}&withServiceAreas=1`)
         .then(r => r.ok ? r.json() : [])
         .then((data: Country[]) => setCountries(Array.isArray(data) ? data : []))
         .catch(() => {});
