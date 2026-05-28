@@ -11,6 +11,9 @@ import { prisma } from "@/lib/prisma";
  *  - date=YYYY-MM-DD  → DAYTRIP: exact day match
  *  - month=YYYY-MM    → LIVEABOARD: any schedule in that month
  *  - serviceAreaId=... → optional; restrict to boats in that area
+ *  - countryCode=TH|MV|... → optional; restrict to boats whose service-area
+ *      belongs to this Country.code. Lower-priority than serviceAreaId — if
+ *      both are passed, serviceAreaId wins.
  *  - lang=en|th|...    → pick translation language
  *
  * Returns schedule rows, each with boat info and inline package list so the
@@ -22,6 +25,7 @@ export async function GET(req: NextRequest) {
   const date            = searchParams.get("date");
   const month           = searchParams.get("month");
   const serviceAreaId   = searchParams.get("serviceAreaId");
+  const countryCode     = searchParams.get("countryCode")?.toUpperCase() || null;
   const lang            = searchParams.get("lang") || "en";
 
   if (typeParam !== "DAYTRIP" && typeParam !== "LIVEABOARD") {
@@ -62,6 +66,8 @@ export async function GET(req: NextRequest) {
   };
   if (serviceAreaId) {
     boatWhere.serviceAreas = { some: { serviceAreaId } };
+  } else if (countryCode) {
+    boatWhere.serviceAreas = { some: { serviceArea: { country: { code: countryCode } } } };
   }
 
   const schedules = await prisma.schedule.findMany({

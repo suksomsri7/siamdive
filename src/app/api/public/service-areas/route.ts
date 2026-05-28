@@ -2,18 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * GET /api/public/service-areas?lang=en
+ * GET /api/public/service-areas?lang=&countryCode=&countryId=
  *
- * Public, unauthenticated list of service areas for the search filter dropdown.
- * Returns only areas that are referenced by at least one PUBLISHED boat — we
- * don't want empty locations littering the dropdown.
+ * Public list of service areas for the search filter dropdown.
+ *
+ * Params:
+ *  - lang        → pick translation language (default "en")
+ *  - countryCode → optional; restrict to a single Country.code (TH/MV/EG/…)
+ *  - countryId   → optional; restrict to a single Country.id (alternative to countryCode)
+ *
+ * The response now always includes `countryId` and `countryCode` so callers
+ * can group/filter client-side without an extra round-trip.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lang = searchParams.get("lang") || "en";
+  const countryCode = searchParams.get("countryCode")?.toUpperCase() || null;
+  const countryId = searchParams.get("countryId") || null;
 
   const areas = await prisma.serviceArea.findMany({
-    include: { translations: { select: { lang: true, name: true } } },
+    where: countryId
+      ? { countryId }
+      : countryCode
+        ? { country: { code: countryCode } }
+        : {},
+    include: {
+      translations: { select: { lang: true, name: true } },
+      country: { select: { id: true, code: true } },
+    },
     orderBy: { id: "asc" },
   });
 
@@ -21,8 +37,10 @@ export async function GET(req: NextRequest) {
     arr.find(t => t.lang === lang) || arr.find(t => t.lang === "en") || arr[0];
 
   const result = areas.map(a => ({
-    id:   a.id,
-    name: pick(a.translations)?.name || "(unnamed)",
+    id:          a.id,
+    name:        pick(a.translations)?.name || "(unnamed)",
+    countryId:   a.country?.id ?? null,
+    countryCode: a.country?.code ?? null,
   }));
 
   return NextResponse.json(result);

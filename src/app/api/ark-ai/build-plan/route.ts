@@ -5,7 +5,7 @@ import { isComplete, type Slots } from "@/lib/ark-ai/slots";
 import { buildPlanSignature } from "@/lib/ark-ai/plan-signature";
 import { findRecentDeletion, clearDeletedSignature } from "@/lib/ark-ai/deleted-sigs";
 import {
-  regionMatchesArea,
+  regionMatchesArea, regionMatchesCountry,
   dateProximity,
   lowestCert,
   similanClosed,
@@ -178,7 +178,14 @@ export async function POST(req: NextRequest) {
         include: {
           translations: { select: { lang: true, title: true, slug: true } },
           serviceAreas: {
-            include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } },
+            include: {
+              serviceArea: {
+                include: {
+                  translations: { select: { lang: true, name: true } },
+                  country: { select: { code: true } },
+                },
+              },
+            },
           },
         },
       },
@@ -200,6 +207,14 @@ export async function POST(req: NextRequest) {
 
   const inRegion = schedules.filter(s => {
     if (region === "both") return true;
+    // Prefer canonical country relation when available — falls back to
+    // area-name substring match for legacy data without countryId.
+    const countryCodes = s.boat.serviceAreas
+      .map(sa => sa.serviceArea.country?.code)
+      .filter((c): c is string => !!c);
+    if (countryCodes.length) {
+      return countryCodes.some(c => regionMatchesCountry(region, c));
+    }
     const areas = s.boat.serviceAreas
       .map(sa => pickByLang(sa.serviceArea.translations, lang)?.name || "")
       .filter(Boolean);

@@ -6,24 +6,79 @@
 import type { Slots, Region, CertLevel } from "./slots";
 
 // Region heuristics. Match against ServiceArea translation name (any lang).
-// Lowercase everything before comparing. "both" → no filter.
-const ANDAMAN_KEYWORDS = [
-  "andaman", "phuket", "krabi", "phi phi", "similan", "surin", "lipe",
-  "phang nga", "khao lak", "racha", "hin daeng", "hin muang",
-  "ภูเก็ต", "กระบี่", "พีพี", "สิมิลัน", "สุรินทร์", "ลีเป๊ะ",
-  "อันดามัน", "พังงา", "เขาหลัก", "ราชา", "หินแดง", "หินม่วง",
-];
-const GULF_KEYWORDS = [
-  "gulf", "ko tao", "koh tao", "pha ngan", "phangan", "samui",
-  "chumphon", "sail rock",
-  "เกาะเต่า", "พงัน", "พะงัน", "สมุย", "ชุมพร", "อ่าวไทย", "หินใบ",
-];
+// Lowercase everything before comparing. "both" (TH either coast) → no filter.
+// Each region has a list of substrings — if the area name in any language
+// contains one of these, the area is considered to belong to that region.
+const REGION_KEYWORDS: Record<Exclude<Region, "both">, string[]> = {
+  andaman: [
+    "andaman", "phuket", "krabi", "phi phi", "similan", "surin", "lipe",
+    "phang nga", "khao lak", "racha", "hin daeng", "hin muang",
+    "ภูเก็ต", "กระบี่", "พีพี", "สิมิลัน", "สุรินทร์", "ลีเป๊ะ",
+    "อันดามัน", "พังงา", "เขาหลัก", "ราชา", "หินแดง", "หินม่วง",
+  ],
+  gulf: [
+    "gulf", "ko tao", "koh tao", "pha ngan", "phangan", "samui",
+    "chumphon", "sail rock",
+    "เกาะเต่า", "พงัน", "พะงัน", "สมุย", "ชุมพร", "อ่าวไทย", "หินใบ",
+  ],
+  maldives: [
+    "maldives", "male", "atoll", "ari", "vaavu", "baa", "lhaviyani",
+    "noonu", "rasdhoo", "fuvahmulah",
+    "มัลดีฟส์",
+  ],
+  red_sea: [
+    "red sea", "egypt", "hurghada", "dahab", "sharm", "marsa alam",
+    "brothers", "elphinstone", "daedalus",
+    "ทะเลแดง", "อียิปต์",
+  ],
+  indonesia: [
+    "indonesia", "komodo", "raja ampat", "bali", "lembeh", "bunaken",
+    "alor", "ambon", "manado",
+    "อินโดนีเซีย", "คอมโด", "ราจาอัมพัท", "บาหลี",
+  ],
+  palau: [
+    "palau", "koror", "blue corner", "german channel",
+    "ปาเลา",
+  ],
+  philippines: [
+    "philippines", "tubbataha", "anilao", "coron", "puerto galera",
+    "cebu", "malapascua", "moalboal", "dumaguete",
+    "ฟิลิปปินส์",
+  ],
+  malaysia: [
+    "malaysia", "sipadan", "layang", "mabul", "kapalai", "tioman",
+    "perhentian", "redang",
+    "มาเลเซีย",
+  ],
+};
 
 export function regionMatchesArea(region: Region, areaName: string): boolean {
   if (region === "both") return true;
   const lower = areaName.toLowerCase();
-  const list = region === "andaman" ? ANDAMAN_KEYWORDS : GULF_KEYWORDS;
+  const list = REGION_KEYWORDS[region];
+  if (!list) return false;
   return list.some(k => lower.includes(k));
+}
+
+// Same idea but matches against the canonical Country.code on the
+// service-area. Preferred over name-substring matching when callers can
+// supply the country code, since it's the canonical relation introduced
+// 2026-05-28. Falls back to area-name matching for the legacy Thai
+// regions (andaman/gulf/both) — those split a single country into coasts.
+export function regionMatchesCountry(region: Region, countryCode?: string | null): boolean {
+  if (!countryCode) return false;
+  switch (region) {
+    case "maldives":    return countryCode === "MV";
+    case "red_sea":     return countryCode === "EG";
+    case "indonesia":   return countryCode === "ID";
+    case "palau":       return countryCode === "PW";
+    case "philippines": return countryCode === "PH";
+    case "malaysia":    return countryCode === "MY";
+    case "andaman":
+    case "gulf":
+    case "both":
+      return countryCode === "TH";
+  }
 }
 
 // Days off the requested window. 0 = within range. >0 = N days before/after.
@@ -75,9 +130,15 @@ export function buildPlanName(slots: Slots, lang: string): string {
   const dateText = dates?.label
     || (dates?.to && dates.to !== dates.from ? `${dates.from} → ${dates.to}` : dates?.from || "");
   const regionLabel: Record<Region, { th: string; en: string }> = {
-    andaman: { th: "อันดามัน", en: "Andaman" },
-    gulf: { th: "อ่าวไทย", en: "Gulf" },
-    both: { th: "ไทย", en: "Thailand" },
+    andaman:     { th: "อันดามัน",   en: "Andaman" },
+    gulf:        { th: "อ่าวไทย",    en: "Gulf" },
+    both:        { th: "ไทย",        en: "Thailand" },
+    maldives:    { th: "มัลดีฟส์",    en: "Maldives" },
+    red_sea:     { th: "ทะเลแดง",   en: "Red Sea" },
+    indonesia:   { th: "อินโดนีเซีย", en: "Indonesia" },
+    palau:       { th: "ปาเลา",      en: "Palau" },
+    philippines: { th: "ฟิลิปปินส์",   en: "Philippines" },
+    malaysia:    { th: "มาเลเซีย",   en: "Malaysia" },
   };
   const r = slots.region ? regionLabel[slots.region] : null;
   // Sprint 3 B2 — annotate the plan name when the group is mixed so the

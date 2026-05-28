@@ -21,6 +21,10 @@ export type RagBoat = {
   cover: string | null;
   area: string;
   areaIds: string[];
+  /** Distinct country codes across this boat's service areas, e.g. ["TH"] or ["TH","MV"]. */
+  countryCodes: string[];
+  /** Localised country names for display, e.g. ["มัลดีฟส์","ประเทศไทย"]. */
+  countryNames: string[];
   minPrice: number;
   capacity: number | null;
   packages: RagPackage[];
@@ -44,6 +48,10 @@ export type RagSchedule = {
   status: string;
   minPrice: number;
   area: string;
+  /** Distinct country codes from the boat's service areas. */
+  countryCodes: string[];
+  /** Localised country names for chat display. */
+  countryNames: string[];
   packages: RagSchedulePackage[];
 };
 
@@ -71,7 +79,18 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
     include: {
       translations: { select: { lang: true, title: true, slug: true, excerpt: true, content: true } },
       priceTiers: { select: { regularPrice: true, salePrice: true } },
-      serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
+      serviceAreas: {
+        include: {
+          serviceArea: {
+            include: {
+              translations: { select: { lang: true, name: true } },
+              country: {
+                include: { translations: { select: { lang: true, name: true } } },
+              },
+            },
+          },
+        },
+      },
       packages: {
         where: { status: "PUBLISHED" as any },
         include: {
@@ -92,6 +111,15 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       const pt = pick(p.translations, lang);
       return { title: pt?.title || "", excerpt: pt?.excerpt || "" };
     }).filter(p => p.title);
+    const countryCodes = Array.from(new Set(
+      b.serviceAreas.map(sa => sa.serviceArea.country?.code).filter((c): c is string => !!c)
+    ));
+    const countryNames = Array.from(new Set(
+      b.serviceAreas
+        .map(sa => sa.serviceArea.country)
+        .filter((c): c is NonNullable<typeof c> => !!c)
+        .map(c => pick(c.translations, lang)?.name || c.code)
+    ));
     return {
       id: b.id,
       name: b.name,
@@ -103,6 +131,8 @@ export async function searchBoats(lang: Lang, types?: string[]): Promise<RagBoat
       cover: b.covers[0] || null,
       area: area?.name || "",
       areaIds: b.serviceAreas.map(sa => sa.serviceAreaId),
+      countryCodes,
+      countryNames,
       minPrice: prices.length ? Math.min(...prices) : 0,
       capacity: b.capacity,
       packages: pkgs,
@@ -130,7 +160,18 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
       boat: {
         include: {
           translations: { select: { lang: true, title: true, slug: true } },
-          serviceAreas: { include: { serviceArea: { include: { translations: { select: { lang: true, name: true } } } } } },
+          serviceAreas: {
+        include: {
+          serviceArea: {
+            include: {
+              translations: { select: { lang: true, name: true } },
+              country: {
+                include: { translations: { select: { lang: true, name: true } } },
+              },
+            },
+          },
+        },
+      },
         },
       },
       packages: {
@@ -154,6 +195,15 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
     const area = s.boat.serviceAreas[0]?.serviceArea
       ? pick(s.boat.serviceAreas[0].serviceArea.translations, lang)
       : null;
+    const countryCodes = Array.from(new Set(
+      s.boat.serviceAreas.map(sa => sa.serviceArea.country?.code).filter((c): c is string => !!c)
+    ));
+    const countryNames = Array.from(new Set(
+      s.boat.serviceAreas
+        .map(sa => sa.serviceArea.country)
+        .filter((c): c is NonNullable<typeof c> => !!c)
+        .map(c => pick(c.translations, lang)?.name || c.code)
+    ));
     const allPrices = s.packages.flatMap(sp => {
       const overrides = sp.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
       const defaults = sp.package.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
@@ -183,6 +233,8 @@ export async function searchSchedules(lang: Lang, opts?: { boatIds?: string[]; f
       status: s.status,
       minPrice: allPrices.length ? Math.min(...allPrices) : 0,
       area: area?.name || "",
+      countryCodes,
+      countryNames,
       packages: pkgs,
     };
   });
@@ -238,11 +290,12 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
   const kw = query ? extractKeywords(query) : [];
 
   const availableAreas = [...new Set(boats.map(b => b.area).filter(Boolean))];
+  const availableCountries = [...new Set(boats.flatMap(b => b.countryNames).filter(Boolean))];
 
   if (boats.length) {
     const scored = boats.map(b => ({
       b,
-      score: kw.length ? scoreMatch(`${b.title} ${b.type} ${b.area} ${b.name} ${b.excerpt}`, kw) : 0,
+      score: kw.length ? scoreMatch(`${b.title} ${b.type} ${b.area} ${b.countryNames.join(" ")} ${b.name} ${b.excerpt}`, kw) : 0,
     }));
     scored.sort((a, b) => b.score - a.score);
 
@@ -255,8 +308,13 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
       ? `\n**Available areas: ${availableAreas.join(", ")}** — trips ONLY exist in these areas. If user asks for an area not listed here (e.g. Pattaya, Koh Tao, Koh Lipe), tell them we don't have trips there yet and suggest from available areas.`
       : `\n**Note:** boats below have no area tag in the database — DO NOT refuse the user just because area is blank. Apply system prompt rule 3 (recommend boats anyway with the "operating area to be confirmed at booking" caveat for Andaman destinations).`;
 
-    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)${areaHint}\n\n` + scored.map(({ b, score }) => {
-      let line = `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}" | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`;
+    const countryHint = availableCountries.length
+      ? `\n**Destination countries in this list: ${availableCountries.join(", ")}.** If the user asks about a country not in this list (e.g. Caribbean, Galápagos), say SiamDive doesn't carry it yet and suggest the closest available country.`
+      : "";
+
+    parts.push(`## Available Trips/Boats — ONLY THESE EXIST (${scored.length} total)${areaHint}${countryHint}\n\n` + scored.map(({ b, score }) => {
+      const countryTag = b.countryNames.length ? ` | country: "${b.countryNames.join(" / ")}"` : "";
+      let line = `- ${score > 0 ? "⭐ " : ""}[${b.type}] title: "${b.title}" | area: "${b.area}"${countryTag} | slug: "${b.slug}" | boatId: "${b.id}"${b.cover ? ` | cover: "${b.cover}"` : ""}${b.capacity ? ` | capacity: ${b.capacity}` : ""}`;
       if (b.excerpt) line += `\n  Summary: ${b.excerpt}`;
       if (b.details) line += `\n  Details: ${b.details}`;
       if (b.packages.length) line += `\n  Packages: ${b.packages.map(p => `${p.title}${p.excerpt ? ` (${p.excerpt})` : ""}`).join(" | ")}`;
@@ -272,7 +330,8 @@ export function buildRagContext(boats: RagBoat[], schedules: RagSchedule[], blog
     scored.sort((a, b) => b.score - a.score);
 
     parts.push("## Upcoming Schedules\n" + scored.map(({ s, score }) => {
-      let line = `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | status: ${s.status} | area: "${s.area}" | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}" | scheduleId: "${s.id}"`;
+      const countryTag = s.countryNames.length ? ` | country: "${s.countryNames.join(" / ")}"` : "";
+      let line = `- ${score > 0 ? "⭐ " : ""}boatTitle: "${s.boatTitle}" | date: ${s.departureDate || "TBD"}${s.returnDate ? ` → ${s.returnDate}` : ""} | status: ${s.status} | area: "${s.area}"${countryTag} | boatId: "${s.boatId}" | boatSlug: "${s.boatSlug}" | scheduleId: "${s.id}"`;
       if (s.packages.length) {
         line += `\n  Packages for this schedule:`;
         s.packages.forEach(p => {

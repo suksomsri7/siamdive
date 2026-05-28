@@ -26,17 +26,19 @@ const TYPE_LABEL: Record<string, string> = {
   "freedive":   "Freedive Trips",
 };
 
-// Country-specific liveaboard listings. The segment maps to a region keyword
-// matched case-insensitively against ServiceAreaTranslation.name (any lang).
+// Country-specific liveaboard listings. The segment maps to a canonical
+// Country.code (TH/MV/EG/ID/PW/PH) — boats are filtered via the
+// ServiceArea → Country relation introduced 2026-05-28.
 // Empty listings are fine — these URLs exist as menu entries, content is
-// added by tagging boats with a matching service area.
-const LIVEABOARD_COUNTRY_SEGMENT: Record<string, { region: string; label: string }> = {
-  "liveaboard-thailand":    { region: "thailand",    label: "Thailand Liveaboards"    },
-  "liveaboard-maldives":    { region: "maldives",    label: "Maldives Liveaboards"    },
-  "liveaboard-red-sea":     { region: "red sea",     label: "Red Sea Liveaboards"     },
-  "liveaboard-indonesia":   { region: "indonesia",   label: "Indonesia Liveaboards"   },
-  "liveaboard-palau":       { region: "palau",       label: "Palau Liveaboards"       },
-  "liveaboard-philippines": { region: "philippines", label: "Philippines Liveaboards" },
+// added by tagging boats with a service area belonging to that country.
+const LIVEABOARD_COUNTRY_SEGMENT: Record<string, { countryCode: string; label: string }> = {
+  "liveaboard-thailand":    { countryCode: "TH", label: "Thailand Liveaboards"    },
+  "liveaboard-maldives":    { countryCode: "MV", label: "Maldives Liveaboards"    },
+  "liveaboard-red-sea":     { countryCode: "EG", label: "Red Sea Liveaboards"     },
+  "liveaboard-indonesia":   { countryCode: "ID", label: "Indonesia Liveaboards"   },
+  "liveaboard-palau":       { countryCode: "PW", label: "Palau Liveaboards"       },
+  "liveaboard-philippines": { countryCode: "PH", label: "Philippines Liveaboards" },
+  "liveaboard-malaysia":    { countryCode: "MY", label: "Malaysia Liveaboards"    },
 };
 
 // Area-filtered listings for daytrip / land-tour / etc. The boatType pins the
@@ -119,11 +121,10 @@ const getBoatsByType = unstable_cache(
   { revalidate: 60 },
 );
 
-// Same shape as getBoatsByType but with a region filter — any boat whose
-// ServiceArea has a translation.name containing the region keyword (case
-// insensitive) is included. Cached per region so lookups are cheap.
-const getLiveaboardsByRegion = unstable_cache(
-  async (region: string) => prisma.boat.findMany({
+// Same shape as getBoatsByType but filtered by Country.code via the
+// canonical ServiceArea → Country relation. Cached per country code.
+const getLiveaboardsByCountryCode = unstable_cache(
+  async (countryCode: string) => prisma.boat.findMany({
     where: {
       type: "LIVEABOARD",
       status: "PUBLISHED",
@@ -131,9 +132,7 @@ const getLiveaboardsByRegion = unstable_cache(
       serviceAreas: {
         some: {
           serviceArea: {
-            translations: {
-              some: { name: { contains: region, mode: "insensitive" } },
-            },
+            country: { code: countryCode },
           },
         },
       },
@@ -151,7 +150,7 @@ const getLiveaboardsByRegion = unstable_cache(
     },
     orderBy: { createdAt: "desc" },
   }),
-  ["liveaboards-by-region"],
+  ["liveaboards-by-country-code"],
   { revalidate: 60 },
 );
 
@@ -405,13 +404,7 @@ export default async function TripSegmentPage({
   // ── Country-filtered liveaboard listing ─────────────────────────────────────
   const countrySeg = LIVEABOARD_COUNTRY_SEGMENT[segment];
   if (countrySeg) {
-    // "thailand" is the catalog default — every published liveaboard belongs
-    // to a Thai service area (Phuket, Krabi, Trang, …) but no service area
-    // translation contains the literal "thailand", so a region match would
-    // return zero. Bypass the region filter for that case.
-    const boats = countrySeg.region === "thailand"
-      ? await getBoatsByType("LIVEABOARD")
-      : await getLiveaboardsByRegion(countrySeg.region);
+    const boats = await getLiveaboardsByCountryCode(countrySeg.countryCode);
     const trips = boats.map(boatToListItem);
 
     return (

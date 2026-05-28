@@ -88,12 +88,22 @@ const SECTIONS = [
         ],
       },
       {
+        resource: "Countries / ประเทศ",
+        perm: "countries",
+        routes: [
+          { method:"GET",    path:"/countries",      perm:"countries.read",   desc:"รายการประเทศ (code, flag, ชื่อ 8 ภาษา)" },
+          { method:"POST",   path:"/countries",      perm:"countries.write",  desc:"สร้างประเทศใหม่ (body: code, flag, order, status, translations[])" },
+          { method:"PUT",    path:"/countries/:id",  perm:"countries.write",  desc:"แก้ไขประเทศ" },
+          { method:"DELETE", path:"/countries/:id",  perm:"countries.delete", desc:"ลบประเทศ (ลบไม่ได้ถ้ายังมี ServiceArea อยู่ใต้)" },
+        ],
+      },
+      {
         resource: "Service Areas / จุดดำน้ำ",
         perm: "service-areas",
         routes: [
-          { method:"GET",    path:"/service-areas",      perm:"service-areas.read",   desc:"รายการจุดดำน้ำ" },
-          { method:"POST",   path:"/service-areas",      perm:"service-areas.write",  desc:"สร้างจุดดำน้ำใหม่" },
-          { method:"PUT",    path:"/service-areas/:id",  perm:"service-areas.write",  desc:"แก้ไขจุดดำน้ำ" },
+          { method:"GET",    path:"/service-areas",      perm:"service-areas.read",   desc:"รายการจุดดำน้ำ (response: countryId + nested country)" },
+          { method:"POST",   path:"/service-areas",      perm:"service-areas.write",  desc:"สร้างจุดดำน้ำใหม่ — ต้องส่ง countryId เพื่อผูกประเทศ" },
+          { method:"PUT",    path:"/service-areas/:id",  perm:"service-areas.write",  desc:"แก้ไขจุดดำน้ำ / ย้ายประเทศ (ส่ง countryId)" },
           { method:"DELETE", path:"/service-areas/:id",  perm:"service-areas.delete", desc:"ลบจุดดำน้ำ" },
         ],
       },
@@ -295,6 +305,7 @@ export default function ApiDocsPage() {
             "scuba-courses.read/write/delete",
             "freedive-courses.read/write/delete",
             "companies.read/write/delete",
+            "countries.read/write/delete",
             "service-areas.read/write/delete",
             "blogs.read/write/delete",
             "upload.write",

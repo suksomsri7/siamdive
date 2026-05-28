@@ -34,7 +34,8 @@ type Result = {
   packages: Pkg[];
 };
 
-type Area = { id: string; name: string };
+type Area = { id: string; name: string; countryId: string | null; countryCode: string | null };
+type Country = { id: string; code: string; flag: string; name: string };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const thisMonthISO = () => new Date().toISOString().slice(0, 7);
@@ -58,6 +59,8 @@ const T = {
   monthYear:      { en: "Month / Year",      th: "เดือน / ปี",     cn: "月份 / 年",       ja: "月 / 年",           ko: "월 / 년",          de: "Monat / Jahr",       fr: "Mois / année",          ru: "Месяц / год" },
   location:       { en: "Location",          th: "พื้นที่ให้บริการ", cn: "服务区域",       ja: "エリア",             ko: "지역",              de: "Servicegebiet",      fr: "Zone de service",       ru: "Регион" },
   allAreas:       { en: "— All areas —",     th: "— ทุกพื้นที่ —",  cn: "— 全部区域 —",   ja: "— すべての地域 —",  ko: "— 전체 지역 —",   de: "— Alle Gebiete —",   fr: "— Toutes les zones —",  ru: "— Все регионы —" },
+  country:        { en: "Country",           th: "ประเทศ",        cn: "国家",            ja: "国",                 ko: "국가",              de: "Land",               fr: "Pays",                  ru: "Страна" },
+  allCountries:   { en: "All countries",     th: "ทุกประเทศ",     cn: "全部国家",        ja: "すべての国",         ko: "전체 국가",         de: "Alle Länder",        fr: "Tous les pays",         ru: "Все страны" },
   searching:      { en: "Searching...",      th: "กำลังค้นหา...",  cn: "搜索中...",       ja: "検索中...",          ko: "검색 중...",        de: "Suche läuft...",     fr: "Recherche...",          ru: "Поиск..." },
   search:         { en: "Search",            th: "ค้นหา",         cn: "搜索",            ja: "検索",               ko: "검색",              de: "Suchen",             fr: "Rechercher",            ru: "Найти" },
   opening:        { en: "Opening trip...",   th: "กำลังเปิดข้อมูลทริป...", cn: "正在打开行程...", ja: "ツアーを開いています...", ko: "여정 정보 여는 중...", de: "Tour wird geöffnet...", fr: "Ouverture du voyage...", ru: "Открываем поездку..." },
@@ -85,6 +88,8 @@ export default function SearchFab() {
   const [month,        setMonth]        = useState<string>(thisMonthISO());
   const [areaId,       setAreaId]       = useState<string>("");
   const [areas,        setAreas]        = useState<Area[]>([]);
+  const [countryCode,  setCountryCode]  = useState<string>("");   // "" = all
+  const [countries,    setCountries]    = useState<Country[]>([]);
   const [loading,      setLoading]      = useState(false);
   const [results,      setResults]      = useState<Result[] | null>(null);
   const [resultsType,  setResultsType]  = useState<TripType | null>(null);
@@ -99,14 +104,34 @@ export default function SearchFab() {
     setCollapsed(false);
   };
 
-  // Fetch service areas once when modal opens
+  // Fetch service areas + countries once when modal opens
   useEffect(() => {
-    if (!open || areas.length) return;
-    fetch(`/api/public/service-areas?lang=${lang}`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: Area[]) => setAreas(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, [open, lang, areas.length]);
+    if (!open) return;
+    if (!areas.length) {
+      fetch(`/api/public/service-areas?lang=${lang}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Area[]) => setAreas(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }
+    if (!countries.length) {
+      fetch(`/api/public/countries?lang=${lang}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Country[]) => setCountries(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    }
+  }, [open, lang, areas.length, countries.length]);
+
+  // Reset area when country changes if the picked area no longer belongs.
+  useEffect(() => {
+    if (!areaId) return;
+    if (!countryCode) return;
+    const a = areas.find(x => x.id === areaId);
+    if (a && a.countryCode !== countryCode) setAreaId("");
+  }, [countryCode, areaId, areas]);
+
+  const filteredAreas = countryCode
+    ? areas.filter(a => a.countryCode === countryCode)
+    : areas;
 
   const search = useCallback(async () => {
     setLoading(true);
@@ -115,8 +140,10 @@ export default function SearchFab() {
     if (type === "DAYTRIP") {
       params.set("date", date);
       if (areaId) params.set("serviceAreaId", areaId);
+      else if (countryCode) params.set("countryCode", countryCode);
     } else {
       params.set("month", month);
+      if (countryCode) params.set("countryCode", countryCode);
     }
     try {
       const res = await fetch(`/api/public/search?${params}`).then(r => r.ok ? r.json() : []);
@@ -124,21 +151,21 @@ export default function SearchFab() {
       setResults(arr);
       setResultsType(type);
       trackSearch(
-        type === "DAYTRIP" ? `${type} ${date}${areaId ? ` area:${areaId}` : ""}` : `${type} ${month}`,
+        type === "DAYTRIP"
+          ? `${type} ${date}${areaId ? ` area:${areaId}` : countryCode ? ` country:${countryCode}` : ""}`
+          : `${type} ${month}${countryCode ? ` country:${countryCode}` : ""}`,
         arr.length,
-        { type, date, month, areaId: areaId || null, lang },
+        { type, date, month, areaId: areaId || null, countryCode: countryCode || null, lang },
       );
-      // Collapse the form after a successful search to free up result space.
-      // Keep expanded when no results so user can tweak query.
       if (arr.length > 0) setCollapsed(true);
     } catch {
       setResults([]);
       setResultsType(type);
-      trackSearch(`${type} (error)`, 0, { type, date, month, areaId: areaId || null, lang, error: true });
+      trackSearch(`${type} (error)`, 0, { type, date, month, areaId: areaId || null, countryCode: countryCode || null, lang, error: true });
     } finally {
       setLoading(false);
     }
-  }, [type, date, month, areaId, lang]);
+  }, [type, date, month, areaId, countryCode, lang]);
 
   useEffect(() => {
     const handler = () => setOpen(true);
@@ -256,7 +283,45 @@ export default function SearchFab() {
                   )}
                 </div>
 
-                {/* Location filter — Scuba Day Trips only */}
+                {/* Country filter — both DAYTRIP & LIVEABOARD */}
+                {countries.length > 1 && (
+                  <div>
+                    <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
+                      {t("country")}
+                    </label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <button onClick={() => setCountryCode("")}
+                        style={{
+                          padding: "6px 12px", borderRadius: 18, border: "1px solid",
+                          fontSize: 12, fontWeight: 700, cursor: "pointer",
+                          background: !countryCode ? "#1e3a5f" : "#161616",
+                          borderColor: !countryCode ? "#3b82f6" : "#262626",
+                          color: !countryCode ? "#60a5fa" : "#888",
+                        }}>
+                        {t("allCountries")}
+                      </button>
+                      {countries.map(c => {
+                        const active = countryCode === c.code;
+                        return (
+                          <button key={c.code} onClick={() => setCountryCode(c.code)}
+                            style={{
+                              padding: "6px 12px", borderRadius: 18, border: "1px solid",
+                              fontSize: 12, fontWeight: 700, cursor: "pointer",
+                              background: active ? "#1e3a5f" : "#161616",
+                              borderColor: active ? "#3b82f6" : "#262626",
+                              color: active ? "#60a5fa" : "#888",
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                            }}>
+                            <span style={{ fontSize: 14 }}>{c.flag || "🏳️"}</span>
+                            <span>{c.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Location (area) filter — Scuba Day Trips only */}
                 {type === "DAYTRIP" && (
                   <div>
                     <label style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 6 }}>
@@ -265,7 +330,7 @@ export default function SearchFab() {
                     <select value={areaId} onChange={e => setAreaId(e.target.value)}
                       style={{ width: "100%", background: "#161616", border: "1px solid #262626", borderRadius: 10, color: "#f5f5f5", fontSize: 14, padding: "10px 14px", outline: "none", colorScheme: "dark", boxSizing: "border-box" }}>
                       <option value="">{t("allAreas")}</option>
-                      {areas.map(a => (
+                      {filteredAreas.map(a => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
                     </select>

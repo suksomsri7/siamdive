@@ -33,7 +33,16 @@ export async function GET(req: NextRequest) {
       videos: { orderBy: { order: "asc" } },
       priceTiers: true,
       schedules: { orderBy: { departureDate: "asc" }, include: { translations: true, packages: { include: { priceTiers: true } } } },
-      serviceAreas: { include: { serviceArea: { include: { translations: true } } } },
+      serviceAreas: {
+        include: {
+          serviceArea: {
+            include: {
+              translations: true,
+              country: { include: { translations: true } },
+            },
+          },
+        },
+      },
       _count: { select: { schedules: true } },
     },
     orderBy: { createdAt: "desc" },

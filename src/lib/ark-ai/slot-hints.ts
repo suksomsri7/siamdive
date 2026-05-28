@@ -113,12 +113,33 @@ const GULF_KEYWORDS = [
   "chumphon", "ชุมพร", "gulf", "อ่าวไทย",
   "sail rock", "เซลร็อค",
 ];
+// International destinations — added when Country became parent of ServiceArea.
+// Keep narrow / unambiguous keywords; the LLM can disambiguate the rest.
+const MALDIVES_KEYWORDS = ["maldives", "มัลดีฟส์", "male atoll", "ari atoll", "vaavu", "baa atoll", "fuvahmulah"];
+const RED_SEA_KEYWORDS = ["red sea", "ทะเลแดง", "อียิปต์", "egypt", "hurghada", "dahab", "sharm el sheikh", "marsa alam"];
+const INDONESIA_KEYWORDS = ["indonesia", "อินโดนีเซีย", "komodo", "คอมโด", "raja ampat", "ราจาอัมพัท", "bali", "บาหลี", "lembeh", "bunaken"];
+const PALAU_KEYWORDS = ["palau", "ปาเลา", "blue corner", "german channel"];
+const PHILIPPINES_KEYWORDS = ["philippines", "ฟิลิปปินส์", "tubbataha", "anilao", "coron", "malapascua", "moalboal"];
+const MALAYSIA_KEYWORDS = ["malaysia", "มาเลเซีย", "sipadan", "ซิปาดัน", "mabul", "layang layang", "perhentian"];
+
+function hasAny(msg: string, lower: string, list: string[]): boolean {
+  return list.some(k => lower.includes(k.toLowerCase()) || msg.includes(k));
+}
 
 export function extractRegionHint(msg: string): Region | null {
   if (!msg) return null;
   const lower = msg.toLowerCase();
-  const isAnd = ANDAMAN_KEYWORDS.some(k => lower.includes(k.toLowerCase()) || msg.includes(k));
-  const isGulf = GULF_KEYWORDS.some(k => lower.includes(k.toLowerCase()) || msg.includes(k));
+  // International first — if the user names a specific foreign destination,
+  // that should win over a Thai sub-region keyword that might co-occur.
+  if (hasAny(msg, lower, MALDIVES_KEYWORDS))    return "maldives";
+  if (hasAny(msg, lower, RED_SEA_KEYWORDS))     return "red_sea";
+  if (hasAny(msg, lower, INDONESIA_KEYWORDS))   return "indonesia";
+  if (hasAny(msg, lower, PALAU_KEYWORDS))       return "palau";
+  if (hasAny(msg, lower, PHILIPPINES_KEYWORDS)) return "philippines";
+  if (hasAny(msg, lower, MALAYSIA_KEYWORDS))    return "malaysia";
+
+  const isAnd = hasAny(msg, lower, ANDAMAN_KEYWORDS);
+  const isGulf = hasAny(msg, lower, GULF_KEYWORDS);
   if (isAnd && isGulf) return "both";
   if (isAnd) return "andaman";
   if (isGulf) return "gulf";

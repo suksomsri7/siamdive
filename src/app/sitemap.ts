@@ -21,6 +21,7 @@ const LIVEABOARD_COUNTRY_SEGMENTS = [
   "liveaboard-indonesia",
   "liveaboard-palau",
   "liveaboard-philippines",
+  "liveaboard-malaysia",
 ];
 // Type+area pages (Phuket / Samui) — same priority as the generic type pages.
 const AREA_TYPE_SEGMENTS = [

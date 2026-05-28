@@ -393,32 +393,78 @@ tools:
     method: DELETE
     path: /companies/{id}
 
+  # ── Countries ──────────────────────────────────────────────────────────────
+  # Country is the parent of ServiceArea — fetch this first when ingesting an
+  # operator so you can match service-areas within the right country and
+  # supply countryId when creating a new area.
+
+  - name: list_countries
+    description: List all countries with code, flag, order, status, and translations. Each row also returns _count.serviceAreas.
+    permission: "countries.read"
+    method: GET
+    path: /countries
+
+  - name: get_country
+    description: Get a single country by id with full translations.
+    permission: "countries.read"
+    method: GET
+    path: /countries/{id}
+
+  - name: create_country
+    description: Create a new country. code must be a unique ISO 2-letter (TH/MV/EG/ID/PW/PH/MY).
+    permission: "countries.write"
+    method: POST
+    path: /countries
+    body:
+      code: string
+      flag: string
+      order: number
+      status: "ACTIVE|INACTIVE"
+      translations:
+        - lang: string
+          name: string
+
+  - name: update_country
+    description: Update a country (replaces translations on every call).
+    permission: "countries.write"
+    method: PUT
+    path: /countries/{id}
+
+  - name: delete_country
+    description: Delete a country. Fails with 409 if any ServiceArea still references it — move those areas first.
+    permission: "countries.delete"
+    method: DELETE
+    path: /countries/{id}
+
   # ── Service Areas ──────────────────────────────────────────────────────────
+  # ServiceArea now has a countryId FK to Country. List response includes
+  # countryId and the nested country object with translations.
 
   - name: list_service_areas
-    description: List all dive destinations / service areas.
+    description: "List all dive destinations / service areas. Response includes countryId + nested country."
     permission: "service-areas.read"
     method: GET
     path: /service-areas
 
   - name: get_service_area
-    description: Get service area details with translations.
+    description: Get service area details with translations + country.
     permission: "service-areas.read"
     method: GET
     path: /service-areas/{id}
 
   - name: create_service_area
-    description: Create a new dive destination / service area.
+    description: "Create a new dive destination. countryId is recommended — pass the parent Country.id so the area lands under the correct country instead of being orphaned."
     permission: "service-areas.write"
     method: POST
     path: /service-areas
     body:
+      countryId: "string (recommended)"
       translations:
         - lang: string
           name: string
 
   - name: update_service_area
-    description: Full update of a service area (replaces translations).
+    description: "Full update of a service area (replaces translations on every call; pass countryId to move the area between countries)."
     permission: "service-areas.write"
     method: PUT
     path: /service-areas/{id}

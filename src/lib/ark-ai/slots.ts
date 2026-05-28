@@ -4,7 +4,15 @@
 // resume across refreshes. Required-3 (dates + headcount + region) unlocks the
 // "Build my plan" CTA which Phase 3 wires to /api/ark-ai/build-plan.
 
-export type Region = "andaman" | "gulf" | "both";
+// Region values:
+//   "andaman" | "gulf" | "both" → Thailand sub-regions (legacy)
+//   "maldives" | "red_sea" | "indonesia" | "palau" | "philippines" | "malaysia"
+//     → country-level destinations (rolled out 2026-05-28 when Country
+//        became the parent of ServiceArea). For these we filter at the
+//        country level since users rarely care about sub-regions abroad.
+export type Region =
+  | "andaman" | "gulf" | "both"
+  | "maldives" | "red_sea" | "indonesia" | "palau" | "philippines" | "malaysia";
 export type CertLevel = "none" | "ow" | "aow" | "rescue+";
 export type Style = "relaxed" | "intense" | "family" | "photography" | "training";
 export type TripCategory = "liveaboard" | "daytrip" | "snorkeling" | "land_tour";
@@ -64,7 +72,10 @@ export function isComplete(slots: Slots | null | undefined): boolean {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const REGIONS: Region[] = ["andaman", "gulf", "both"];
+const REGIONS: Region[] = [
+  "andaman", "gulf", "both",
+  "maldives", "red_sea", "indonesia", "palau", "philippines", "malaysia",
+];
 const CERTS: CertLevel[] = ["none", "ow", "aow", "rescue+"];
 const STYLES: Style[] = ["relaxed", "intense", "family", "photography", "training"];
 const TRIP_CATEGORIES: TripCategory[] = ["liveaboard", "daytrip", "snorkeling", "land_tour"];
@@ -255,7 +266,13 @@ User says: "ครอบครัว 4 คน 2 เด็ก" → {"headcount":{
 # Region few-shot:
 User says: "ภูเก็ต" / "Phi Phi" / "Similan" / "Krabi" / "Andaman" → {"region":"andaman"}
 User says: "Koh Tao" / "เกาะเต่า" / "Pha Ngan" / "Samui" → {"region":"gulf"}
-User says: "ที่ไหนก็ได้" / "either coast" / "open" → {"region":"both"}
+User says: "ที่ไหนก็ได้ในไทย" / "either Thai coast" / "anywhere in Thailand" → {"region":"both"}
+User says: "Maldives" / "มัลดีฟส์" / "Male" / "atoll" → {"region":"maldives"}
+User says: "Red Sea" / "ทะเลแดง" / "Egypt" / "อียิปต์" / "Hurghada" / "Dahab" → {"region":"red_sea"}
+User says: "Indonesia" / "อินโดนีเซีย" / "Komodo" / "Raja Ampat" / "Bali" → {"region":"indonesia"}
+User says: "Palau" / "ปาเลา" → {"region":"palau"}
+User says: "Philippines" / "ฟิลิปปินส์" / "Tubbataha" / "Anilao" → {"region":"philippines"}
+User says: "Malaysia" / "มาเลเซีย" / "Sipadan" / "Layang" → {"region":"malaysia"}
 
 # Cert few-shot:
 User says: "OW 2 คน" → {"certs":["ow","ow"]}
@@ -302,8 +319,8 @@ User says: "this weekend" → next Sat–Sun ISO
       },
       region: {
         type: "string",
-        enum: ["andaman", "gulf", "both"],
-        description: "andaman = Phuket/Krabi/Phi Phi/Similan/Surin/Lipe. gulf = Koh Tao/Pha Ngan/Samui/Chumphon. both = user is open to either coast.",
+        enum: ["andaman", "gulf", "both", "maldives", "red_sea", "indonesia", "palau", "philippines", "malaysia"],
+        description: "Destination. Thailand sub-regions: andaman = Phuket/Krabi/Phi Phi/Similan/Surin/Lipe; gulf = Koh Tao/Pha Ngan/Samui/Chumphon; both = either Thai coast. International (country-level): maldives = Maldives atolls; red_sea = Egypt Red Sea (Hurghada/Dahab); indonesia = Komodo/Raja Ampat/Bali; palau = Palau; philippines = Tubbataha/Anilao/Coron; malaysia = Sipadan/Layang.",
       },
       certs: {
         type: "array",
