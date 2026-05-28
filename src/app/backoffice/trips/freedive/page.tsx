@@ -71,7 +71,8 @@ type SchedForm = ReturnType<typeof emptySchedForm>;
 export default function FreedivePage() {
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [boats, setBoats] = useState<BoatRow[]>([]);
-  const [serviceAreas, setServiceAreas] = useState<{ id: string; translations: { lang: string; name: string }[] }[]>([]);
+  const [serviceAreas, setServiceAreas] = useState<{ id: string; countryId: string | null; translations: { lang: string; name: string }[] }[]>([]);
+  const [countries, setCountries] = useState<{ id: string; code: string; flag: string; translations: { lang: string; name: string }[] }[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [boatOpen, setBoatOpen] = useState(false);
   const [editBoatId, setEditBoatId] = useState<string | null>(null);
@@ -96,6 +97,8 @@ export default function FreedivePage() {
     setBoats(Array.isArray(boatData) ? boatData : []);
     const saData = await fetch("/api/service-areas").then(r => r.json()).catch(() => []);
     setServiceAreas(Array.isArray(saData) ? saData : []);
+    const ctData = await fetch("/api/countries").then(r => r.json()).catch(() => []);
+    setCountries(Array.isArray(ctData) ? ctData : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -259,7 +262,7 @@ export default function FreedivePage() {
               <button onClick={closeBoat} style={{ background: "none", border: "none", color: "#444", fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
             <div style={{ flex: 1, padding: "20px" }}>
-              <BoatForm form={boatForm} onChange={setBoatForm} companies={companyOptions} serviceAreas={serviceAreas} />
+              <BoatForm form={boatForm} onChange={setBoatForm} companies={companyOptions} serviceAreas={serviceAreas} countries={countries} />
             </div>
             <div style={{ position: "sticky", bottom: 0, padding: "14px 20px", background: "#0d0d0d", borderTop: "1px solid #111", display: "flex", gap: 10 }}>
               <button onClick={saveBoat} disabled={savingBoat} style={{ flex: 1, background: "#3b82f6", border: "none", color: "#fff", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 700, cursor: savingBoat ? "wait" : "pointer" }}>

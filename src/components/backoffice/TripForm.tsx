@@ -314,12 +314,37 @@ export interface BoatFormProps {
   form: BoatFormData;
   onChange: (f: BoatFormData) => void;
   companies: { id: string; name: string }[];
-  serviceAreas?: { id: string; translations: { lang: string; name: string }[] }[];
+  serviceAreas?: {
+    id: string;
+    countryId?: string | null;
+    translations: { lang: string; name: string }[];
+  }[];
+  countries?: {
+    id: string;
+    code: string;
+    flag: string;
+    translations: { lang: string; name: string }[];
+  }[];
   nameLabel?: string;
 }
 
-export function BoatForm({ form, onChange, companies, serviceAreas = [], nameLabel = "ชื่อเรือ (ภายใน)" }: BoatFormProps) {
+export function BoatForm({ form, onChange, companies, serviceAreas = [], countries = [], nameLabel = "ชื่อเรือ (ภายใน)" }: BoatFormProps) {
   const [activeLang, setActiveLang] = useState<LangKey>("en");
+  const [areaCountryId, setAreaCountryId] = useState<string>("");
+
+  // Auto-pick the country that owns the first selected service-area on mount/edit,
+  // or fall back to the first available country.
+  useEffect(() => {
+    if (areaCountryId) return;
+    if (countries.length === 0) return;
+    const firstSelectedArea = serviceAreas.find(a => form.serviceAreaIds.includes(a.id));
+    if (firstSelectedArea?.countryId) {
+      setAreaCountryId(firstSelectedArea.countryId);
+    } else {
+      setAreaCountryId(countries[0]!.id);
+    }
+  }, [countries, serviceAreas, form.serviceAreaIds, areaCountryId]);
+
   const set = (key: keyof BoatFormData, val: unknown) => onChange({ ...form, [key as string]: val });
   const setLang = (l: LangKey, f: string, v: string | string[]) => onChange({ ...form, [l]: { ...form[l], [f]: v } });
   const inp: React.CSSProperties = { width: "100%", background: "#161616", border: "1px solid #222", borderRadius: 7, color: "#ccc", fontSize: 13, padding: "9px 12px", outline: "none", boxSizing: "border-box" };
@@ -377,26 +402,77 @@ export function BoatForm({ form, onChange, companies, serviceAreas = [], nameLab
         <VideoGallery videos={form.videos} onChange={vids => set("videos", vids)} />
       </div>
 
-      {/* Service Areas */}
-      {serviceAreas.length > 0 && (
-        <div>
-          <label style={lbl}>พื้นที่ให้บริการ</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {serviceAreas.map(a => {
-              const checked = form.serviceAreaIds.includes(a.id);
-              const label = a.translations.find(t => t.lang === "en")?.name || a.translations.find(t => t.name)?.name || a.id;
-              return (
-                <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: checked ? "#1a2a3a" : "#111", border: `1px solid ${checked ? "#3b82f6" : "#222"}`, borderRadius: 20, padding: "5px 12px" }}>
-                  <input type="checkbox" checked={checked}
-                    onChange={e => set("serviceAreaIds", e.target.checked ? [...form.serviceAreaIds, a.id] : form.serviceAreaIds.filter(id => id !== a.id))}
-                    style={{ accentColor: "#3b82f6", width: 13, height: 13 }} />
-                  <span style={{ fontSize: 12, color: checked ? "#60a5fa" : "#555", fontWeight: checked ? 600 : 400 }}>{label}</span>
-                </label>
-              );
-            })}
+      {/* Country + Service Areas (country first, then areas) */}
+      {(countries.length > 0 || serviceAreas.length > 0) && (() => {
+        const pickName = (trs: { lang: string; name: string }[]) =>
+          trs.find(t => t.lang === "th")?.name || trs.find(t => t.lang === "en")?.name || trs.find(t => t.name)?.name || "";
+
+        const selectedCount = (cid: string) =>
+          serviceAreas.filter(a => a.countryId === cid && form.serviceAreaIds.includes(a.id)).length;
+
+        const visibleAreas = areaCountryId
+          ? serviceAreas.filter(a => a.countryId === areaCountryId)
+          : serviceAreas;
+
+        const totalSelected = form.serviceAreaIds.length;
+        const inCurrentCountry = areaCountryId ? selectedCount(areaCountryId) : totalSelected;
+        const inOtherCountries = totalSelected - inCurrentCountry;
+
+        return (
+          <div>
+            <label style={lbl}>ประเทศ &amp; พื้นที่ให้บริการ</label>
+
+            {/* Country chips */}
+            {countries.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {countries.map(c => {
+                  const active = areaCountryId === c.id;
+                  const count = selectedCount(c.id);
+                  return (
+                    <button key={c.id} type="button" onClick={() => setAreaCountryId(c.id)}
+                      style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: active ? "#1e3a5f" : "#111", border: `1px solid ${active ? "#3b82f6" : "#222"}`, borderRadius: 20, padding: "5px 12px" }}>
+                      <span style={{ fontSize: 14 }}>{c.flag || "🏳️"}</span>
+                      <span style={{ fontSize: 12, color: active ? "#60a5fa" : "#666", fontWeight: active ? 700 : 500 }}>
+                        {pickName(c.translations) || c.code}
+                      </span>
+                      {count > 0 && (
+                        <span style={{ fontSize: 9, background: "#3b82f6", color: "#fff", borderRadius: 8, padding: "0 5px", fontWeight: 700 }}>{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Filtered service-area chips */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {visibleAreas.length === 0 && (
+                <div style={{ fontSize: 11, color: "#444", padding: "8px 0" }}>
+                  ยังไม่มีพื้นที่ให้บริการในประเทศนี้ — เพิ่มที่ Settings → พื้นที่ให้บริการ
+                </div>
+              )}
+              {visibleAreas.map(a => {
+                const checked = form.serviceAreaIds.includes(a.id);
+                const label = pickName(a.translations) || a.id;
+                return (
+                  <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: checked ? "#1a2a3a" : "#111", border: `1px solid ${checked ? "#3b82f6" : "#222"}`, borderRadius: 20, padding: "5px 12px" }}>
+                    <input type="checkbox" checked={checked}
+                      onChange={e => set("serviceAreaIds", e.target.checked ? [...form.serviceAreaIds, a.id] : form.serviceAreaIds.filter(id => id !== a.id))}
+                      style={{ accentColor: "#3b82f6", width: 13, height: 13 }} />
+                    <span style={{ fontSize: 12, color: checked ? "#60a5fa" : "#555", fontWeight: checked ? 600 : 400 }}>{label}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {inOtherCountries > 0 && (
+              <div style={{ fontSize: 10, color: "#555", marginTop: 8 }}>
+                + เลือกในประเทศอื่นไว้ {inOtherCountries} พื้นที่ (สลับธงด้านบนเพื่อดู/แก้)
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Lang tabs */}
       <div>

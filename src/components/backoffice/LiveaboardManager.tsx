@@ -29,6 +29,18 @@ type CompanyRow = {
   id: string;
   translations: { lang: string; name: string }[];
 };
+type CountryRow = {
+  id: string;
+  code: string;
+  flag: string;
+  order: number;
+  translations: { lang: string; name: string }[];
+};
+type ServiceAreaRow = {
+  id: string;
+  countryId: string | null;
+  translations: { lang: string; name: string }[];
+};
 
 const TIERS = ["DIVER", "NON_DIVER"];
 const STATUS_OPTS = ["DRAFT", "OPEN", "FULL", "CANCELLED", "COMPLETED"] as const;
@@ -75,18 +87,15 @@ type SchedForm = ReturnType<typeof emptySchedForm>;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LiveaboardManager({
-  country,
   label = "🛳 Liveaboard",
 }: {
-  // When set, only boats whose ServiceArea translation.name contains the
-  // country keyword (case-insensitive in any lang) are shown. null/undefined
-  // shows all liveaboards.
-  country?: string;
   label?: string;
 } = {}) {
   const [companies, setCompanies] = useState<CompanyRow[]>([]);
   const [boats, setBoats] = useState<BoatRow[]>([]);
-  const [serviceAreas, setServiceAreas] = useState<{ id: string; translations: { lang: string; name: string }[] }[]>([]);
+  const [serviceAreas, setServiceAreas] = useState<ServiceAreaRow[]>([]);
+  const [countries, setCountries] = useState<CountryRow[]>([]);
+  const [filterCountryId, setFilterCountryId] = useState<string>(""); // "" = all
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   // Boat panel
@@ -109,14 +118,16 @@ export default function LiveaboardManager({
   const [schedPackageOptions, setSchedPackageOptions] = useState<PackageOption[]>([]);
 
   const load = useCallback(async () => {
-    const [coData, boatData] = await Promise.all([
+    const [coData, boatData, saData, ctData] = await Promise.all([
       fetch("/api/companies?minimal=1").then(r => r.json()).catch(() => []),
       fetch("/api/boats?type=LIVEABOARD").then(r => r.json()).catch(() => []),
+      fetch("/api/service-areas").then(r => r.json()).catch(() => []),
+      fetch("/api/countries").then(r => r.json()).catch(() => []),
     ]);
     setCompanies(Array.isArray(coData) ? coData : []);
     setBoats(Array.isArray(boatData) ? boatData : []);
-    const saData = await fetch("/api/service-areas").then(r => r.json()).catch(() => []);
     setServiceAreas(Array.isArray(saData) ? saData : []);
+    setCountries(Array.isArray(ctData) ? ctData : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -182,16 +193,18 @@ export default function LiveaboardManager({
     await fetch(`/api/schedules/${id}`, { method: "DELETE" }); load();
   };
 
-  // Country filter: match any serviceArea translation.name (any lang)
-  // containing the country keyword. Uses simple substring matching so
-  // "maldives" hits "Maldives", "Maldives Atoll", etc.
-  const visibleBoats = country
-    ? boats.filter(b => b.serviceAreas.some(sa =>
-        sa.serviceArea.translations.some(tr =>
-          tr.name.toLowerCase().includes(country.toLowerCase())
-        )
-      ))
+  // Country filter via service-area → country relation (uses canonical countryId,
+  // not substring matching on names).
+  const areaCountry = new Map(serviceAreas.map(a => [a.id, a.countryId]));
+  const visibleBoats = filterCountryId
+    ? boats.filter(b => b.serviceAreas.some(sa => areaCountry.get(sa.serviceAreaId) === filterCountryId))
     : boats;
+
+  const pickCountryName = (trs: { lang: string; name: string }[]) =>
+    trs.find(t => t.lang === "th")?.name || trs.find(t => t.lang === "en")?.name || trs.find(t => t.name)?.name || "";
+
+  const boatsByCountry = (cid: string) =>
+    boats.filter(b => b.serviceAreas.some(sa => areaCountry.get(sa.serviceAreaId) === cid)).length;
 
   const companyOptions = companies.map(c => ({ id: c.id, name: c.translations.find(t => t.lang === "en")?.name ?? c.translations[0]?.name ?? c.id }));
   const inp: React.CSSProperties = { background: "#161616", border: "1px solid #222", borderRadius: 7, color: "#ccc", fontSize: 13, padding: "9px 12px", outline: "none", boxSizing: "border-box", width: "100%" };
@@ -208,10 +221,36 @@ export default function LiveaboardManager({
         </button>
       </div>
 
+      {/* Country filter */}
+      {countries.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
+          <button onClick={() => setFilterCountryId("")}
+            style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: !filterCountryId ? "#1e3a5f" : "#111", border: `1px solid ${!filterCountryId ? "#3b82f6" : "#222"}`, borderRadius: 20, padding: "5px 14px" }}>
+            <span style={{ fontSize: 12, color: !filterCountryId ? "#60a5fa" : "#666", fontWeight: !filterCountryId ? 700 : 500 }}>ทุกประเทศ</span>
+            <span style={{ fontSize: 9, background: "#222", color: "#888", borderRadius: 8, padding: "0 5px", fontWeight: 700 }}>{boats.length}</span>
+          </button>
+          {countries.map(c => {
+            const active = filterCountryId === c.id;
+            const count = boatsByCountry(c.id);
+            if (count === 0 && !active) return null;
+            return (
+              <button key={c.id} onClick={() => setFilterCountryId(c.id)}
+                style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: active ? "#1e3a5f" : "#111", border: `1px solid ${active ? "#3b82f6" : "#222"}`, borderRadius: 20, padding: "5px 12px" }}>
+                <span style={{ fontSize: 14 }}>{c.flag || "🏳️"}</span>
+                <span style={{ fontSize: 12, color: active ? "#60a5fa" : "#666", fontWeight: active ? 700 : 500 }}>
+                  {pickCountryName(c.translations) || c.code}
+                </span>
+                <span style={{ fontSize: 9, background: "#222", color: "#888", borderRadius: 8, padding: "0 5px", fontWeight: 700 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {visibleBoats.length === 0 && (
         <div style={{ textAlign: "center", color: "#333", padding: "60px 0", fontSize: 14 }}>
-          {country
-            ? `ยังไม่มีเรือ Liveaboard ที่มีพื้นที่ให้บริการตรงกับ "${country}"`
+          {filterCountryId
+            ? "ยังไม่มีเรือ Liveaboard ในประเทศนี้"
             : "ยังไม่มีเรือ Liveaboard — กด + เพิ่มเรือ เพื่อเริ่ม"}
         </div>
       )}
@@ -316,7 +355,7 @@ export default function LiveaboardManager({
               <button onClick={closeBoat} style={{ background: "none", border: "none", color: "#444", fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
             <div style={{ flex: 1, padding: "20px" }}>
-              <BoatForm form={boatForm} onChange={setBoatForm} companies={companyOptions} serviceAreas={serviceAreas} />
+              <BoatForm form={boatForm} onChange={setBoatForm} companies={companyOptions} serviceAreas={serviceAreas} countries={countries} />
             </div>
             <div style={{ position: "sticky", bottom: 0, padding: "14px 20px", background: "#0d0d0d", borderTop: "1px solid #111", display: "flex", gap: 10 }}>
               <button onClick={saveBoat} disabled={savingBoat}
