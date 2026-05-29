@@ -67,8 +67,8 @@ export const MODELS: ModelAdapter[] = [
     blurb: "Google SOTA — realism + typography. แนะนำสำหรับ NatGeo ($0.30 @ 4K)",
     defaultAspect: "16:9", buildInput: withAspect },
   { id: "nano-banana-2", endpoint: "fal-ai/nano-banana-2",
-    label: "Nano Banana 2 (Google)", price: "$0.04",
-    blurb: "Google SOTA fast — cheaper version",
+    label: "Nano Banana 2 (Google)", price: "$0.08",
+    blurb: "Google SOTA fast — $0.08 @1K (2K ×1.5, 4K ×2, 512px ×0.75)",
     defaultAspect: "16:9", buildInput: withAspect },
   { id: "nano-banana", endpoint: "fal-ai/nano-banana",
     label: "Nano Banana (Google)", price: "$0.04",
@@ -186,8 +186,16 @@ export const MODELS: ModelAdapter[] = [
     defaultAspect: "16:9", buildInput: withAspect },
 ];
 
+// Default cover model when caller omits `model` (or sends an unknown id).
+// Seedream 5.0 Lite — flat $0.035 photoreal, good for NatGeo-style covers.
+const DEFAULT_MODEL_ID = "seedream-v5-lite";
+
 export function getModel(id: string | undefined): ModelAdapter {
-  return MODELS.find((m) => m.id === id) ?? MODELS[0];
+  return (
+    MODELS.find((m) => m.id === id) ??
+    MODELS.find((m) => m.id === DEFAULT_MODEL_ID) ??
+    MODELS[0]
+  );
 }
 
 export async function generateImage(model: ModelAdapter, prompt: string, aspectRatio: AspectRatio): Promise<string> {
