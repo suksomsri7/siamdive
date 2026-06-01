@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { PlanItemType } from "@/generated/prisma/client";
+import { getPlanAccess, canView, canEdit } from "@/lib/plan-access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 const VALID_TYPES: PlanItemType[] = ["FLIGHT", "HOTEL", "BOAT", "ACTIVITY", "TRANSFER", "NOTE"];
 const VALID_SOURCES = ["USER_INPUT", "AI_SUGGEST", "DB_SCHEDULE"];
 
-// GET /api/plans/[id]/items — list all PlanItem rows for a plan, ordered by startAt
-export async function GET(_req: NextRequest, ctx: Ctx) {
+// GET /api/plans/[id]/items?deviceId=xxx — list all PlanItem rows, ordered by startAt
+export async function GET(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
+  const deviceId = req.nextUrl.searchParams.get("deviceId");
   try {
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canView(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
     const items = await prisma.planItem.findMany({
       where: { planId: id },
       orderBy: [{ startAt: "asc" }, { order: "asc" }],
@@ -48,6 +54,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   try {
     const body = await req.json();
     const {
+      deviceId,
       type,
       title,
       location,
@@ -63,6 +70,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       searchQuery,
       alternatives,
     } = body as {
+      deviceId?: string;
       type: PlanItemType;
       title: string;
       location?: string;
@@ -89,10 +97,22 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "invalid_source" }, { status: 400 });
     }
 
-    const planExists = await prisma.userPlan.findUnique({ where: { id }, select: { id: true } });
-    if (!planExists) {
-      return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    // Reject unparseable dates up front so we return 400 (not a Prisma 500).
+    const start = new Date(startAt);
+    if (Number.isNaN(start.getTime())) {
+      return NextResponse.json({ error: "invalid_startAt" }, { status: 400 });
     }
+    let end: Date | null = null;
+    if (endAt) {
+      end = new Date(endAt);
+      if (Number.isNaN(end.getTime())) {
+        return NextResponse.json({ error: "invalid_endAt" }, { status: 400 });
+      }
+    }
+
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
     const maxOrder = await prisma.planItem.aggregate({
       where: { planId: id },
@@ -105,8 +125,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         type,
         title,
         location: location ?? null,
-        startAt: new Date(startAt),
-        endAt: endAt ? new Date(endAt) : null,
+        startAt: start,
+        endAt: end,
         externalUrl: externalUrl ?? null,
         bookingRef: bookingRef ?? null,
         cost: cost ?? null,

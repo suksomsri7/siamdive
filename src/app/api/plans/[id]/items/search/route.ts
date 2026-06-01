@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { searchFlights, searchHotels } from "@/lib/travel-search";
+import { getPlanAccess, canEdit } from "@/lib/plan-access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -43,12 +44,25 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "invalid_plan_id" }, { status: 400 });
     }
 
+    const body = await req.json();
+
+    // Authorize BEFORE consuming rate-limit quota so a third party can't burn
+    // the owner's daily allowance against their plan id. Plans created via the
+    // chat picker sync to DB ~1.5s later, so a missing row means the caller is
+    // the owner who just created it locally — allow that, but require a known
+    // deviceId (no anonymous searches against arbitrary plan ids).
+    const { plan, role } = await getPlanAccess(id, body.deviceId);
+    if (plan && !canEdit(role)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    if (!plan && !body.deviceId) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
     const rate = await checkRate(id);
     if (!rate.allowed) {
       return NextResponse.json({ error: "rate_limit", message: "เกินจำนวนการค้นหาต่อวัน (10 ครั้ง)" }, { status: 429 });
     }
-
-    const body = await req.json();
 
     if (body.type === "FLIGHT") {
       const { from, to, date, returnDate, adults } = body;

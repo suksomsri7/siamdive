@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPlanAccess, canEdit } from "@/lib/plan-access";
 
 type Ctx = { params: Promise<{ id: string; itemId: string }> };
 
@@ -9,6 +10,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   try {
     const body = await req.json();
     const {
+      deviceId,
       title,
       location,
       startAt,
@@ -20,6 +22,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       notes,
       order,
     } = body as {
+      deviceId?: string;
       title?: string;
       location?: string | null;
       startAt?: string;
@@ -32,11 +35,31 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       order?: number;
     };
 
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
     const data: Record<string, unknown> = {};
     if (title !== undefined) data.title = title;
     if (location !== undefined) data.location = location;
-    if (startAt !== undefined) data.startAt = new Date(startAt);
-    if (endAt !== undefined) data.endAt = endAt === null ? null : new Date(endAt);
+    if (startAt !== undefined) {
+      const start = new Date(startAt);
+      if (Number.isNaN(start.getTime())) {
+        return NextResponse.json({ error: "invalid_startAt" }, { status: 400 });
+      }
+      data.startAt = start;
+    }
+    if (endAt !== undefined) {
+      if (endAt === null) {
+        data.endAt = null;
+      } else {
+        const e = new Date(endAt);
+        if (Number.isNaN(e.getTime())) {
+          return NextResponse.json({ error: "invalid_endAt" }, { status: 400 });
+        }
+        data.endAt = e;
+      }
+    }
     if (externalUrl !== undefined) data.externalUrl = externalUrl;
     if (bookingRef !== undefined) data.bookingRef = bookingRef;
     if (cost !== undefined) data.cost = cost;
@@ -72,10 +95,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 }
 
-// DELETE /api/plans/[id]/items/[itemId]
-export async function DELETE(_req: NextRequest, ctx: Ctx) {
+// DELETE /api/plans/[id]/items/[itemId]?deviceId=xxx
+export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id, itemId } = await ctx.params;
   try {
+    const deviceId = req.nextUrl.searchParams.get("deviceId");
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
     const result = await prisma.planItem.deleteMany({
       where: { id: itemId, planId: id },
     });

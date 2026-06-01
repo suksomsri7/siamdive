@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPlanAccess, canView } from "@/lib/plan-access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (!deviceId || !url) {
       return NextResponse.json({ error: "deviceId and url required" }, { status: 400 });
     }
+
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canView(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
     const user = await prisma.planUser.findUnique({ where: { deviceId } });
     if (!user) return NextResponse.json({ error: "user_not_found" }, { status: 404 });

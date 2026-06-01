@@ -140,12 +140,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   // list. itemsRefresh bumps when the edit/search modals confirm a change.
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/plans/${planId}/items`)
+    fetch(`/api/plans/${planId}/items?deviceId=${encodeURIComponent(deviceId)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!cancelled && d?.items) setPlanItems(d.items); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [planId, itemsRefresh]);
+  }, [planId, itemsRefresh, deviceId]);
 
   // Fetch smart suggestions (gap-fill trips + contextual blogs + popular for empty plans)
   useEffect(() => {
@@ -160,7 +160,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
   const handleItemRemove = async (id: string) => {
     setPlanItems(prev => prev.filter(i => i.id !== id));
-    try { await fetch(`/api/plans/${planId}/items/${id}`, { method: "DELETE" }); } catch {}
+    try { await fetch(`/api/plans/${planId}/items/${id}?deviceId=${encodeURIComponent(deviceId)}`, { method: "DELETE" }); } catch {}
   };
 
   // Sprint 4 B6 — fetch the user's chat slots so PlanBookBar can render a
@@ -614,6 +614,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       {itemModal && (
         <PlanItemEditModal
           planId={planId}
+          deviceId={deviceId}
           lang={lang}
           mode={itemModal.mode}
           initialType={itemModal.mode === "create" ? itemModal.type : itemModal.item.type as "FLIGHT" | "HOTEL" | "ACTIVITY" | "TRANSFER" | "NOTE"}
@@ -646,6 +647,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
       {searchModal && (
         <SearchResultModal
           planId={planId}
+          deviceId={deviceId}
           lang={lang}
           type={searchModal.type}
           onClose={() => setSearchModal(null)}

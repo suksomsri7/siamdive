@@ -21,20 +21,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "user_not_found" }, { status: 404 });
     }
 
-    // Check if another user already has this email
-    const existing = await prisma.planUser.findFirst({
-      where: { email: normalized, NOT: { id: user.id } },
-      include: { plans: true },
-    });
-
-    if (existing) {
-      // Merge: move plans from existing user to current user, then delete old user
-      await prisma.userPlan.updateMany({
-        where: { userId: existing.id },
-        data: { userId: user.id },
-      });
-      await prisma.planUser.delete({ where: { id: existing.id } });
-    }
+    // NOTE: we deliberately do NOT merge/transfer plans from another PlanUser
+    // that happens to hold this email. The email is unverified (no OTP / magic
+    // link), so absorbing another row's plans + deleting it would let anyone
+    // who knows a victim's email take over their plans. Cross-device unify is
+    // handled non-destructively by recoverByEmail (adopting the canonical
+    // deviceId), not by mutating other rows here.
 
     const data: { email: string; name?: string } = { email: normalized };
     if (name?.trim()) data.name = name.trim();

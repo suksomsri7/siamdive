@@ -75,6 +75,7 @@ type ItemType = "FLIGHT" | "HOTEL" | "ACTIVITY" | "TRANSFER" | "NOTE";
 
 type Props = {
   planId: string;
+  deviceId: string;
   lang: string;
   mode: "create" | "edit";
   initialType: ItemType;
@@ -83,7 +84,7 @@ type Props = {
   onSaved: () => void;
 };
 
-export default function PlanItemEditModal({ planId, lang, mode, initialType, initialItem, onClose, onSaved }: Props) {
+export default function PlanItemEditModal({ planId, deviceId, lang, mode, initialType, initialItem, onClose, onSaved }: Props) {
   const labels = L(lang);
   const [type] = useState<ItemType>(initialItem?.type as ItemType || initialType);
   const [title, setTitle] = useState(initialItem?.title || "");
@@ -121,6 +122,7 @@ export default function PlanItemEditModal({ planId, lang, mode, initialType, ini
     setSaving(true);
 
     const payload: Record<string, unknown> = {
+      deviceId,
       type,
       title: title.trim(),
       location: location.trim() || undefined,

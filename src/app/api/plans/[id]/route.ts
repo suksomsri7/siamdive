@@ -28,15 +28,21 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
     }
 
-    // Determine access level
+    // Determine access level. `isInsider` = owner or an actual invited member
+    // (NOT a stranger who merely knows the plan id) — gates PII exposure below.
     let role: "OWNER" | "EDITOR" | "VIEWER" = "VIEWER";
+    let isInsider = false;
     if (deviceId && plan.user.deviceId === deviceId) {
       role = "OWNER";
+      isInsider = true;
     } else if (deviceId) {
       const user = await prisma.planUser.findUnique({ where: { deviceId } });
       if (user?.email) {
         const membership = plan.members.find((m) => m.email === user.email);
-        if (membership) role = membership.role as "EDITOR" | "VIEWER";
+        if (membership) {
+          role = membership.role as "EDITOR" | "VIEWER";
+          isInsider = true;
+        }
       }
     }
 
@@ -48,11 +54,14 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       status: plan.status,
       trips: plan.trips,
       role,
-      owner: { email: plan.user.email, name: plan.user.name },
-      members: plan.members.map((m) => ({
-        id: m.id, email: m.email, name: m.name, avatarUrl: m.avatarUrl,
-        role: m.role, certLevel: m.certLevel, joinedAt: m.joinedAt.toISOString(),
-      })),
+      // Don't leak emails to a caller who isn't part of the plan.
+      owner: { email: isInsider ? plan.user.email : null, name: plan.user.name },
+      members: isInsider
+        ? plan.members.map((m) => ({
+            id: m.id, email: m.email, name: m.name, avatarUrl: m.avatarUrl,
+            role: m.role, certLevel: m.certLevel, joinedAt: m.joinedAt.toISOString(),
+          }))
+        : [],
       media: plan.media.map((m) => ({
         id: m.id, url: m.url, thumbUrl: m.thumbUrl, type: m.type,
         uploadedBy: m.uploadedBy, caption: m.caption, createdAt: m.createdAt.toISOString(),
@@ -113,8 +122,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
     }
 
+    if (status !== undefined && !["PLANNING", "CONFIRMED", "COMPLETED"].includes(status)) {
+      return NextResponse.json({ error: "invalid_status" }, { status: 400 });
+    }
+
     const data: Record<string, unknown> = {};
-    if (name !== undefined) data.name = name;
+    if (name !== undefined) data.name = String(name).slice(0, 200);
     if (trips !== undefined) data.trips = trips as never;
     if (coverUrl !== undefined) data.coverUrl = coverUrl;
     if (status !== undefined) data.status = status;

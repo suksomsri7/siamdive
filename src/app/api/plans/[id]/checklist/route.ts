@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getPlanAccess, canEdit } from "@/lib/plan-access";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     if (!deviceId || !items?.length) {
       return NextResponse.json({ error: "deviceId and items required" }, { status: 400 });
     }
+
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
     const maxOrder = await prisma.planChecklist.aggregate({
       where: { planId: id }, _max: { sortOrder: true },
@@ -47,7 +52,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "deviceId and itemId required" }, { status: 400 });
     }
 
-    const user = await prisma.planUser.findUnique({ where: { deviceId } });
+    const { plan, role, user } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
     const checkerEmail = user?.email || deviceId;
 
     const data: Record<string, unknown> = {};
@@ -57,11 +65,19 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (assignedTo !== undefined) data.assignedTo = assignedTo;
 
-    const item = await prisma.planChecklist.update({ where: { id: itemId }, data });
+    // Scope to this plan so a checklist row from another plan can't be toggled.
+    const result = await prisma.planChecklist.updateMany({
+      where: { id: itemId, planId: id },
+      data,
+    });
+    if (result.count === 0) {
+      return NextResponse.json({ error: "item_not_found" }, { status: 404 });
+    }
+    const item = await prisma.planChecklist.findUnique({ where: { id: itemId } });
 
     return NextResponse.json({
-      id: item.id, category: item.category, item: item.item,
-      assignedTo: item.assignedTo, checked: item.checked, checkedBy: item.checkedBy,
+      id: item!.id, category: item!.category, item: item!.item,
+      assignedTo: item!.assignedTo, checked: item!.checked, checkedBy: item!.checkedBy,
     });
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 });
@@ -73,7 +89,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   try {
     const itemId = req.nextUrl.searchParams.get("itemId");
+    const deviceId = req.nextUrl.searchParams.get("deviceId");
     if (!itemId) return NextResponse.json({ error: "itemId required" }, { status: 400 });
+
+    const { plan, role } = await getPlanAccess(id, deviceId);
+    if (!plan) return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+    if (!canEdit(role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
     await prisma.planChecklist.deleteMany({ where: { id: itemId, planId: id } });
     return NextResponse.json({ ok: true });

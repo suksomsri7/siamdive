@@ -90,13 +90,14 @@ function plusDaysISO(days: number): string {
 
 type Props = {
   planId: string;
+  deviceId: string;
   lang: string;
   type: "FLIGHT" | "HOTEL";
   onClose: () => void;
   onPicked: () => void;
 };
 
-export default function SearchResultModal({ planId, lang, type, onClose, onPicked }: Props) {
+export default function SearchResultModal({ planId, deviceId, lang, type, onClose, onPicked }: Props) {
   const labels = L(lang);
   const [from, setFrom] = useState("BKK");
   const [to, setTo] = useState("HKT");
@@ -119,8 +120,8 @@ export default function SearchResultModal({ planId, lang, type, onClose, onPicke
     setOffers([]);
     try {
       const body = type === "FLIGHT"
-        ? { type: "FLIGHT", from: from.toUpperCase(), to: to.toUpperCase(), date, returnDate: returnDate || undefined, adults }
-        : { type: "HOTEL", cityName, countryCode: "TH", checkin, checkout, adults };
+        ? { deviceId, type: "FLIGHT", from: from.toUpperCase(), to: to.toUpperCase(), date, returnDate: returnDate || undefined, adults }
+        : { deviceId, type: "HOTEL", cityName, countryCode: "TH", checkin, checkout, adults };
       const res = await fetch(`/api/plans/${planId}/items/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,6 +152,7 @@ export default function SearchResultModal({ planId, lang, type, onClose, onPicke
     setSavingId(`${idx}`);
     try {
       const payload = {
+        deviceId,
         type,
         title: offer.title,
         location: offer.location || (type === "HOTEL" ? cityName : `${from.toUpperCase()} → ${to.toUpperCase()}`),

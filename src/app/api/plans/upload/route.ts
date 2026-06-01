@@ -21,8 +21,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "file_too_large" }, { status: 413 });
     }
 
+    // Allowlist images + video only. The extension is derived from the
+    // (server-trusted) MIME type — never from the client filename — so a
+    // crafted name like "a.jpg/../evil" can't inject path segments into the
+    // storage key, and non-media (HTML/SVG/scripts) can't land on the CDN.
+    const MIME_EXT: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+      "image/heic": "heic",
+      "video/mp4": "mp4",
+      "video/quicktime": "mov",
+      "video/webm": "webm",
+    };
+    const ext = MIME_EXT[file.type];
+    if (!ext) {
+      return NextResponse.json({ error: "unsupported_type" }, { status: 415 });
+    }
+
     const bytes = await file.arrayBuffer();
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
     const name = `plan-media/${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
 
     if (!BUNNY_KEY) {
