@@ -6,7 +6,7 @@ import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } 
 import { ScheduleDetailSkeleton } from "../Skeletons";
 import TripSchedulePicker from "../TripSchedulePicker";
 import { t, dayLabel } from "@/lib/ark-ai/i18n";
-import type { PlanItem } from "./PlanItemsBlock";
+import type { PlanItem } from "./plan-item";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;

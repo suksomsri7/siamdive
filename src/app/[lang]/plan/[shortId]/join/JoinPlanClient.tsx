@@ -7,7 +7,7 @@ import PlanTimeline from "@/components/ark-ai/plan/PlanTimeline";
 import PrepBlock from "@/components/ark-ai/plan/PrepBlock";
 import type { PlanTrip } from "@/lib/plan-store";
 import { getDeviceId, pullPlansFromServer } from "@/lib/plan-store";
-import type { PlanItem } from "@/components/ark-ai/plan/PlanItemsBlock";
+import type { PlanItem } from "@/components/ark-ai/plan/plan-item";
 
 type Plan = {
   id: string;

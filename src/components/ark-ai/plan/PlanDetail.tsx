@@ -4,12 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { renamePlan, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
 import type { Slots } from "@/lib/ark-ai/slots";
 import PlanTimeline from "./PlanTimeline";
-import PlanChecklistTab from "./PlanChecklistTab";
-import PlanChatTab from "./PlanChatTab";
 import ContactChannelSheet from "./ContactChannelSheet";
 import PlanBookBar, { buildBookingMessage } from "./PlanBookBar";
 import PrepBlock from "./PrepBlock";
-import { type PlanItem } from "./PlanItemsBlock";
+import { type PlanItem } from "./plan-item";
 import PlanItemEditModal from "./PlanItemEditModal";
 import SearchResultModal from "./SearchResultModal";
 import SharePlanSheet from "./SharePlanSheet";
@@ -37,8 +35,6 @@ type PlanData = {
   shareCount?: number;
 };
 
-type Tab = "itinerary" | "media" | "checklist" | "chat";
-
 type Props = {
   planId: string;
   deviceId: string;
@@ -54,7 +50,6 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: Props) {
   const [plan, setPlan] = useState<PlanData | null>(null);
-  const [tab, setTab] = useState<Tab>("itinerary");
   const [renaming, setRenaming] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [contactMessage, setContactMessage] = useState<string | null>(null);
@@ -240,33 +235,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const isOwner = plan.role === "OWNER";
   const canEdit = plan.role === "OWNER" || plan.role === "EDITOR";
 
-  const tabs: { key: Tab; label: string; icon: string; count?: number }[] = [
-    { key: "itinerary", label: L("trips"), icon: "🗺", count: trips.length },
-  ];
-
-  const tabsBar = (
-    <div style={{ display: "flex", padding: "0 16px", flexShrink: 0 }}>
-      {tabs.map((t) => (
-        <button key={t.key} onClick={() => setTab(t.key)} style={{
-          flex: 1, padding: "10px 0", background: "none", border: "none",
-          borderBottom: tab === t.key ? "2px solid var(--plan-fg)" : "2px solid transparent",
-          color: tab === t.key ? "var(--plan-fg)" : "var(--plan-fg-subtle)",
-          fontSize: 11, fontWeight: 600, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-          transition: "color 0.15s",
-        }}>
-          <span>{t.icon}</span>
-          <span>{t.label}</span>
-          {t.count !== undefined && t.count > 0 && (
-            <span style={{ fontSize: 9, background: "var(--plan-surface-alt)", color: tab === t.key ? "var(--plan-fg)" : "var(--plan-fg-subtle)", padding: "1px 5px", borderRadius: 8, fontWeight: 600 }}>
-              {t.count}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <>
       {/* Header */}
@@ -302,13 +270,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 
       <input ref={coverInputRef} type="file" accept="image/*" hidden onChange={handleCoverUpload} />
 
-      {tab === "chat" ? (
-        <>
-          {tabsBar}
-          <PlanChatTab planId={planId} deviceId={deviceId} lang={lang} />
-        </>
-      ) : (
-        <>
+      <>
         <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}>
           {/* Hero */}
           <div style={{ position: "relative", width: "100%", aspectRatio: "21/9", background: "var(--plan-surface-alt)" }}>
@@ -377,10 +339,9 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           {/* Sprint 3 B5 — auto-improve notifications */}
           <PlanNotificationsBanner planId={plan.id} lang={lang} />
 
-          {/* Tab content */}
+          {/* Itinerary */}
           <div style={{ padding: "16px" }}>
-            {tab === "itinerary" && (
-              <div>
+            <div>
                 {trips.length === 0 ? (
                   <div style={{ padding: "24px 0" }}>
                     <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -521,21 +482,15 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                   </div>
                 )}
               </div>
-            )}
-
-            {tab === "checklist" && (
-              <PlanChecklistTab planId={planId} deviceId={deviceId} lang={lang} checklists={plan.checklists} members={plan.members} canEdit={canEdit} onRefresh={fetchPlan} />
-            )}
           </div>
           <div style={{ height: 96 }} />
         </div>
 
-        {tab === "itinerary" && trips.length > 0 && (
+        {trips.length > 0 && (
           <PlanBookBar trips={trips} lang={lang} slots={slots} />
         )}
 
         </>
-      )}
 
       {showChannelSheet && contactMessage && (
         <ContactChannelSheet

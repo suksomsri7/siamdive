@@ -948,7 +948,6 @@ model UserPlan {
   media         PlanMedia[]
   checklists    PlanChecklist[]
   chatMessages  PlanChat[]
-  notes         PlanNote[]
   activities    PlanActivity[]
   notifications PlanNotification[]
   items         PlanItem[]
@@ -1043,20 +1042,6 @@ model PlanChat {
   createdAt   DateTime @default(now())
 
   @@index([planId, createdAt])
-}
-
-// ── PlanNote ─────────────────────────────────────────────────────────────────
-
-model PlanNote {
-  id          String   @id @default(cuid())
-  planId      String
-  plan        UserPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  tripIndex   Int?
-  content     String
-  authorEmail String
-  createdAt   DateTime @default(now())
-
-  @@index([planId])
 }
 
 // ── PlanActivity ─────────────────────────────────────────────────────────────

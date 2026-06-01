@@ -19,7 +19,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
         members: { orderBy: { joinedAt: "asc" } },
         media: { orderBy: { createdAt: "desc" }, take: 50 },
         checklists: { orderBy: { sortOrder: "asc" } },
-        notes: { orderBy: { createdAt: "desc" } },
         _count: { select: { chatMessages: true } },
       },
     });
@@ -69,10 +68,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       checklists: plan.checklists.map((c) => ({
         id: c.id, category: c.category, item: c.item, assignedTo: c.assignedTo,
         checked: c.checked, checkedBy: c.checkedBy, sortOrder: c.sortOrder,
-      })),
-      notes: plan.notes.map((n) => ({
-        id: n.id, tripIndex: n.tripIndex, content: n.content,
-        authorEmail: n.authorEmail, createdAt: n.createdAt.toISOString(),
       })),
       chatCount: plan._count.chatMessages,
       viewCount: plan.viewCount,

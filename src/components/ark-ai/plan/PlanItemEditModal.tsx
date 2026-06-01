@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { PlanItem } from "./PlanItemsBlock";
+import type { PlanItem } from "./plan-item";
 
 const LABELS = {
   th: {

@@ -17,7 +17,6 @@ type PlanDetail = {
   members: { id: string; email: string; name: string | null; role: string; certLevel: string | null; joinedAt: string }[];
   media: { id: string; url: string; type: string; createdAt: string }[];
   checklists: { id: string; category: string; item: string; checked: boolean }[];
-  notes: { id: string; content: string; authorEmail: string; createdAt: string }[];
   chatCount: number;
   createdAt: string; updatedAt: string;
 };
@@ -532,18 +531,6 @@ export default function UserPlansPage() {
                         <span style={{ fontSize: 10, color: "#888", background: "#1a1a1a", padding: "2px 8px", borderRadius: 6 }}>
                           {m.role}
                         </span>
-                      </div>
-                    ))}
-                  </Section>
-                )}
-
-                {/* Notes */}
-                {detail.notes.length > 0 && (
-                  <Section title={`Notes (${detail.notes.length})`}>
-                    {detail.notes.map((n) => (
-                      <div key={n.id} style={{ padding: "8px 0", borderBottom: "1px solid #111" }}>
-                        <p style={{ fontSize: 12, color: "#ccc" }}>{n.content}</p>
-                        <p style={{ fontSize: 10, color: "#444", marginTop: 4 }}>{n.authorEmail} · {fmtDate(n.createdAt)}</p>
                       </div>
                     ))}
                   </Section>
