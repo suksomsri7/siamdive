@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { renamePlan, getPlans, updatePlanCoverUrl, type PlanTrip, type PlanLogistics } from "@/lib/plan-store";
 import type { Slots } from "@/lib/ark-ai/slots";
-import PlanMembers from "./PlanMembers";
-import EmailGateModal from "./EmailGateModal";
 import PlanTimeline from "./PlanTimeline";
 import PlanChecklistTab from "./PlanChecklistTab";
 import PlanChatTab from "./PlanChatTab";
@@ -14,7 +12,6 @@ import PrepBlock from "./PrepBlock";
 import { type PlanItem } from "./PlanItemsBlock";
 import PlanItemEditModal from "./PlanItemEditModal";
 import SearchResultModal from "./SearchResultModal";
-import ItineraryShareCard from "./ItineraryShareCard";
 import SharePlanSheet from "./SharePlanSheet";
 import PlanNotificationsBanner from "./PlanNotificationsBanner";
 import GapSuggestions from "./GapSuggestions";
@@ -25,7 +22,6 @@ import LangSwitch from "./LangSwitch";
 import CompareSheet from "../CompareSheet";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
-import { trackPlanShare, trackPlanEmailLink } from "@/lib/analytics/client";
 import { t } from "@/lib/ark-ai/i18n";
 
 type PlanData = {
@@ -61,9 +57,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   const [tab, setTab] = useState<Tab>("itinerary");
   const [renaming, setRenaming] = useState(false);
   const [nameValue, setNameValue] = useState("");
-  const [showMembers, setShowMembers] = useState(false);
-  const [sharing, setSharing] = useState(false);
-  const [emailGateAction, setEmailGateAction] = useState<"members" | "share" | "contact" | null>(null);
   const [contactMessage, setContactMessage] = useState<string | null>(null);
   const [showChannelSheet, setShowChannelSheet] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -76,7 +69,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   >(null);
   const [itemsRefresh, setItemsRefresh] = useState(0);
   const [searchModal, setSearchModal] = useState<{ type: "FLIGHT" | "HOTEL" } | null>(null);
-  const [showShareCard, setShowShareCard] = useState(false);
   const [showSharePlan, setShowSharePlan] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
@@ -209,23 +201,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
     const local = localPlans.find((p) => p.id === planId);
     if (local) {
       setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
-    }
-  };
-
-  const handleShare = async () => {
-    if (!plan) return;
-    setSharing(true);
-    trackPlanShare(planId, plan.shortId);
-    const url = `${location.origin}/${lang}/plan/${plan.shortId}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: plan.name, text: `${plan.name} — SiamDive`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        alert(L("linkCopied"));
-      }
-    } catch {} finally {
-      setSharing(false);
     }
   };
 
@@ -562,38 +537,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         </>
       )}
 
-      {/* Members modal */}
-      {showMembers && (
-        <PlanMembers
-          planId={planId}
-          deviceId={deviceId}
-          lang={lang}
-          owner={plan.owner}
-          members={plan.members}
-          onClose={() => { setShowMembers(false); fetchPlan(); }}
-        />
-      )}
-
-      {/* Email gate — require email before invite/share */}
-      {emailGateAction && (
-        <EmailGateModal
-          lang={lang}
-          onSuccess={(newEmail, newName) => {
-            setPlan((prev) => prev ? { ...prev, owner: { ...prev.owner, email: newEmail, name: newName ?? prev.owner.name } } : prev);
-            trackPlanEmailLink(planId, newEmail);
-            const action = emailGateAction;
-            setEmailGateAction(null);
-            if (action === "members") setShowMembers(true);
-            if (action === "share") handleShare();
-            if (action === "contact") {
-              setContactMessage((prev) => prev ? prev + `\nEmail: ${newEmail}` : prev);
-              setShowChannelSheet(true);
-            }
-          }}
-          onClose={() => setEmailGateAction(null)}
-        />
-      )}
-
       {showChannelSheet && contactMessage && (
         <ContactChannelSheet
           planId={planId}
@@ -621,16 +564,6 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           initialItem={itemModal.mode === "edit" ? itemModal.item : null}
           onClose={() => setItemModal(null)}
           onSaved={() => setItemsRefresh((n) => n + 1)}
-        />
-      )}
-
-      {showShareCard && (
-        <ItineraryShareCard
-          planId={planId}
-          planName={plan.name}
-          trips={trips}
-          lang={lang}
-          onClose={() => setShowShareCard(false)}
         />
       )}
 
