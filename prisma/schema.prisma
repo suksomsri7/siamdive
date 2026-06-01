@@ -186,6 +186,7 @@ model Boat {
   covers       String[] // product listing cover images
   status       PublishStatus     @default(DRAFT)
   featured     Boolean           @default(false)
+  currency     String            @default("THB") // ISO currency for this boat's prices; imported boats may be USD until converted
   translations BoatTranslation[]
   videos       BoatVideo[]
   priceTiers   BoatPriceTier[]
@@ -251,6 +252,7 @@ model Schedule {
   availableSeats Int?
   status         ScheduleStatus        @default(OPEN)
   season         String? // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
+  fromPrice      Float? // starting/"from" price for this departure (in the boat's currency); used by imports where per-cabin price is unknown
   note           String?
   itinerary      String                @default("")
   sourceUrl      String? // external source page (e.g. liveaboard.com departure URL) — set by importers

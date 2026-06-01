@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
 
-  const { companyId, name, type, capacity, photos, covers, status, featured, translations, videos, priceTiers, serviceAreaIds, sourceUrl, sourceId } = await req.json();
+  const { companyId, name, type, capacity, photos, covers, status, featured, currency, translations, videos, priceTiers, serviceAreaIds, sourceUrl, sourceId } = await req.json();
 
   if (auth.source === "apiKey") {
     const permRes = BOAT_TYPE_PERM[type] ?? "daytrip";
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       photos: photos ?? [], covers: covers ?? [],
       status: status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
       featured: !!featured,
+      currency: currency || "THB",
       sourceUrl: sourceUrl ?? null,
       sourceId: sourceId ?? null,
       translations: { create: (translations as TransInput[] ?? []).filter(t => t.title?.trim() || t.slug?.trim()).map(t => ({ lang: t.lang, title: t.title, slug: t.slug || slugify(t.title) + "-" + Date.now().toString(36), excerpt: t.excerpt, content: t.content, keywords: t.keywords ?? [] })) },

@@ -19,6 +19,7 @@ export type BoatFormData = {
   companyId: string;
   type: "DAYTRIP" | "LIVEABOARD" | "DIVE_RESORT" | "FREEDIVE" | "LAND_TOUR" | "SNORKELING";
   capacity: string;
+  currency: string;
   status: "DRAFT" | "PUBLISHED";
   featured: boolean;
   photos: string[];
@@ -34,7 +35,7 @@ export type TripFormData = BoatFormData;
 export function emptyBoatForm(tiers: string[], type: BoatFormData["type"] = "DAYTRIP"): BoatFormData {
   const langs = Object.fromEntries(ALL_LANGS.map(l => [l, { ...EMPTY_LANG, keywords: [] as string[] }])) as Record<LangKey, LangData>;
   return {
-    name: "", companyId: "", type, capacity: "",
+    name: "", companyId: "", type, capacity: "", currency: "THB",
     status: "DRAFT", featured: false,
     photos: [], covers: [], videos: [],
     priceTiers: tiers.map(t => ({ tier: t, costPrice: "", regularPrice: "", salePrice: "", agentPrice: "" })),
@@ -376,6 +377,14 @@ export function BoatForm({ form, onChange, companies, serviceAreas = [], countri
           <select value={form.status} onChange={e => set("status", e.target.value)} style={{ ...inp, width: "auto" }}>
             <option value="DRAFT">Draft</option>
             <option value="PUBLISHED">เผยแพร่</option>
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>สกุลเงิน</label>
+          <select value={form.currency} onChange={e => set("currency", e.target.value)} style={{ ...inp, width: "auto" }}>
+            <option value="THB">฿ THB</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
           </select>
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", paddingBottom: 9 }}>

@@ -10,13 +10,13 @@ type SchedLang = { title: string; slug: string; excerpt: string; content: string
 type SchedPackage = { packageId: string; availableSeats: string; isFull: boolean; appendScheduleDetail: boolean; regularPrice: string; salePrice: string };
 type ScheduleRow = {
   id: string; boatId: string; dateType: string; departureDate: string | null; returnDate: string | null; weekDays: string[];
-  totalSeats: number | null; availableSeats: number | null; status: string; season: string | null; note: string | null; itinerary: string;
-  translations: (SchedLang & { lang: string })[];
+  totalSeats: number | null; availableSeats: number | null; status: string; season: string | null; note: string | null; itinerary: string; fromPrice: number | null;
+  translations: (SchedLang & { lang: string; route?: string })[];
   packages: { packageId: string; priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[] }[];
 };
 type PackageOption = { id: string; name: string; title: string };
 type BoatRow = {
-  id: string; companyId: string; name: string; type: string; capacity: number | null;
+  id: string; companyId: string; name: string; type: string; capacity: number | null; currency: string;
   photos: string[]; covers: string[]; status: string; featured: boolean;
   company: { translations: { lang: string; name: string }[] };
   translations: { lang: string; title: string; slug: string; excerpt: string; content: string; keywords: string[] }[];
@@ -58,6 +58,7 @@ function rowToBoatForm(b: BoatRow): BoatFormData {
   const form = emptyBoatForm(TIERS, "LIVEABOARD");
   form.name = b.name; form.companyId = b.companyId; form.type = "LIVEABOARD";
   form.capacity = b.capacity?.toString() ?? "";
+  form.currency = b.currency ?? "THB";
   form.status = b.status as "DRAFT" | "PUBLISHED"; form.featured = b.featured;
   form.photos = b.photos ?? []; form.covers = b.covers ?? [];
   form.videos = b.videos.sort((a, x) => a.order - x.order).map(v => ({ url: v.url, name: v.name }));
@@ -80,6 +81,7 @@ const emptySchedForm = (boatId = "") => ({
   weekDays: [] as string[],
   status: "OPEN" as ScheduleStatus,
   season: null as string | null,
+  fromPrice: "" as string,
   packages: [] as SchedPackage[],
   ...Object.fromEntries(ALL_LANGS.map(l => [l, emptySchedLang()])) as Record<LangKey, SchedLang>,
 });
@@ -142,7 +144,7 @@ export default function LiveaboardManager({
   const closeBoat = () => { setBoatOpen(false); setEditBoatId(null); };
   const saveBoat = async () => {
     setSavingBoat(true);
-    const body = { companyId: boatForm.companyId, name: boatForm.name, type: "LIVEABOARD", capacity: boatForm.capacity || null, photos: boatForm.photos, covers: boatForm.covers, status: boatForm.status, featured: boatForm.featured, translations: ALL_LANGS.map(l => ({ lang: l, ...boatForm[l] })), videos: boatForm.videos, priceTiers: [], serviceAreaIds: boatForm.serviceAreaIds };
+    const body = { companyId: boatForm.companyId, name: boatForm.name, type: "LIVEABOARD", capacity: boatForm.capacity || null, currency: boatForm.currency || "THB", photos: boatForm.photos, covers: boatForm.covers, status: boatForm.status, featured: boatForm.featured, translations: ALL_LANGS.map(l => ({ lang: l, ...boatForm[l] })), videos: boatForm.videos, priceTiers: [], serviceAreaIds: boatForm.serviceAreaIds };
     if (editBoatId) await fetch(`/api/boats/${editBoatId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/boats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingBoat(false); closeBoat(); load();
@@ -168,6 +170,7 @@ export default function LiveaboardManager({
     base.weekDays = s.weekDays ?? [];
     base.status = s.status as ScheduleStatus;
     base.season = s.season ?? null;
+    base.fromPrice = s.fromPrice?.toString() ?? "";
     base.packages = (s.packages ?? []).map(p => { const t0 = p.priceTiers?.[0]; return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: t0?.regularPrice?.toString() ?? "", salePrice: t0?.salePrice?.toString() ?? "" }; });
     for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [] }; }
     loadPackageOptions(s.boatId);
@@ -177,7 +180,7 @@ export default function LiveaboardManager({
   const saveSched = async () => {
     setSavingSched(true);
     const pkgsWithPrices = schedForm.packages.map(p => ({ packageId: p.packageId, availableSeats: p.availableSeats, isFull: p.isFull, appendScheduleDetail: p.appendScheduleDetail, priceTiers: (p.regularPrice || p.salePrice) ? [{ tier: "DIVER", regularPrice: p.regularPrice || "0", salePrice: p.salePrice || null }] : [] }));
-    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => ({ lang: l, ...(schedForm[l] as SchedLang) })) };
+    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => ({ lang: l, ...(schedForm[l] as SchedLang) })) };
     if (editSchedId) await fetch(`/api/schedules/${editSchedId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingSched(false); closeSched(); load();
@@ -321,6 +324,8 @@ export default function LiveaboardManager({
                           <span style={{ fontSize: 12, color: "#aaa", fontWeight: 600, minWidth: 76 }}>{dep}</span>
                           {ret && <span style={{ fontSize: 11, color: "#333" }}>→ {ret}</span>}
                           <span style={{ fontSize: 9, fontWeight: 700, background: st.bg, color: st.color, padding: "2px 7px", borderRadius: 8 }}>{s.status}</span>
+                          {(() => { const t = s.translations?.find(t => t.lang === "en"); return t?.title ? <span style={{ fontSize: 10, color: "#666", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}{t.route ? ` · ${t.route}` : ""}</span> : null; })()}
+                          {s.fromPrice != null && <span style={{ fontSize: 10, color: "#8a7a3a", fontWeight: 600 }}>เริ่ม {s.fromPrice.toLocaleString()} {boat.currency || "THB"}</span>}
                           <div style={{ display: "flex", gap: 5, marginLeft: "auto" }}>
                             <button onClick={() => dupSched(s)} style={{ background: "none", border: "1px solid #1a2a1a", color: "#2a5a2a", borderRadius: 5, padding: "3px 8px", fontSize: 10, cursor: "pointer" }}>คัดลอก</button>
                             <button onClick={() => openEditSched(s)} style={{ background: "none", border: "1px solid #1e1e1e", color: "#444", borderRadius: 5, padding: "3px 8px", fontSize: 10, cursor: "pointer" }}>แก้ไข</button>
@@ -416,6 +421,8 @@ export default function LiveaboardManager({
                 </div>
               )}
               <div><label style={lbl}>สถานะ</label><select value={schedForm.status} onChange={e => setSchedForm(f => ({ ...f, status: e.target.value as ScheduleStatus }))} style={inp}>{STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+
+              <div><label style={lbl}>ราคาเริ่มต้น (from) — สกุล {boats.find(b => b.id === schedForm.boatId)?.currency || "THB"}</label><input type="number" value={schedForm.fromPrice} onChange={e => setSchedForm(f => ({ ...f, fromPrice: e.target.value }))} placeholder="เช่น 2916" style={inp} /></div>
 
               {/* Cabins + ราคาต่อ Cabin */}
               {schedPackageOptions.length > 0 && (

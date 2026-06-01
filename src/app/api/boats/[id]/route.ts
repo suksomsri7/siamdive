@@ -42,7 +42,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const permRes = BOAT_TYPE_PERM[existing.type] ?? "daytrip";
   if (!canDo(auth, `${permRes}.write`)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { companyId, name, type, capacity, photos, covers, status, featured, translations, videos, priceTiers, serviceAreaIds } = await req.json();
+  const { companyId, name, type, capacity, photos, covers, status, featured, currency, translations, videos, priceTiers, serviceAreaIds } = await req.json();
   await prisma.boatTranslation.deleteMany({ where: { boatId: id } });
   await prisma.boatVideo.deleteMany({ where: { boatId: id } });
   await prisma.boatPriceTier.deleteMany({ where: { boatId: id } });
@@ -55,6 +55,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       photos: photos ?? [], covers: covers ?? [],
       status: status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
       featured: !!featured,
+      ...(currency !== undefined ? { currency: currency || "THB" } : {}),
       translations: { create: (translations as TransInput[] ?? []).filter(t => t.title?.trim() || t.slug?.trim()).map(t => ({ lang: t.lang, title: t.title, slug: t.slug || slugify(t.title) + "-" + id.slice(-4), excerpt: t.excerpt, content: t.content, keywords: t.keywords ?? [] })) },
       videos: { create: (videos as VideoInput[] ?? []).map((v, i) => ({ url: v.url, name: v.name, order: i })) },
       priceTiers: { create: (priceTiers as TierInput[] ?? []).map(p => ({ tier: p.tier, costPrice: p.costPrice ?? null, regularPrice: p.regularPrice, salePrice: p.salePrice ?? null, agentPrice: p.agentPrice ?? null })) },
