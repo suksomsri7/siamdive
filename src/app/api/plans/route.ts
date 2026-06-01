@@ -25,30 +25,22 @@ function planJson(p: {
 }
 
 // GET /api/plans?deviceId=xxx — get all plans for device (owned + member-of)
-// GET /api/plans?email=xxx  — recover plans by email
+//
+// The legacy ?email= recovery branch is intentionally removed: it returned the
+// matched user's deviceId (a bearer credential) to anyone who knew an email,
+// with no verification — an account-takeover path. Cross-device recovery, if
+// revived, must go through a verified magic-link flow (needs email infra).
 export async function GET(req: NextRequest) {
   const deviceId = req.nextUrl.searchParams.get("deviceId");
-  const email = req.nextUrl.searchParams.get("email");
 
-  if (!deviceId && !email) {
-    return NextResponse.json({ error: "deviceId or email required" }, { status: 400 });
+  if (!deviceId) {
+    return NextResponse.json({ error: "deviceId required" }, { status: 400 });
   }
 
   try {
-    let user;
-
-    if (email) {
-      user = await prisma.planUser.findFirst({
-        where: { email: email.toLowerCase().trim() },
-      });
-      if (!user) {
-        return NextResponse.json({ error: "not_found" }, { status: 404 });
-      }
-    } else {
-      user = await prisma.planUser.findUnique({ where: { deviceId: deviceId! } });
-      if (!user) {
-        return NextResponse.json({ deviceId, plans: [], email: null });
-      }
+    const user = await prisma.planUser.findUnique({ where: { deviceId } });
+    if (!user) {
+      return NextResponse.json({ deviceId, plans: [], email: null });
     }
 
     // Own plans

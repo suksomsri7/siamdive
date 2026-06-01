@@ -70,9 +70,13 @@ export default function LiffMyPlanGate({ lang }: { lang: string }) {
 
         const profile = await liff.getProfile();
 
+        // The raw ID token lets the server verify the LINE identity (sub +
+        // email) instead of trusting the client. Required for the secure path.
+        const idToken = liff.getIDToken() || undefined;
+
         // Email is only available if (1) the LIFF channel has `email` scope
         // approved AND (2) the user granted it. Both are best-effort — proceed
-        // without if unavailable.
+        // without if unavailable. The server prefers the verified email anyway.
         let email: string | undefined;
         try {
           const decoded = liff.getDecodedIDToken() as { email?: string } | null;
@@ -94,6 +98,7 @@ export default function LiffMyPlanGate({ lang }: { lang: string }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            idToken,
             lineUserId: profile.userId,
             displayName: profile.displayName,
             pictureUrl: profile.pictureUrl,

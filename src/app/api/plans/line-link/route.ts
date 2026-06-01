@@ -1,14 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// The LINE Login channel id that owns the MyPlan LIFF app. The LIFF id is
+// formatted `{channelId}-{hash}`, so the prefix is the channel id used as the
+// `client_id` when verifying an ID token. An explicit env wins if set.
+const LINE_CHANNEL_ID =
+  process.env.LINE_LOGIN_CHANNEL_ID ||
+  process.env.NEXT_PUBLIC_LIFF_ID_MYPLAN?.split("-")[0] ||
+  null;
+
+type VerifiedLineProfile = { sub: string; email?: string; name?: string; picture?: string };
+
+/**
+ * Verify a LIFF-issued ID token against LINE so we can trust the LINE user id
+ * (`sub`) instead of believing a client-supplied `lineUserId`. Returns null
+ * when the token is invalid/expired, or when no channel id is configured (in
+ * which case the caller falls back to the legacy unverified path so a missing
+ * env doesn't hard-break the live LINE rich-menu entry).
+ */
+async function verifyLineIdToken(idToken: string): Promise<VerifiedLineProfile | null> {
+  if (!LINE_CHANNEL_ID) return null;
+  try {
+    const res = await fetch("https://api.line.me/oauth2/v2.1/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ id_token: idToken, client_id: LINE_CHANNEL_ID }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { sub?: string; email?: string; name?: string; picture?: string };
+    if (!data.sub) return null;
+    return { sub: data.sub, email: data.email, name: data.name, picture: data.picture };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/plans/line-link
  *
- * Body: { lineUserId, displayName?, pictureUrl?, email?, deviceId? }
+ * Body: { idToken, lineUserId?, displayName?, pictureUrl?, email?, deviceId? }
  *
- * Called by /[lang]/myplan after liff.init + getProfile. Resolves the LINE
- * user to a canonical PlanUser.deviceId so the rest of the app (which keys
- * everything off deviceId in localStorage) works unchanged.
+ * Called by /[lang]/myplan after liff.init + getProfile. The LINE identity is
+ * verified server-side from `idToken` (liff.getIDToken()) — we never trust a
+ * client-supplied lineUserId/email when a verified token is available. Resolves
+ * the LINE user to a canonical PlanUser.deviceId so the rest of the app (which
+ * keys everything off deviceId in localStorage) works unchanged.
  *
  * Resolution order:
  *   1. Match by lineUserId → return that user's deviceId.
@@ -25,6 +61,7 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
+      idToken?: string;
       lineUserId?: string;
       displayName?: string;
       pictureUrl?: string;
@@ -32,14 +69,27 @@ export async function POST(req: NextRequest) {
       deviceId?: string;
     };
 
-    const lineUserId = body.lineUserId?.trim();
+    // Verify the ID token server-side. When a channel id is configured a token
+    // is REQUIRED and must verify — a valid `sub` is the only trusted lineUserId
+    // / email source. Only when verification is unavailable (no channel id) do
+    // we fall back to the client-supplied lineUserId to preserve the live flow.
+    let verified: VerifiedLineProfile | null = null;
+    if (body.idToken) verified = await verifyLineIdToken(body.idToken);
+
+    if (LINE_CHANNEL_ID && !verified) {
+      return NextResponse.json({ error: "invalid_id_token" }, { status: 401 });
+    }
+
+    const lineUserId = (verified?.sub || body.lineUserId)?.trim();
     if (!lineUserId) {
       return NextResponse.json({ error: "lineUserId required" }, { status: 400 });
     }
 
-    const normalizedEmail = body.email?.toLowerCase().trim() || undefined;
-    const displayName = body.displayName?.trim() || undefined;
-    const pictureUrl = body.pictureUrl?.trim() || undefined;
+    // Prefer verified claims; fall back to client values only for cosmetic
+    // fields (name/picture) and only when no token verification occurred.
+    const normalizedEmail = (verified?.email || (verified ? undefined : body.email))?.toLowerCase().trim() || undefined;
+    const displayName = (verified?.name || body.displayName)?.trim() || undefined;
+    const pictureUrl = (verified?.picture || body.pictureUrl)?.trim() || undefined;
     const incomingDeviceId = body.deviceId?.trim() || undefined;
 
     // 1. Match by lineUserId
