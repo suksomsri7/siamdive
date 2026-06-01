@@ -99,10 +99,10 @@ export default function GapSuggestions({ planId, gaps, lang, onTripAdded }: Prop
       cover: trip.cover,
       schedule: trip.schedule,
     });
-    if (ok) {
-      setAddedIds((prev) => new Set(prev).add(trip.schedule.scheduleId));
-      onTripAdded?.();
-    }
+    // ok === false means the trip is already in the plan — either way it now
+    // IS in the plan, so reflect "added". Only notify on a genuinely new add.
+    setAddedIds((prev) => new Set(prev).add(trip.schedule.scheduleId));
+    if (ok) onTripAdded?.();
   };
 
   return (

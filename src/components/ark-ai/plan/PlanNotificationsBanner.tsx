@@ -115,7 +115,7 @@ export default function PlanNotificationsBanner({
         const title = localizedTitle(n, lang);
         const body = localizedBody(n, lang);
         const link = n.type === "NEW_BLOG" && n.payload && typeof (n.payload as { slug?: string }).slug === "string"
-          ? `/${lang}/blog/${(n.payload as { slug: string }).slug}`
+          ? `/${lang}/blogs/${(n.payload as { slug: string }).slug}`
           : null;
         return (
           <div

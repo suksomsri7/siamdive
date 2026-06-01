@@ -27,6 +27,7 @@ const LABELS = {
     notes: "หมายเหตุ",
     titleRequired: "กรุณากรอกชื่อ",
     startRequired: "กรุณาเลือกวันเวลา",
+    saveFailed: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง",
   },
   en: {
     titleFlight: "Flight",
@@ -51,6 +52,7 @@ const LABELS = {
     notes: "Notes",
     titleRequired: "Title required",
     startRequired: "Start date required",
+    saveFailed: "Couldn't save — please try again",
   },
 } as const;
 
@@ -146,14 +148,16 @@ export default function PlanItemEditModal({ planId, deviceId, lang, mode, initia
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        setError(`HTTP ${res.status}`);
+        console.error("[PlanItemEditModal] save failed", res.status, await res.text().catch(() => ""));
+        setError(labels.saveFailed);
         setSaving(false);
         return;
       }
       onSaved();
       onClose();
     } catch (err) {
-      setError(String(err));
+      console.error("[PlanItemEditModal] save error", err);
+      setError(labels.saveFailed);
       setSaving(false);
     }
   };

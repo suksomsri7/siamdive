@@ -130,20 +130,17 @@ export default function SearchResultModal({ planId, deviceId, lang, type, onClos
       if (res.status === 429) {
         setError(labels.rateLimit);
       } else if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
-        try {
-          const errBody = await res.json();
-          if (errBody?.error) detail += ` · ${errBody.error}`;
-          if (errBody?.message) detail += ` (${errBody.message})`;
-        } catch {}
-        setError(`${labels.errorGeneric} — ${detail}`);
+        const detail = await res.text().catch(() => "");
+        console.error("[SearchResultModal] search failed", res.status, detail);
+        setError(labels.errorGeneric);
       } else {
         const data = await res.json();
         setOffers(data.offers || []);
         if ((data.offers || []).length === 0) setError(labels.noResults);
       }
     } catch (err) {
-      setError(`${labels.errorGeneric} — ${err instanceof Error ? err.message : "network"}`);
+      console.error("[SearchResultModal] search error", err);
+      setError(labels.errorGeneric);
     }
     setLoading(false);
   };

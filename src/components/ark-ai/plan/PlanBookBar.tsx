@@ -26,6 +26,11 @@ const L = {
     diverCount: "ดำน้ำ",
     nonDiverCount: "ไม่ดำ",
     groupTotal: "รวมกลุ่ม",
+    bookIntro: "สวัสดีครับ/ค่ะ สนใจจองทริปต่อไปนี้",
+    logisticsHdr: "รายละเอียดเพิ่มเติม:",
+    priceFrom: "เริ่ม",
+    perPerson: " บาท/คน",
+    emailLabel: "อีเมล",
   },
   en: {
     fromHotel: "Pickup at",
@@ -35,6 +40,11 @@ const L = {
     diverCount: "divers",
     nonDiverCount: "non-divers",
     groupTotal: "Group total",
+    bookIntro: "Hi, I'd like to book the following trips",
+    logisticsHdr: "Logistics:",
+    priceFrom: "From",
+    perPerson: " THB/person",
+    emailLabel: "Email",
   },
 } as const;
 
@@ -72,7 +82,7 @@ export function buildBookingMessage(
   const t = getLabels(lang);
   const range = priceRange(trips);
   const lines: string[] = [];
-  lines.push(`Hi, I'd like to book the following trips (Plan: ${planShortId}):`);
+  lines.push(`${t.bookIntro} (Plan: ${planShortId}):`);
   for (const trip of trips) {
     const dep = trip.schedule?.departureDate?.slice(0, 10) || "";
     const ret = trip.schedule?.returnDate?.slice(0, 10);
@@ -85,15 +95,15 @@ export function buildBookingMessage(
     if (logistics.airportTransfer === "yes") lo.push(t.transferYes);
     if (logistics.equipmentRental) lo.push(`${t.rent}: ${logistics.equipmentRental}`);
     if (logistics.specialNeeds) lo.push(`${t.needs}: ${logistics.specialNeeds}`);
-    if (lo.length) lines.push("", "Logistics:", ...lo.map(l => `- ${l}`));
+    if (lo.length) lines.push("", t.logisticsHdr, ...lo.map(l => `- ${l}`));
   }
   if (range.min > 0) {
     const label = range.max > range.min
-      ? `From ฿${range.min.toLocaleString()} — ฿${range.max.toLocaleString()}/person`
-      : `From ฿${range.min.toLocaleString()}/person`;
+      ? `${t.priceFrom} ${range.min.toLocaleString()} — ${range.max.toLocaleString()}${t.perPerson}`
+      : `${t.priceFrom} ${range.min.toLocaleString()}${t.perPerson}`;
     lines.push("", label);
   }
-  if (ownerEmail) lines.push(`Email: ${ownerEmail}`);
+  if (ownerEmail) lines.push(`${t.emailLabel}: ${ownerEmail}`);
   return lines.join("\n");
 }
 

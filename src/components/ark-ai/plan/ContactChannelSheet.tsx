@@ -1,10 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { trackPlanContact } from "@/lib/analytics/client";
 import { t } from "@/lib/ark-ai/i18n";
 
-type Channel = { key: string; label: string; color: string; icon: string; url: string };
+// `needsCopy` channels can't carry prefilled text via URL (Messenger m.me has
+// no text param; WeChat is a bare scheme), so we copy the message to the
+// clipboard first and tell the user to paste it.
+type Channel = { key: string; label: string; color: string; icon: string; url: string; needsCopy?: boolean };
 
 type Props = {
   planId: string;
@@ -20,8 +23,8 @@ function buildChannels(msg: string): Channel[] {
   return [
     { key: "line", label: "LINE", color: "#06C755", icon: "line", url: `https://line.me/R/oaMessage/@siamdive/?${enc}` },
     { key: "whatsapp", label: "WhatsApp", color: "#25D366", icon: "whatsapp", url: `https://wa.me/${PHONE}?text=${enc}` },
-    { key: "messenger", label: "Messenger", color: "#0084FF", icon: "messenger", url: `https://m.me/siamdive` },
-    { key: "wechat", label: "WeChat", color: "#07C160", icon: "wechat", url: `weixin://` },
+    { key: "messenger", label: "Messenger", color: "#0084FF", icon: "messenger", url: `https://m.me/siamdive`, needsCopy: true },
+    { key: "wechat", label: "WeChat", color: "#07C160", icon: "wechat", url: `weixin://`, needsCopy: true },
     { key: "kakao", label: "KakaoTalk", color: "#FEE500", icon: "kakao", url: `https://pf.kakao.com/_siamdive/chat` },
   ];
 }
@@ -57,6 +60,19 @@ const ICONS: Record<string, (c: string) => React.ReactNode> = {
 export default function ContactChannelSheet({ planId, message, lang, onClose }: Props) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
   const channels = buildChannels(message);
+  const [note, setNote] = useState<string | null>(null);
+
+  const handleChannel = async (ch: Channel) => {
+    trackPlanContact(planId, ch.key);
+    if (ch.needsCopy) {
+      try { await navigator.clipboard.writeText(message); } catch {}
+      setNote(L("messageCopiedPaste"));
+      window.open(ch.url, "_blank");
+      return; // keep the sheet open so the user sees the paste hint
+    }
+    window.open(ch.url, "_blank");
+    onClose();
+  };
 
   return (
     <>
@@ -78,11 +94,17 @@ export default function ContactChannelSheet({ planId, message, lang, onClose }: 
           </p>
         </div>
 
+        {note && (
+          <p style={{ fontSize: 13, fontWeight: 600, color: "#4ade80", margin: 0, padding: "10px 20px 0" }}>
+            ✓ {note}
+          </p>
+        )}
+
         <div style={{ padding: "12px 20px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
           {channels.map((ch) => (
             <button
               key={ch.key}
-              onClick={() => { trackPlanContact(planId, ch.key); window.open(ch.url, "_blank"); onClose(); }}
+              onClick={() => handleChannel(ch)}
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px", borderRadius: 12,

@@ -42,6 +42,7 @@ const DICT = {
   contactUs: { th: "ติดต่อสอบถาม", en: "Contact Us", cn: "联系我们", ja: "お問い合わせ", ko: "문의하기", de: "Kontakt", fr: "Contact", ru: "Связаться" },
   contactTeam: { th: "ติดต่อทีมงาน", en: "Contact us", cn: "联系团队", ja: "サポートに連絡", ko: "팀에 연락", de: "Team kontaktieren", fr: "Contacter l'équipe", ru: "Связаться с командой" },
   linkCopied: { th: "คัดลอกลิงก์แล้ว!", en: "Link copied!", cn: "链接已复制!", ja: "リンクをコピーしました!", ko: "링크가 복사되었습니다!", de: "Link kopiert!", fr: "Lien copié !", ru: "Ссылка скопирована!" },
+  messageCopiedPaste: { th: "คัดลอกข้อความแล้ว — วางในแชทได้เลย", en: "Message copied — paste it in the chat", cn: "已复制消息 — 在聊天中粘贴即可", ja: "メッセージをコピーしました — チャットに貼り付けてください", ko: "메시지를 복사했습니다 — 채팅에 붙여넣으세요", de: "Nachricht kopiert — im Chat einfügen", fr: "Message copié — collez-le dans le chat", ru: "Сообщение скопировано — вставьте его в чат" },
 
   // === Plan core ===
   trips: { th: "ทริป", en: "Trips", cn: "行程", ja: "ツアー", ko: "투어", de: "Touren", fr: "Voyages", ru: "Туры" },
