@@ -219,6 +219,11 @@ export default function ImageEditorField(props: Props) {
   // ── Save from editor ──────────────────────────────────────────────────────
   const handleSave = (result: { coverUrl: string; ogUrl: string }) => {
     if (!editorState) return;
+    // Re-edit overwrites <id>-cover.webp in place, so the URL is unchanged and the
+    // browser keeps showing the cached old image. Append a ?v= cache-buster so the
+    // <img> reloads. The API strips ?v= when resolving/deleting by coverUrl.
+    const bust = (u: string) => (u ? `${u.split("?")[0]}?v=${Date.now()}` : u);
+    const coverUrl = bust(result.coverUrl);
     let savedIndex = 0;
     if (isMulti && props.onChangeMulti) {
       const urls = props.values ?? [];
@@ -227,20 +232,20 @@ export default function ImageEditorField(props: Props) {
         if (idx >= 0) {
           savedIndex = idx;
           const newUrls = [...urls];
-          newUrls[idx] = result.coverUrl;
+          newUrls[idx] = coverUrl;
           props.onChangeMulti(newUrls);
         } else {
           savedIndex = urls.length;
-          props.onChangeMulti([...urls, result.coverUrl]);
+          props.onChangeMulti([...urls, coverUrl]);
         }
       } else {
         savedIndex = urls.length;
-        props.onChangeMulti([...urls, result.coverUrl]);
+        props.onChangeMulti([...urls, coverUrl]);
       }
     } else {
-      props.onChange?.(result.coverUrl);
+      props.onChange?.(coverUrl);
     }
-    props.onImageSaved?.({ ...result, index: savedIndex });
+    props.onImageSaved?.({ ...result, coverUrl, index: savedIndex });
     setEditorState(null);
   };
 

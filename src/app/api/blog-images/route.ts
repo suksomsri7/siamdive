@@ -151,9 +151,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (coverUrl) {
+    // Strip ?v= cache-buster so versioned display URLs still resolve to their row.
+    const clean = coverUrl.split("?")[0];
     // Find by coverUrl OR ogUrl (re-edit works from either variant)
     const img = await prisma.blogImage.findFirst({
-      where: { OR: [{ coverUrl }, { ogUrl: coverUrl }] },
+      where: { OR: [{ coverUrl: clean }, { ogUrl: clean }] },
       orderBy: { createdAt: "desc" },
     });
     if (!img) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -176,7 +178,8 @@ export async function DELETE(req: NextRequest) {
   if (id) {
     img = await prisma.blogImage.findUnique({ where: { id } });
   } else if (coverUrl) {
-    img = await prisma.blogImage.findFirst({ where: { OR: [{ coverUrl }, { ogUrl: coverUrl }] }, orderBy: { createdAt: "desc" } });
+    const clean = coverUrl.split("?")[0];
+    img = await prisma.blogImage.findFirst({ where: { OR: [{ coverUrl: clean }, { ogUrl: clean }] }, orderBy: { createdAt: "desc" } });
   } else {
     return NextResponse.json({ error: "id or coverUrl required" }, { status: 400 });
   }

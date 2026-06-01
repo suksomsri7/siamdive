@@ -470,7 +470,7 @@ export default function LiveaboardManager({
                                 <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ราคาส่วนลด:</span>
                                 <input type="number" value={sp.salePrice} onChange={e => updatePkg("salePrice", e.target.value)} placeholder="ไม่มี"
                                   style={{ ...inp, width: 110, fontSize: 12 }} />
-                                <span style={{ fontSize: 10, color: "#333" }}>฿</span>
+                                <span style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{boats.find(b => b.id === schedForm.boatId)?.currency || "THB"}</span>
                               </div>
                             </div>
                           )}
