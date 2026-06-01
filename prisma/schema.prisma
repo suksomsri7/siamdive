@@ -193,8 +193,12 @@ model Boat {
   packages     Package[]
   options      BoatOption[]
   serviceAreas BoatServiceArea[]
+  sourceUrl    String? // external source page (e.g. liveaboard.com boat URL) — set by importers
+  sourceId     String? // external stable id (e.g. liveaboard boat id) — for idempotent re-import/sync
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+
+  @@index([sourceId])
 }
 
 model BoatTranslation {
@@ -249,11 +253,14 @@ model Schedule {
   season         String? // HIGH_SEASON | PEAK_SEASON | GREEN_SEASON | ALL_SEASON
   note           String?
   itinerary      String                @default("")
+  sourceUrl      String? // external source page (e.g. liveaboard.com departure URL) — set by importers
+  sourceId       String? // external stable id (e.g. liveaboard tour id) — used by cron sync to match/upsert
   translations   ScheduleTranslation[]
   packages       SchedulePackage[]
   createdAt      DateTime              @default(now())
 
   @@index([status, departureDate, availableSeats])
+  @@index([boatId, sourceId])
 }
 
 model SchedulePackage {
@@ -309,12 +316,15 @@ model Package {
   totalSeats    Int?
   photos        String[] // package gallery photos (unlimited)
   status        PublishStatus         @default(DRAFT)
+  sourceId      String? // external stable id (e.g. liveaboard cabin id) — set by importers
   translations  PackageTranslation[]
   priceTiers    PackagePriceTier[]
   seasonPeriods PackageSeasonPeriod[]
   schedules     SchedulePackage[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
+
+  @@index([boatId, sourceId])
 }
 
 model PackageSeasonPeriod {
