@@ -8,6 +8,14 @@ import ThemeToggle from "./plan/ThemeToggle";
 import LangSwitch from "./plan/LangSwitch";
 import { t, planDeletePermanentLabel } from "@/lib/ark-ai/i18n";
 
+// Local 8-language strings for nav/title labels not present in the central i18n map.
+const NAV_LABELS: Record<string, Record<string, string>> = {
+  myPlans: { th: "แผนของฉัน", en: "My Plans", cn: "我的行程", ja: "マイプラン", ko: "내 플랜", de: "Meine Pläne", fr: "Mes plans", ru: "Мои планы" },
+  myPlan: { th: "แผนของฉัน", en: "My Plan", cn: "我的行程", ja: "マイプラン", ko: "내 플랜", de: "Mein Plan", fr: "Mon plan", ru: "Мой план" },
+  search: { th: "ค้นหา", en: "Search", cn: "搜索", ja: "検索", ko: "검색", de: "Suche", fr: "Recherche", ru: "Поиск" },
+};
+const navLabel = (key: string, lang: string) => NAV_LABELS[key]?.[lang] ?? NAV_LABELS[key]?.["en"] ?? key;
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -210,7 +218,7 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
                   <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
                 </svg>
               </button>
-              <p style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "var(--plan-fg)" }}>My Plans</p>
+              <p style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "var(--plan-fg)" }}>{navLabel("myPlans", lang)}</p>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <LangSwitch />
                 <ThemeToggle />
@@ -249,7 +257,7 @@ export default function MyPlanScreen({ open, onClose, lang, initialPlanId, build
           </>
         )}
 
-        <PlanBottomNav onClose={onClose} />
+        <PlanBottomNav onClose={onClose} lang={lang} />
       </div>
     </>
   );
@@ -374,7 +382,7 @@ function DeleteConfirmModal({ lang, planName, onConfirm, onClose }: { lang: stri
   );
 }
 
-function PlanBottomNav({ onClose }: { onClose: () => void }) {
+function PlanBottomNav({ onClose, lang }: { onClose: () => void; lang: string }) {
   const [tapped, setTapped] = useState<string | null>(null);
   const [badge, setBadge] = useState(0);
 
@@ -420,7 +428,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>Search</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>{navLabel("search", lang)}</span>
         </button>
 
         {/* AI center button */}
@@ -475,7 +483,7 @@ function PlanBottomNav({ onClose }: { onClose: () => void }) {
               }}>{badge}</span>
             )}
           </div>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>My Plan</span>
+          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.01em" }}>{navLabel("myPlan", lang)}</span>
         </button>
       </div>
     </nav>

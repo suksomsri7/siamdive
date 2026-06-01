@@ -11,8 +11,13 @@ type Props = {
   onClose: () => void;
 };
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+const LOCALE_MAP: Record<string, string> = {
+  th: "th-TH", en: "en-US", cn: "zh-CN", ja: "ja-JP",
+  ko: "ko-KR", de: "de-DE", fr: "fr-FR", ru: "ru-RU",
+};
+
+const fmtDate = (iso: string, lang: string) =>
+  new Date(iso).toLocaleDateString(LOCALE_MAP[lang] || "en-US", { day: "numeric", month: "short" });
 
 export default function DateConflictModal({ conflicts, lang, onConfirm, onCreateNewPlan, onClose }: Props) {
   const L = (key: Parameters<typeof t>[1]) => t(lang, key);
@@ -69,8 +74,8 @@ export default function DateConflictModal({ conflicts, lang, onConfirm, onCreate
                   {c.existingTrip.title}
                 </p>
                 <p style={{ fontSize: 10, color: "#fbbf24", margin: "2px 0 0" }}>
-                  {fmtDate(c.existingTrip.schedule?.departureDate || c.newDeparture)}
-                  {c.existingTrip.schedule?.returnDate ? ` → ${fmtDate(c.existingTrip.schedule.returnDate)}` : ""}
+                  {fmtDate(c.existingTrip.schedule?.departureDate || c.newDeparture, lang)}
+                  {c.existingTrip.schedule?.returnDate ? ` → ${fmtDate(c.existingTrip.schedule.returnDate, lang)}` : ""}
                 </p>
               </div>
             </div>

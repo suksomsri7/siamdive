@@ -411,7 +411,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       {canEdit && (
                         <PlanActionButton
                           onClick={() => setAddSheetOpen(true)}
-                          label={lang === "th" ? "เพิ่มรายการ" : "Add"}
+                          label={L("addItem")}
                           fg="#ffffff"
                           bg="#3b82f6"
                           border="#2563eb"
@@ -425,7 +425,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       {trips.length >= 2 && (
                         <PlanActionButton
                           onClick={() => setCompareOpen(true)}
-                          label={lang === "th" ? "เปรียบเทียบ" : "Compare"}
+                          label={L("compare")}
                           fg="#ffffff"
                           bg="#f59e0b"
                           border="#d97706"
@@ -441,7 +441,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       )}
                       <PlanActionButton
                         onClick={() => setShowSharePlan(true)}
-                        label={lang === "th" ? "แชร์" : "Share"}
+                        label={L("share")}
                         fg="#ffffff"
                         bg="#6366f1"
                         border="#4f46e5"
@@ -467,7 +467,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                             setContactMessage(msg);
                             setShowChannelSheet(true);
                           }}
-                          label={lang === "th" ? "ติดต่อ" : "Contact"}
+                          label={L("contactUs")}
                           fg="#ffffff"
                           bg="#10b981"
                           border="#059669"
@@ -563,12 +563,12 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
 // hotel, and whether the AI should suggest one or they want to enter it
 // manually. Replaces the inline empty-slot UI per user feedback.
 const ADD_SHEET_T: Record<string, Record<string, string>> = {
-  title:   { th: "เพิ่มเที่ยวบินหรือที่พัก", en: "Add flight or hotel" },
-  flight:  { th: "เที่ยวบิน", en: "Flight" },
-  hotel:   { th: "ที่พัก",     en: "Hotel"  },
-  ai:      { th: "ค้นหา",           en: "Search" },
-  manual:  { th: "+ กรอกเอง",     en: "+ Enter manually" },
-  cancel:  { th: "ยกเลิก",        en: "Cancel" },
+  title:   { th: "เพิ่มเที่ยวบินหรือที่พัก", en: "Add flight or hotel", cn: "添加航班或酒店", ja: "フライトまたはホテルを追加", ko: "항공편 또는 숙소 추가", de: "Flug oder Hotel hinzufügen", fr: "Ajouter un vol ou un hôtel", ru: "Добавить рейс или отель" },
+  flight:  { th: "เที่ยวบิน", en: "Flight", cn: "航班", ja: "フライト", ko: "항공편", de: "Flug", fr: "Vol", ru: "Рейс" },
+  hotel:   { th: "ที่พัก",     en: "Hotel", cn: "酒店", ja: "ホテル", ko: "숙소", de: "Hotel", fr: "Hôtel", ru: "Отель" },
+  ai:      { th: "ค้นหา",           en: "Search", cn: "搜索", ja: "検索", ko: "검색", de: "Suchen", fr: "Rechercher", ru: "Поиск" },
+  manual:  { th: "+ กรอกเอง",     en: "+ Enter manually", cn: "+ 手动输入", ja: "+ 手動で入力", ko: "+ 직접 입력", de: "+ Manuell eingeben", fr: "+ Saisir manuellement", ru: "+ Ввести вручную" },
+  cancel:  { th: "ยกเลิก",        en: "Cancel", cn: "取消", ja: "キャンセル", ko: "취소", de: "Abbrechen", fr: "Annuler", ru: "Отмена" },
 };
 const addSheetT = (key: keyof typeof ADD_SHEET_T, lang: string) =>
   ADD_SHEET_T[key][lang] || ADD_SHEET_T[key].en;

@@ -98,6 +98,7 @@ const DICT = {
   addToSamePlan: { th: "เพิ่มลงแพลนเดิม", en: "Add to Same Plan", cn: "加入同一计划", ja: "同じプランに追加", ko: "같은 플랜에 추가", de: "Zum selben Plan hinzufügen", fr: "Ajouter au même plan", ru: "В тот же план" },
   addMoreTrips: { th: "เพิ่มทริป", en: "Add more trips", cn: "添加更多行程", ja: "ツアーを追加", ko: "투어 더 추가", de: "Weitere Touren hinzufügen", fr: "Ajouter d'autres voyages", ru: "Добавить туры" },
   addItem: { th: "เพิ่มรายการ", en: "Add Item", cn: "添加项目", ja: "項目を追加", ko: "항목 추가", de: "Eintrag hinzufügen", fr: "Ajouter un élément", ru: "Добавить пункт" },
+  compare: { th: "เปรียบเทียบ", en: "Compare", cn: "比较", ja: "比較", ko: "비교", de: "Vergleichen", fr: "Comparer", ru: "Сравнить" },
 
   // === Tabs ===
   tripsTab: { th: "ทริป", en: "Trips", cn: "行程", ja: "ツアー", ko: "투어", de: "Touren", fr: "Voyages", ru: "Туры" },
@@ -220,7 +221,7 @@ export type ArkLabelKey = keyof typeof DICT;
  */
 export function t(lang: string | undefined | null, key: ArkLabelKey): string {
   const lng = normalizeArkLang(lang);
-  const entry = DICT[key];
+  const entry: Entry = DICT[key];
   return entry[lng] ?? entry.en ?? entry.th;
 }
 

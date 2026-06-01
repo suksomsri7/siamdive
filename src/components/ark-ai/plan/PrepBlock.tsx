@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { getTripTemplate, type CertLevel } from "@/lib/ark-ai/trip-prep-templates";
+import { getTripTemplate, type CertLevel, type ChecklistItem } from "@/lib/ark-ai/trip-prep-templates";
 import type { PlanTrip } from "@/lib/plan-store";
 
 type Props = {
@@ -43,7 +43,6 @@ function pickRepresentativeTrip(trips: PlanTrip[]): PlanTrip | null {
 
 export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const isTh = lang === "th";
   const headerText = HEADER[lang] || HEADER.en;
   const sublineText = SUBLINE[lang] || SUBLINE.en;
 
@@ -106,7 +105,7 @@ export default function PrepBlock({ trips, cert = "ow", lang }: Props) {
                   borderRadius: 4, border: "1.5px solid var(--plan-border-soft)",
                   background: "var(--plan-surface-alt)",
                 }} />
-                <span>{isTh ? item.th : item.en}</span>
+                <span>{item[lang as keyof ChecklistItem] ?? item.en}</span>
               </li>
             ))}
           </ul>

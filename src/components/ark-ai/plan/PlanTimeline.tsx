@@ -39,6 +39,32 @@ const LOCALE_MAP: Record<string, string> = {
   th: "th-TH", en: "en-US", cn: "zh-CN", de: "de-DE", fr: "fr-FR", ru: "ru-RU", ko: "ko-KR", ja: "ja-JP",
 };
 
+// 8-language UI labels (translated faithfully from the Thai source strings).
+const CHANGE_DATE_LABEL: Record<string, string> = {
+  th: "เปลี่ยนวัน", en: "Change date", cn: "更改日期", ja: "日付を変更", ko: "날짜 변경",
+  de: "Datum ändern", fr: "Changer la date", ru: "Изменить дату",
+};
+const REMOVE_TRIP_CONFIRM: Record<string, string> = {
+  th: "ลบทริปนี้ออกจากแพลน?", en: "Remove this trip from plan?", cn: "要将此行程从计划中移除吗？",
+  ja: "このツアーをプランから削除しますか？", ko: "이 여행을 플랜에서 삭제할까요?",
+  de: "Diese Reise aus dem Plan entfernen?", fr: "Retirer ce voyage du plan ?",
+  ru: "Удалить эту поездку из плана?",
+};
+const REMOVE_ITEM_CONFIRM: Record<string, string> = {
+  th: "ลบรายการนี้ใช่ไหม?", en: "Remove this item?", cn: "要删除此项吗？",
+  ja: "この項目を削除しますか？", ko: "이 항목을 삭제할까요?",
+  de: "Dieses Element entfernen?", fr: "Supprimer cet élément ?",
+  ru: "Удалить этот элемент?",
+};
+const CHECK_IN_LABEL: Record<string, string> = {
+  th: "เช็คอิน", en: "Check in", cn: "入住", ja: "チェックイン", ko: "체크인",
+  de: "Check-in", fr: "Arrivée", ru: "Заезд",
+};
+const CHECK_OUT_LABEL: Record<string, string> = {
+  th: "เช็คเอาท์", en: "Check out", cn: "退房", ja: "チェックアウト", ko: "체크아웃",
+  de: "Check-out", fr: "Départ", ru: "Выезд",
+};
+
 const fmtDate = (iso: string, lang: string) =>
   new Date(iso).toLocaleDateString(LOCALE_MAP[lang] || "en-US", { day: "numeric", month: "short", year: "2-digit" });
 
@@ -774,11 +800,11 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     <path d="M12 20h9"/>
                     <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
                   </svg>
-                  {lang === "th" ? "เปลี่ยนวัน" : "Change date"}
+                  {CHANGE_DATE_LABEL[lang] || CHANGE_DATE_LABEL["en"]}
                 </button>
                 <button
                   onClick={() => {
-                    if (typeof window !== "undefined" && !window.confirm(lang === "th" ? "ลบทริปนี้ออกจากแพลน?" : "Remove this trip from plan?")) return;
+                    if (typeof window !== "undefined" && !window.confirm(REMOVE_TRIP_CONFIRM[lang] || REMOVE_TRIP_CONFIRM["en"])) return;
                     setExpanded(false);
                     handleRemove();
                   }}
@@ -902,11 +928,11 @@ function UnscheduledCard({ trip, originalIdx, planId, canEdit, onRemoved }: {
 // startAt so the entry lands at the right point on the calendar. Click body
 // → onEdit (the same edit modal also functions as "view details"). X → onRemove.
 const ITEM_TYPE_LABEL: Record<string, Record<string, string>> = {
-  FLIGHT:   { th: "เที่ยวบิน", en: "Flight" },
-  HOTEL:    { th: "ที่พัก",     en: "Hotel" },
-  ACTIVITY: { th: "กิจกรรม",   en: "Activity" },
-  TRANSFER: { th: "การเดินทาง", en: "Transfer" },
-  NOTE:     { th: "บันทึก",    en: "Note" },
+  FLIGHT:   { th: "เที่ยวบิน", en: "Flight",   cn: "航班",   ja: "フライト",   ko: "항공편", de: "Flug",      fr: "Vol",       ru: "Рейс" },
+  HOTEL:    { th: "ที่พัก",     en: "Hotel",    cn: "住宿",   ja: "宿泊",       ko: "숙소",   de: "Unterkunft", fr: "Hébergement", ru: "Жильё" },
+  ACTIVITY: { th: "กิจกรรม",   en: "Activity", cn: "活动",   ja: "アクティビティ", ko: "활동",   de: "Aktivität", fr: "Activité",  ru: "Активность" },
+  TRANSFER: { th: "การเดินทาง", en: "Transfer", cn: "交通",   ja: "移動",       ko: "이동",   de: "Transfer",  fr: "Transfert", ru: "Трансфер" },
+  NOTE:     { th: "บันทึก",    en: "Note",     cn: "备注",   ja: "メモ",       ko: "메모",   de: "Notiz",     fr: "Note",      ru: "Заметка" },
 };
 const ITEM_TYPE_GLYPH: Record<string, React.ReactNode> = {
   FLIGHT: (
@@ -952,13 +978,13 @@ function ItemEntryCard({ item, lang, canEdit, onRemove, onEdit }: {
   // Hotels list a date range (check in → check out); everything else (flights
   // mostly) shows a single date + time.
   const isHotel = item.type === "HOTEL";
-  const checkInLabel  = lang === "th" ? "เช็คอิน"   : "Check in";
-  const checkOutLabel = lang === "th" ? "เช็คเอาท์" : "Check out";
+  const checkInLabel  = CHECK_IN_LABEL[lang]  || CHECK_IN_LABEL["en"];
+  const checkOutLabel = CHECK_OUT_LABEL[lang] || CHECK_OUT_LABEL["en"];
   const endDateLabel = end?.toLocaleDateString(locale, { day: "numeric", month: "short", year: "2-digit" });
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (typeof window !== "undefined" && !window.confirm(lang === "th" ? "ลบรายการนี้ใช่ไหม?" : "Remove this item?")) return;
+    if (typeof window !== "undefined" && !window.confirm(REMOVE_ITEM_CONFIRM[lang] || REMOVE_ITEM_CONFIRM["en"])) return;
     onRemove();
   };
 
