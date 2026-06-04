@@ -691,11 +691,15 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
         </div>
       )}
 
-      {pickerOpen && (
+      {pickerOpen && typeof document !== "undefined" && createPortal(
         <div
           onClick={() => setPickerOpen(false)}
           style={{
-            position: "fixed", inset: 0, zIndex: 1000,
+            // Portaled to document.body and above the My Plan drawer (zIndex
+            // 1300) so the overlay centres on the viewport rather than inside
+            // the drawer's transformed ancestor (which would trap position:
+            // fixed and centre it within the container).
+            position: "fixed", inset: 0, zIndex: 2000,
             background: "rgba(0,0,0,0.72)",
             backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -720,7 +724,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
               onAdded={() => setPickerOpen(false)}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Detail modal — centred dialog opened from the "View details" pill.
