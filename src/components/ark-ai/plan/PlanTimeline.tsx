@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
 import { ScheduleDetailSkeleton } from "../Skeletons";
@@ -722,10 +723,12 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
         </div>
       )}
 
-      {/* Detail modal — fullscreen overlay opened from the bottom-right
-          "View details" pill. Replaces the inline pull-down panel so the
-          boat/schedule write-up gets the whole viewport. */}
-      {expanded && (
+      {/* Detail modal — centred dialog opened from the "View details" pill.
+          Rendered through a portal to document.body so position:fixed escapes
+          the My Plan drawer's transformed/animated ancestor (which would
+          otherwise become the containing block and trap the overlay inside
+          the card). */}
+      {expanded && typeof document !== "undefined" && createPortal(
         <div
           onClick={() => setExpanded(false)}
           style={{
@@ -898,7 +901,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
             )}
           </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
