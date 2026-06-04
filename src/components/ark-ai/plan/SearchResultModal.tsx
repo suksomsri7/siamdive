@@ -219,24 +219,39 @@ function plusDaysISO(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 type Props = {
   planId: string;
   deviceId: string;
   lang: string;
   type: "FLIGHT" | "HOTEL";
+  /** Earliest trip departure (yyyy-mm-dd) — prefills the start date. */
+  tripStartDate?: string;
+  /** Latest trip return (yyyy-mm-dd) — prefills hotel checkout. */
+  tripEndDate?: string;
   onClose: () => void;
   onPicked: () => void;
 };
 
-export default function SearchResultModal({ planId, deviceId, lang, type, onClose, onPicked }: Props) {
+export default function SearchResultModal({ planId, deviceId, lang, type, tripStartDate, tripEndDate, onClose, onPicked }: Props) {
   const labels = L(lang);
   const [from, setFrom] = useState("BKK");
   const [to, setTo] = useState("HKT");
   const [cityName, setCityName] = useState("Phuket");
-  const [date, setDate] = useState(tomorrowISO());
+  // Prefer the selected trip's dates so the search starts from the actual
+  // trip window; fall back to tomorrow / +3 days when the plan has no dated
+  // trips yet.
+  const [date, setDate] = useState(tripStartDate || tomorrowISO());
   const [returnDate, setReturnDate] = useState("");
-  const [checkin, setCheckin] = useState(tomorrowISO());
-  const [checkout, setCheckout] = useState(plusDaysISO(3));
+  const [checkin, setCheckin] = useState(tripStartDate || tomorrowISO());
+  const [checkout, setCheckout] = useState(
+    tripEndDate || (tripStartDate ? addDaysISO(tripStartDate, 3) : plusDaysISO(3)),
+  );
   const [adults, setAdults] = useState(type === "FLIGHT" ? 1 : 2);
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<SearchOffer[]>([]);

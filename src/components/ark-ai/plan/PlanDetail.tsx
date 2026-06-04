@@ -228,6 +228,13 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
   }
 
   const trips = plan.trips;
+  // Default flight/hotel search dates off the selected trips — earliest
+  // departure and latest return — so the search modal prefills around the
+  // actual trip window instead of "tomorrow".
+  const tripDepartures = trips.map((t) => t.schedule?.departureDate).filter(Boolean).sort() as string[];
+  const tripReturns = trips.map((t) => t.schedule?.returnDate).filter(Boolean).sort() as string[];
+  const tripStartDate = tripDepartures[0]?.slice(0, 10);
+  const tripEndDate = tripReturns[tripReturns.length - 1]?.slice(0, 10);
   // Custom-uploaded cover wins; fall back to the first trip's image. Order
   // matters — previously trip.cover took priority, which silently masked
   // the user's own upload as soon as a single trip had its own cover.
@@ -384,21 +391,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                       <PrepBlock trips={trips} lang={lang} />
                     </div>
 
-                    {/* Smart suggestions: gap-fill trips + contextual blogs */}
-                    {suggestions?.gaps && suggestions.gaps.length > 0 && (
-                      <GapSuggestions
-                        planId={planId}
-                        gaps={suggestions.gaps as never}
-                        lang={lang}
-                        onTripAdded={() => {
-                          const localPlans = getPlans();
-                          const local = localPlans.find((p) => p.id === planId);
-                          if (local) {
-                            setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
-                          }
-                        }}
-                      />
-                    )}
+                    {/* Contextual blog suggestions */}
                     {suggestions?.blogs && suggestions.blogs.length > 0 && (
                       <SuggestedBlogs blogs={suggestions.blogs} lang={lang} />
                     )}
@@ -479,6 +472,25 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
                         />
                       )}
                     </div>
+
+                    {/* Suggested trips (gap-fill) — pinned to the very bottom
+                        of the plan, below the action row, per user preference. */}
+                    {suggestions?.gaps && suggestions.gaps.length > 0 && (
+                      <div style={{ marginTop: 24 }}>
+                        <GapSuggestions
+                          planId={planId}
+                          gaps={suggestions.gaps as never}
+                          lang={lang}
+                          onTripAdded={() => {
+                            const localPlans = getPlans();
+                            const local = localPlans.find((p) => p.id === planId);
+                            if (local) {
+                              setPlan((prev) => prev ? { ...prev, trips: local.trips as PlanTrip[] } : prev);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -538,6 +550,8 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           deviceId={deviceId}
           lang={lang}
           type={searchModal.type}
+          tripStartDate={tripStartDate}
+          tripEndDate={tripEndDate}
           onClose={() => setSearchModal(null)}
           onPicked={() => setItemsRefresh((n) => n + 1)}
         />
