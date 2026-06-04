@@ -732,7 +732,9 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
         <div
           onClick={() => setExpanded(false)}
           style={{
-            position: "fixed", inset: 0, zIndex: 1100,
+            // Above the My Plan drawer (zIndex 1300) — the modal is portaled to
+            // document.body as a sibling of the drawer, so it must out-rank it.
+            position: "fixed", inset: 0, zIndex: 2000,
             background: "rgba(0,0,0,0.62)",
             backdropFilter: "blur(3px)",
             WebkitBackdropFilter: "blur(3px)",
