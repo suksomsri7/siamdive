@@ -12,7 +12,7 @@ import BuildTargetSheet from "./plan/BuildTargetSheet";
 import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
-import { addTrip, addTripToPlan, createPlan, getPlans, switchPlan, upsertServerPlan, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
+import { addTrip, addTripToPlan, createPlan, getPlans, switchPlan, upsertServerPlan, pushPlanToServer, suggestPlanName, type UserPlan, type PlanTrip } from "@/lib/plan-store";
 import { readPendingPicks, clearPendingPicks, addPendingPick, type PendingPick } from "@/lib/pending-picks";
 import { rankPlans, type PlanScore } from "@/lib/plan-routing";
 import {
@@ -798,6 +798,14 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       planId = (getPlans()[0] || null)?.id || null;
     }
 
+    // Persist to the server now and adopt the canonical cuid so the plan page
+    // opens on a real DB id — otherwise it opens on the local UUID, which
+    // breaks flight/hotel search (400) and recommended trips (404) until the
+    // debounced sync swaps the id under the already-open page.
+    if (planId) {
+      planId = await pushPlanToServer(planId);
+    }
+
     clearPendingPicks();
     setPendingPicks([]);
     setBuildStep(null);
@@ -960,6 +968,11 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
       for (const pick of stagedPicks) addTripToPlan(planId, pick);
       clearPendingPicks();
       setPendingPicks([]);
+
+      // Persist + adopt the canonical cuid before opening the plan page, so
+      // search and recommended-trips work from the first paint (a raw local
+      // UUID fails the search id-format guard and 404s suggestions).
+      planId = await pushPlanToServer(planId);
 
       window.dispatchEvent(new CustomEvent("myplan-build-done", { detail: { planId } }));
     } catch (err) {

@@ -223,6 +223,87 @@ async function syncToDb() {
   } catch {}
 }
 
+// Local ids come from generateId() — crypto.randomUUID() (contains hyphens)
+// or a `${Date.now()}-${rand}` fallback (also hyphenated). Server ids are
+// cuids, which never contain a hyphen. So "has a hyphen" reliably means
+// "not yet persisted to the server".
+function isLocalPlanId(id: string): boolean {
+  return id.includes("-");
+}
+
+// Push a single plan (and its trips) to the server NOW and return its
+// canonical server id. New plans are created via POST and adopt the returned
+// cuid in place; already-synced plans are PATCHed so freshly-added trips land
+// in the DB immediately.
+//
+// Why this exists: createPlan() mints a local crypto.randomUUID() id and the
+// Ark-AI "create trip" flow opens the plan page on that id right away. But a
+// raw UUID (a) fails the /items/search route's id-format guard → 400, and
+// (b) 404s the /suggestions lookup — so flight/hotel search and recommended
+// trips both break until the 1.5s debounced syncToDb() swaps the id, by which
+// point the open page is still holding the stale UUID. Awaiting this before
+// opening the page guarantees a real DB id from the first paint.
+export async function pushPlanToServer(planId: string): Promise<string> {
+  if (typeof window === "undefined") return planId;
+  const deviceId = getDeviceId();
+  if (!deviceId) return planId;
+  // We're doing the sync inline — cancel any pending debounced run so the
+  // same brand-new plan isn't POSTed twice (which would duplicate it).
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+  const plan = readPlans().find((p) => p.id === planId);
+  if (!plan) return planId;
+
+  try {
+    if (isLocalPlanId(plan.id)) {
+      const res = await fetch("/api/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          name: plan.name,
+          startDate: plan.startDate,
+          trips: plan.trips,
+        }),
+      });
+      if (!res.ok) return planId;
+      const created = await res.json();
+      if (created?.id && created.id !== plan.id) {
+        // Re-read in case other writes happened while the request was in
+        // flight, then swap the local id for the canonical one.
+        const fresh = readPlans();
+        const target = fresh.find((p) => p.id === planId);
+        if (target) {
+          target.id = created.id;
+          writePlans(fresh);
+          if (getActivePlanId() === planId) setActivePlanId(created.id);
+          window.dispatchEvent(new Event("myplan-change"));
+        }
+        return created.id;
+      }
+      return plan.id;
+    }
+
+    // Already a server id — PATCH so the just-added trips are in the DB before
+    // the plan page fetches suggestions/items.
+    await fetch(`/api/plans/${plan.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deviceId,
+        name: plan.name,
+        startDate: plan.startDate,
+        trips: plan.trips,
+      }),
+    });
+    return plan.id;
+  } catch {
+    return planId;
+  }
+}
+
 // ── Init (call once on app mount) ────────────────────────────────────────────
 
 let initialized = false;

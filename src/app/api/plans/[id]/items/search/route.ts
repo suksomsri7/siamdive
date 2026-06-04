@@ -40,7 +40,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     // check keeps random IDs from polluting the rate-limit table. If the user
     // tries to PICK an offer after search, /items POST will FK-fail with a
     // clear error then — but the search itself shouldn't be the blocker.
-    if (!/^[a-z0-9]{20,32}$/i.test(id)) {
+    //
+    // Accept both cuids (server ids, ~25 chars, no hyphens) AND the local
+    // crypto.randomUUID() ids that plan-store mints before a plan syncs to the
+    // DB (36 chars, hyphenated). The Ark-AI "create trip" flow can open the
+    // plan page on a still-local id; rejecting the UUID here surfaced as a
+    // bogus "Search failed" right after building a plan.
+    if (!/^[a-z0-9-]{20,40}$/i.test(id)) {
       return NextResponse.json({ error: "invalid_plan_id" }, { status: 400 });
     }
 
