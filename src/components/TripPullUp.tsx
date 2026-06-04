@@ -7,6 +7,7 @@ import { addTripToPlan, createPlan, checkDateConflicts, suggestPlanName, getPlan
 import { addPendingPick } from "@/lib/pending-picks";
 import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
 import DateConflictModal from "./ark-ai/plan/DateConflictModal";
+import BodyPortal from "./ark-ai/BodyPortal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Trip = {
@@ -1285,15 +1286,18 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
     </div>
 
     {showPlanSelector && (
+      <BodyPortal>
       <PlanSelectorSheet
         lang={lang}
         suggestedName={pendingPlanTrip ? suggestPlanName(pendingPlanTrip) : undefined}
         onSelect={handlePlanSelected}
         onClose={() => { setShowPlanSelector(false); setPendingPlanTrip(null); }}
       />
+      </BodyPortal>
     )}
 
     {planConflicts.length > 0 && (
+      <BodyPortal>
       <DateConflictModal
         conflicts={planConflicts}
         lang={lang}
@@ -1301,6 +1305,7 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
         onCreateNewPlan={handleConflictNewPlan}
         onClose={() => { setPlanConflicts([]); setPendingPlanTrip(null); setPlanTargetId(null); }}
       />
+      </BodyPortal>
     )}
     </>
   );

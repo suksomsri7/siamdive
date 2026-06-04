@@ -217,7 +217,7 @@ export default function SharePlanSheet({ planId, planShortId, planName, lang, on
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 1100,
+        position: "fixed", inset: 0, zIndex: 2000,
         background: "rgba(0,0,0,0.55)",
         backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
         display: "flex", alignItems: "flex-end", justifyContent: "center",

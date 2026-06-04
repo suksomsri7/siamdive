@@ -146,7 +146,7 @@ export default function CompareSheet({ picks, lang, onClose }: Props) {
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 50,
+        position: "fixed", inset: 0, zIndex: 2000,
         background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
         display: "flex", alignItems: "flex-end", justifyContent: "center",
       }}

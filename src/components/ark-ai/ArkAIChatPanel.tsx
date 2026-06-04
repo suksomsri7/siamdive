@@ -9,6 +9,7 @@ import TemplatePicker from "./TemplatePicker";
 import CompareSheet from "./CompareSheet";
 import PlanRouteSheet from "./PlanRouteSheet";
 import BuildTargetSheet from "./plan/BuildTargetSheet";
+import BodyPortal from "./BodyPortal";
 import { templatePrimer } from "@/lib/ark-ai/plan-templates";
 import { readRecentBoats } from "@/lib/recentlyViewed";
 import { monthName, seasonInfo, seasonLabel } from "@/lib/dive-season";
@@ -1488,18 +1489,22 @@ export default function ArkAIChatPanel({ open, onClose }: { open: boolean; onClo
         })()}
       </div>
       {compareOpen && (
+        <BodyPortal>
         <CompareSheet
           picks={pendingPicks}
           lang={lang}
           onClose={() => setCompareOpen(false)}
         />
+        </BodyPortal>
       )}
       {buildTargetOpen && (
+        <BodyPortal>
         <BuildTargetSheet
           lang={lang}
           onSelect={handleBuildTargetSelect}
           onClose={() => setBuildTargetOpen(false)}
         />
+        </BodyPortal>
       )}
       {routeSheet && (
         <PlanRouteSheet

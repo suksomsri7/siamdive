@@ -18,6 +18,7 @@ import PopularTripsSection from "./PopularTrips";
 import ThemeToggle from "./ThemeToggle";
 import LangSwitch from "./LangSwitch";
 import CompareSheet from "../CompareSheet";
+import BodyPortal from "../BodyPortal";
 import { PlanDetailSkeleton } from "../Skeletons";
 import { getSavedEmail } from "@/lib/plan-store";
 import { t } from "@/lib/ark-ai/i18n";
@@ -505,23 +506,28 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
         </>
 
       {showChannelSheet && contactMessage && (
+        <BodyPortal>
         <ContactChannelSheet
           planId={planId}
           message={contactMessage}
           lang={lang}
           onClose={() => { setShowChannelSheet(false); setContactMessage(null); }}
         />
+        </BodyPortal>
       )}
 
       {compareOpen && trips.length >= 2 && (
+        <BodyPortal>
         <CompareSheet
           picks={trips}
           lang={lang}
           onClose={() => setCompareOpen(false)}
         />
+        </BodyPortal>
       )}
 
       {itemModal && (
+        <BodyPortal>
         <PlanItemEditModal
           planId={planId}
           deviceId={deviceId}
@@ -532,9 +538,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           onClose={() => setItemModal(null)}
           onSaved={() => setItemsRefresh((n) => n + 1)}
         />
+        </BodyPortal>
       )}
 
       {showSharePlan && (
+        <BodyPortal>
         <SharePlanSheet
           planId={planId}
           planShortId={plan.shortId}
@@ -542,9 +550,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           lang={lang}
           onClose={() => setShowSharePlan(false)}
         />
+        </BodyPortal>
       )}
 
       {searchModal && (
+        <BodyPortal>
         <SearchResultModal
           planId={planId}
           deviceId={deviceId}
@@ -555,9 +565,11 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
           onClose={() => setSearchModal(null)}
           onPicked={() => setItemsRefresh((n) => n + 1)}
         />
+        </BodyPortal>
       )}
 
       {addSheetOpen && (
+        <BodyPortal>
         <AddItemSheet
           lang={lang}
           onClose={() => setAddSheetOpen(false)}
@@ -567,6 +579,7 @@ export default function PlanDetail({ planId, deviceId, lang, onBack, onClose }: 
             else setItemModal({ mode: "create", type });
           }}
         />
+        </BodyPortal>
       )}
     </>
   );
@@ -604,7 +617,7 @@ function AddItemSheet({ lang, onClose, onPick }: {
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 1100,
+        position: "fixed", inset: 0, zIndex: 2000,
         background: "rgba(0,0,0,0.55)",
         backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
         display: "flex", alignItems: "flex-end", justifyContent: "center",
