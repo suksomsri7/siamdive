@@ -176,28 +176,37 @@ model CompanyTranslation {
 // Boat IS the product listing (daytrip or liveaboard)
 
 model Boat {
-  id           String            @id @default(cuid())
-  company      Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  companyId    String?
-  name         String // internal boat name e.g. "MV Manta Queen 5"
-  type         BoatType
-  capacity     Int?
-  photos       String[] // boat photos (interior/exterior)
-  covers       String[] // product listing cover images
-  status       PublishStatus     @default(DRAFT)
-  featured     Boolean           @default(false)
-  currency     String            @default("THB") // ISO currency for this boat's prices; imported boats may be USD until converted
-  translations BoatTranslation[]
-  videos       BoatVideo[]
-  priceTiers   BoatPriceTier[]
-  schedules    Schedule[]
-  packages     Package[]
-  options      BoatOption[]
-  serviceAreas BoatServiceArea[]
-  sourceUrl    String? // external source page (e.g. liveaboard.com boat URL) — set by importers
-  sourceId     String? // external stable id (e.g. liveaboard boat id) — for idempotent re-import/sync
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id                String            @id @default(cuid())
+  company           Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyId         String?
+  name              String // internal boat name e.g. "MV Manta Queen 5"
+  type              BoatType
+  capacity          Int?
+  photos            String[] // boat photos (interior/exterior)
+  covers            String[] // product listing cover images
+  status            PublishStatus     @default(DRAFT)
+  featured          Boolean           @default(false)
+  currency          String            @default("THB") // ISO currency for this boat's prices; imported boats may be USD until converted
+  // Dive-resort structured attributes (PADI-style). All optional → additive,
+  // unused by liveaboard/daytrip boats.
+  stars             Int? // resort star rating (1–5)
+  latitude          Float?
+  longitude         Float?
+  ecoLabels         String[]          @default([]) // e.g. ["Green Fins","Adopt the Blue"]
+  tripadvisorRating Float?
+  translations      BoatTranslation[]
+  videos            BoatVideo[]
+  priceTiers        BoatPriceTier[]
+  schedules         Schedule[]
+  packages          Package[]
+  options           BoatOption[]
+  divePackages      DivePackage[]
+  mealPlans         MealPlan[]
+  serviceAreas      BoatServiceArea[]
+  sourceUrl         String? // external source page (e.g. liveaboard.com boat URL) — set by importers
+  sourceId          String? // external stable id (e.g. liveaboard boat id) — for idempotent re-import/sync
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([sourceId])
 }
@@ -319,6 +328,13 @@ model Package {
   photos        String[] // package gallery photos (unlimited)
   status        PublishStatus         @default(DRAFT)
   sourceId      String? // external stable id (e.g. liveaboard cabin id) — set by importers
+  // Dive-resort room attributes (PADI-style). All optional → additive.
+  bedType       String? // e.g. "Double or Twin"
+  occupancyMin  Int?
+  occupancyMax  Int?
+  roomSizeSqm   Int?
+  amenities     String[]              @default([]) // e.g. ["Air Conditioning","Private bathroom"]
+  pricePerNight Float? // resort room rate per night (configurator base), in boat.currency
   translations  PackageTranslation[]
   priceTiers    PackagePriceTier[]
   seasonPeriods PackageSeasonPeriod[]
@@ -327,6 +343,38 @@ model Package {
   updatedAt     DateTime              @updatedAt
 
   @@index([boatId, sourceId])
+}
+
+// Dive-package options offered by a dive resort (e.g. "12 dives", "16 dives").
+// The booking configurator combines one DivePackage + one room + meal plan.
+model DivePackage {
+  id            String   @id @default(cuid())
+  boat          Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId        String
+  numberOfDives Int
+  price         Float? // per person, in boat.currency (null until operator fills it)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([boatId])
+}
+
+// Meal-plan options for a dive resort (e.g. "Full Board"). `included` marks a
+// plan bundled in the base price; otherwise `price` is the per-person add-on.
+model MealPlan {
+  id          String   @id @default(cuid())
+  boat        Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  boatId      String
+  name        String // "Full Board" / "Half Board"
+  price       Float? // per person/night add-on, in boat.currency
+  included    Boolean  @default(false)
+  description String   @default("") // HTML detail (what's covered)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([boatId])
 }
 
 model PackageSeasonPeriod {
