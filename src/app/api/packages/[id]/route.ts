@@ -44,7 +44,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!canDo(auth, `${permRes}.write`)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { name, totalSeats, status, photos, translations, priceTiers, seasonPeriods } = body;
+  const { name, totalSeats, status, photos, translations, priceTiers, seasonPeriods,
+    bedType, occupancyMin, occupancyMax, roomSizeSqm, amenities, pricePerNight } = body;
+  const pkgNum = (v: unknown) => (v === "" || v == null ? null : Number(v));
   await prisma.packageTranslation.deleteMany({ where: { packageId: id } });
   await prisma.packagePriceTier.deleteMany({ where: { packageId: id } });
   await prisma.packageSeasonPeriod.deleteMany({ where: { packageId: id } });
@@ -55,6 +57,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       totalSeats: totalSeats ? Number(totalSeats) : null,
       photos: photos ?? [],
       status: status ?? "DRAFT",
+      ...(bedType !== undefined ? { bedType: bedType ?? null } : {}),
+      ...(occupancyMin !== undefined ? { occupancyMin: pkgNum(occupancyMin) } : {}),
+      ...(occupancyMax !== undefined ? { occupancyMax: pkgNum(occupancyMax) } : {}),
+      ...(roomSizeSqm !== undefined ? { roomSizeSqm: pkgNum(roomSizeSqm) } : {}),
+      ...(amenities !== undefined ? { amenities: Array.isArray(amenities) ? amenities : [] } : {}),
+      ...(pricePerNight !== undefined ? { pricePerNight: pkgNum(pricePerNight) } : {}),
       translations: {
         create: LANGS.map(lang => {
           const tr = translations?.find((t: { lang: string }) => t.lang === lang) ?? {};
