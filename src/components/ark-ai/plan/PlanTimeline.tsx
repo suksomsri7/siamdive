@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { type PlanTrip, removeTripByIndex } from "@/lib/plan-store";
 import { parseItinerary, extractScheduleFromContent, stripScheduleFromContent } from "@/lib/ark-ai/itinerary-parser";
+import ScheduleFullDetails from "@/components/ScheduleFullDetails";
 import { ScheduleDetailSkeleton } from "../Skeletons";
 import TripSchedulePicker from "../TripSchedulePicker";
 import { t, dayLabel } from "@/lib/ark-ai/i18n";
@@ -912,49 +913,11 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                       <div className="trip-rich" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
                     </div>
                   )}
-                  {isLiveaboard && (() => {
-                    const d = s?.details || {};
-                    const lg = s?.logistics || {};
-                    const hasFull = !!(d.requirements || d.highlights || (d.marineLife?.length) || (s?.included?.length) || (s?.excluded?.length) || (d.optionalExtras?.length) || d.goodToKnow || d.paymentTerms || lg.departurePort || lg.departureTime || lg.returnPort);
-                    if (!hasFull) return null;
-                    const liItem = (x: string, i: number, color: string, mark: string) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg)", marginBottom: 6, lineHeight: 1.45 }}><span style={{ color, flexShrink: 0, fontWeight: 700 }}>{mark}</span><span>{x}</span></li>);
-                    const Section = ({ title, children, open = false }: { title: string; children: React.ReactNode; open?: boolean }) => (
-                      <details open={open} style={{ borderTop: "1px solid var(--plan-border-soft)", padding: "12px 0" }}>
-                        <summary style={{ listStyle: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--plan-fg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>{title}<span style={{ color: "var(--plan-fg-subtle)", fontWeight: 400 }}>⌄</span></summary>
-                        <div style={{ marginTop: 10 }}>{children}</div>
-                      </details>
-                    );
-                    const logiRow = (lbl: string, parts: (string | number | undefined)[]) => { const v = parts.filter(Boolean).join(" · "); return v ? <div style={{ fontSize: 13, color: "var(--plan-fg)", marginBottom: 4 }}><span style={{ color: "var(--plan-fg-subtle)" }}>{lbl}: </span>{v}</div> : null; };
-                    return (
-                      <div style={{ marginTop: 18 }}>
-                        {/* Requirements */}
-                        {(d.requirements || lg.requiredCert || lg.requiredDives) && (
-                          <div style={{ background: "var(--plan-surface-2,rgba(0,0,0,0.04))", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-                            <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("requirements")}</p>
-                            {(lg.totalDivesMin || lg.totalDivesMax || lg.requiredCert || lg.requiredDives) && <div style={{ fontSize: 13, color: "var(--plan-fg)", marginBottom: 4 }}>{[lg.requiredDives ? `${lg.requiredDives}+ dives` : null, lg.requiredCert, (lg.totalDivesMin || lg.totalDivesMax) ? `≈ ${lg.totalDivesMin ?? ""}–${lg.totalDivesMax ?? ""} dives` : null].filter(Boolean).join(" · ")}</div>}
-                            {d.requirements && <div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.requirements }} />}
-                          </div>
-                        )}
-                        {/* Departure / Return */}
-                        {(lg.departurePort || lg.departureTime || lg.returnPort || lg.returnTime) && (
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 12 }}>
-                            <div><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("departure")}</p>{logiRow("🛳️", [lg.departurePort, lg.departureTime])}{logiRow("✈️", [lg.departureAirport])}</div>
-                            <div><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("arrival")}</p>{logiRow("🛳️", [lg.returnPort, lg.returnTime])}{logiRow("✈️", [lg.returnAirport])}</div>
-                          </div>
-                        )}
-                        {/* Itinerary highlights */}
-                        {d.highlights && (<div style={{ marginBottom: 12 }}><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("highlights")}</p><div className="trip-rich" dangerouslySetInnerHTML={{ __html: d.highlights }} /></div>)}
-                        {/* Marine life chips */}
-                        {(d.marineLife?.length ?? 0) > 0 && (<div style={{ marginBottom: 12 }}><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("marineLife")}</p><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{d.marineLife!.map((m, i) => <span key={i} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 999, background: "var(--plan-surface-2,rgba(0,0,0,0.05))", color: "var(--plan-fg)" }}>{m}</span>)}</div></div>)}
-                        {/* Accordions */}
-                        {(s?.included?.length ?? 0) > 0 && (<Section title={label("included")} open><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{s!.included!.map((x, i) => liItem(x, i, "#dc2626", "▪"))}</ul></Section>)}
-                        {(s?.excluded?.length ?? 0) > 0 && (<Section title={label("notIncluded")}><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{s!.excluded!.map((x, i) => liItem(x, i, "#9ca3af", "▪"))}</ul></Section>)}
-                        {(d.optionalExtras?.length ?? 0) > 0 && (<Section title={label("optionalExtras")}><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{d.optionalExtras!.map((x, i) => liItem(x, i, "#2563eb", "▪"))}</ul></Section>)}
-                        {d.goodToKnow && (<Section title={label("goodToKnow")}><div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.goodToKnow }} /></Section>)}
-                        {d.paymentTerms && (<Section title={label("payment")}><div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.paymentTerms }} /></Section>)}
-                      </div>
-                    );
-                  })()}
+                  {isLiveaboard && (
+                    <div style={{ marginTop: 18 }}>
+                      <ScheduleFullDetails data={{ included: s?.included, excluded: s?.excluded, details: s?.details, logistics: s?.logistics }} lang={lang} fg="var(--plan-fg)" subtle="var(--plan-fg-subtle)" chipBg="var(--plan-surface-2,rgba(0,0,0,0.05))" border="var(--plan-border-soft)" />
+                    </div>
+                  )}
                 </>
               );
             })()}

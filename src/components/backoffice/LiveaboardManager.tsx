@@ -2,16 +2,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BoatForm, BoatFormData, emptyBoatForm, ALL_LANGS, LANG_LABELS, type LangKey, RichEditor } from "@/components/backoffice/TripForm";
+import ScheduleFullDetails from "@/components/ScheduleFullDetails";
 import PackagePanel from "@/components/backoffice/PackagePanel";
 import OptionsPanel from "@/components/backoffice/OptionsPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SchedLang = { title: string; slug: string; excerpt: string; content: string; itinerary: string; keywords: string[]; included: string[]; excluded: string[] };
+type SchedLang = { title: string; slug: string; excerpt: string; content: string; itinerary: string; keywords: string[]; included: string[]; excluded: string[]; requirements: string; highlights: string; marineLife: string[]; optionalExtras: string[]; goodToKnow: string; paymentTerms: string };
+type SchedLogistics = { departurePort: string; departureTime: string; departureAirport: string; returnPort: string; returnTime: string; returnAirport: string; requiredCert: string; requiredDives: string; totalDivesMin: string; totalDivesMax: string };
+const emptyLogistics = (): SchedLogistics => ({ departurePort: "", departureTime: "", departureAirport: "", returnPort: "", returnTime: "", returnAirport: "", requiredCert: "", requiredDives: "", totalDivesMin: "", totalDivesMax: "" });
 type SchedPackage = { packageId: string; availableSeats: string; isFull: boolean; appendScheduleDetail: boolean; regularPrice: string; salePrice: string };
 type ScheduleRow = {
   id: string; boatId: string; dateType: string; departureDate: string | null; returnDate: string | null; weekDays: string[];
   totalSeats: number | null; availableSeats: number | null; status: string; season: string | null; note: string | null; itinerary: string; fromPrice: number | null;
-  translations: (SchedLang & { lang: string; route?: string })[];
+  logistics?: Partial<SchedLogistics> | null;
+  translations: (SchedLang & { lang: string; route?: string; details?: Record<string, unknown> })[];
   packages: { packageId: string; priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[] }[];
 };
 type PackageOption = { id: string; name: string; title: string };
@@ -74,7 +78,7 @@ function rowToBoatForm(b: BoatRow): BoatFormData {
   return form;
 }
 
-const emptySchedLang = (): SchedLang => ({ title: "", slug: "", excerpt: "", content: "", itinerary: "", keywords: [], included: [], excluded: [] });
+const emptySchedLang = (): SchedLang => ({ title: "", slug: "", excerpt: "", content: "", itinerary: "", keywords: [], included: [], excluded: [], requirements: "", highlights: "", marineLife: [], optionalExtras: [], goodToKnow: "", paymentTerms: "" });
 const emptySchedForm = (boatId = "") => ({
   boatId, dateType: "single" as "single" | "period" | "daily" | "weekly",
   departureDate: "", returnDate: "",
@@ -83,6 +87,7 @@ const emptySchedForm = (boatId = "") => ({
   season: null as string | null,
   fromPrice: "" as string,
   packages: [] as SchedPackage[],
+  logistics: emptyLogistics(),
   ...Object.fromEntries(ALL_LANGS.map(l => [l, emptySchedLang()])) as Record<LangKey, SchedLang>,
 });
 type SchedForm = ReturnType<typeof emptySchedForm>;
@@ -116,6 +121,7 @@ export default function LiveaboardManager({
   const [schedForm, setSchedForm] = useState<SchedForm>(emptySchedForm());
   const [savingSched, setSavingSched] = useState(false);
   const [schedActiveLang, setSchedActiveLang] = useState<LangKey>("en");
+  const [schedPreviewOpen, setSchedPreviewOpen] = useState(false);
   const [schedKwInput, setSchedKwInput] = useState<Record<LangKey, string>>(() => Object.fromEntries(ALL_LANGS.map(l => [l, ""])) as Record<LangKey, string>);
   const [schedPackageOptions, setSchedPackageOptions] = useState<PackageOption[]>([]);
 
@@ -171,8 +177,10 @@ export default function LiveaboardManager({
     base.status = s.status as ScheduleStatus;
     base.season = s.season ?? null;
     base.fromPrice = s.fromPrice?.toString() ?? "";
+    const lg = (s.logistics ?? {}) as Partial<SchedLogistics>;
+    base.logistics = { ...emptyLogistics(), ...Object.fromEntries(Object.entries(lg).map(([k, v]) => [k, v == null ? "" : String(v)])) } as SchedLogistics;
     base.packages = (s.packages ?? []).map(p => { const t0 = p.priceTiers?.[0]; return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: t0?.regularPrice?.toString() ?? "", salePrice: t0?.salePrice?.toString() ?? "" }; });
-    for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [], included: tr.included ?? [], excluded: tr.excluded ?? [] }; }
+    for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) { const dt = (tr.details ?? {}) as Record<string, unknown>; (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [], included: tr.included ?? [], excluded: tr.excluded ?? [], requirements: (dt.requirements as string) ?? "", highlights: (dt.highlights as string) ?? "", marineLife: (dt.marineLife as string[]) ?? [], optionalExtras: (dt.optionalExtras as string[]) ?? [], goodToKnow: (dt.goodToKnow as string) ?? "", paymentTerms: (dt.paymentTerms as string) ?? "" }; } }
     loadPackageOptions(s.boatId);
     setSchedForm(base); setEditSchedId(s.id); setSchedActiveLang("en"); setSchedOpen(true);
   };
@@ -180,7 +188,10 @@ export default function LiveaboardManager({
   const saveSched = async () => {
     setSavingSched(true);
     const pkgsWithPrices = schedForm.packages.map(p => ({ packageId: p.packageId, availableSeats: p.availableSeats, isFull: p.isFull, appendScheduleDetail: p.appendScheduleDetail, priceTiers: (p.regularPrice || p.salePrice) ? [{ tier: "DIVER", regularPrice: p.regularPrice || "0", salePrice: p.salePrice || null }] : [] }));
-    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => { const sl = schedForm[l] as SchedLang; return { lang: l, ...sl, included: (sl.included ?? []).map(x => x.trim()).filter(Boolean), excluded: (sl.excluded ?? []).map(x => x.trim()).filter(Boolean) }; }) };
+    const lg0 = schedForm.logistics; const num = (v: string) => v && !isNaN(Number(v)) ? Number(v) : undefined;
+    const logistics = { departurePort: lg0.departurePort || undefined, departureTime: lg0.departureTime || undefined, departureAirport: lg0.departureAirport || undefined, returnPort: lg0.returnPort || undefined, returnTime: lg0.returnTime || undefined, returnAirport: lg0.returnAirport || undefined, requiredCert: lg0.requiredCert || undefined, requiredDives: num(lg0.requiredDives), totalDivesMin: num(lg0.totalDivesMin), totalDivesMax: num(lg0.totalDivesMax) };
+    const cleanList = (a: string[]) => (a ?? []).map(x => x.trim()).filter(Boolean);
+    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, logistics, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => { const sl = schedForm[l] as SchedLang; return { lang: l, ...sl, included: cleanList(sl.included), excluded: cleanList(sl.excluded), details: { requirements: sl.requirements || "", highlights: sl.highlights || "", marineLife: cleanList(sl.marineLife), optionalExtras: cleanList(sl.optionalExtras), goodToKnow: sl.goodToKnow || "", paymentTerms: sl.paymentTerms || "" } }; }) };
     if (editSchedId) await fetch(`/api/schedules/${editSchedId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingSched(false); closeSched(); load();
@@ -480,7 +491,27 @@ export default function LiveaboardManager({
                   </div>
                 </div>
               )}
+              {/* Logistics — schedule-level (ไม่แยกภาษา), liveaboard PADI-style */}
+              {(() => { const lg = schedForm.logistics; const set = (k: keyof SchedLogistics, v: string) => setSchedForm(f => ({ ...f, logistics: { ...f.logistics, [k]: v } })); return (
+                <div style={{ border: "1px dashed #ccc", borderRadius: 8, padding: 12, marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, color: "#888", fontWeight: 700, marginBottom: 8 }}>Logistics / Requirements (PADI-style)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                    <div><label style={lbl}>Departure port</label><input value={lg.departurePort} onChange={e => set("departurePort", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Departure time</label><input value={lg.departureTime} placeholder="15:00" onChange={e => set("departureTime", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Departure airport</label><input value={lg.departureAirport} onChange={e => set("departureAirport", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Return port</label><input value={lg.returnPort} onChange={e => set("returnPort", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Return time</label><input value={lg.returnTime} placeholder="09:00" onChange={e => set("returnTime", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Return airport</label><input value={lg.returnAirport} onChange={e => set("returnAirport", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Required cert</label><input value={lg.requiredCert} placeholder="Open Water" onChange={e => set("requiredCert", e.target.value)} style={inp} /></div>
+                    <div><label style={lbl}>Min dives req.</label><input value={lg.requiredDives} type="number" onChange={e => set("requiredDives", e.target.value)} style={inp} /></div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}><div><label style={lbl}>Dives min</label><input value={lg.totalDivesMin} type="number" onChange={e => set("totalDivesMin", e.target.value)} style={inp} /></div><div><label style={lbl}>Dives max</label><input value={lg.totalDivesMax} type="number" onChange={e => set("totalDivesMax", e.target.value)} style={inp} /></div></div>
+                  </div>
+                </div>
+              ); })()}
               <div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
+                  <button type="button" onClick={() => setSchedPreviewOpen(true)} style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid #3b82f6", background: "transparent", color: "#3b82f6", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>👁 ดูตัวอย่าง (View Detail)</button>
+                </div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
                   {ALL_LANGS.map(l => <button key={l} onClick={() => setSchedActiveLang(l)} style={{ padding: "5px 12px", borderRadius: 20, border: schedActiveLang === l ? "none" : "1px solid #222", cursor: "pointer", fontSize: 11, fontWeight: 700, background: schedActiveLang === l ? "#3b82f6" : "transparent", color: schedActiveLang === l ? "#fff" : "#333" }}>{LANG_LABELS[l]}</button>)}
                 </div>
@@ -498,6 +529,15 @@ export default function LiveaboardManager({
                         <div><label style={lbl}>✓ Included (1 รายการ/บรรทัด)</label><textarea value={(lf.included ?? []).join("\n")} placeholder={"Nitrox\nAirport transfer\nFull board"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), included: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 110, resize: "vertical", fontFamily: "inherit" }} /></div>
                         <div><label style={lbl}>✗ Not included (1 รายการ/บรรทัด)</label><textarea value={(lf.excluded ?? []).join("\n")} placeholder={"Alcoholic drinks\nGratuities\nNitrox"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), excluded: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 110, resize: "vertical", fontFamily: "inherit" }} /></div>
                       </div>
+                      <div style={{ borderTop: "1px dashed #ccc", paddingTop: 10, fontSize: 11, color: "#888", fontWeight: 700 }}>PADI-style full details (liveaboard)</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div><label style={lbl}>Marine life (1 รายการ/บรรทัด)</label><textarea value={(lf.marineLife ?? []).join("\n")} placeholder={"Manta ray\nWhale shark\nReef shark"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), marineLife: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 90, resize: "vertical", fontFamily: "inherit" }} /></div>
+                        <div><label style={lbl}>Optional extras (1 รายการ/บรรทัด)</label><textarea value={(lf.optionalExtras ?? []).join("\n")} placeholder={"Nitrox (100 USD/week)\nRental gear\nMassage"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), optionalExtras: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 90, resize: "vertical", fontFamily: "inherit" }} /></div>
+                      </div>
+                      <div><label style={lbl}>Requirements</label><RichEditor value={lf.requirements} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), requirements: h } }))} /></div>
+                      <div><label style={lbl}>Itinerary highlights</label><RichEditor value={lf.highlights} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), highlights: h } }))} /></div>
+                      <div><label style={lbl}>Good to know</label><RichEditor value={lf.goodToKnow} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), goodToKnow: h } }))} /></div>
+                      <div><label style={lbl}>Payment &amp; cancellation</label><RichEditor value={lf.paymentTerms} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), paymentTerms: h } }))} /></div>
 
                       <div>
                         <label style={lbl}>Keywords</label>
@@ -524,6 +564,25 @@ export default function LiveaboardManager({
           </div>
         </div>
       )}
+      {schedPreviewOpen && (() => {
+        const sl = schedForm[schedActiveLang] as SchedLang;
+        const clean = (a: string[]) => (a ?? []).map(x => x.trim()).filter(Boolean);
+        const n = (v: string) => v && !isNaN(Number(v)) ? Number(v) : undefined;
+        const lg = schedForm.logistics;
+        const data = { included: clean(sl.included), excluded: clean(sl.excluded), details: { requirements: sl.requirements, highlights: sl.highlights, marineLife: clean(sl.marineLife), optionalExtras: clean(sl.optionalExtras), goodToKnow: sl.goodToKnow, paymentTerms: sl.paymentTerms }, logistics: { departurePort: lg.departurePort || undefined, departureTime: lg.departureTime || undefined, departureAirport: lg.departureAirport || undefined, returnPort: lg.returnPort || undefined, returnTime: lg.returnTime || undefined, returnAirport: lg.returnAirport || undefined, requiredCert: lg.requiredCert || undefined, requiredDives: n(lg.requiredDives), totalDivesMin: n(lg.totalDivesMin), totalDivesMax: n(lg.totalDivesMax) } };
+        return (
+          <div onClick={() => setSchedPreviewOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 1000, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "40px 16px", overflowY: "auto" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "#fff", color: "#222", borderRadius: 14, maxWidth: 560, width: "100%", padding: "22px 22px 30px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>ตัวอย่าง View Detail ({LANG_LABELS[schedActiveLang]}) — เหมือนที่ผู้ใช้เห็น</div>
+                <button onClick={() => setSchedPreviewOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#444" }}>×</button>
+              </div>
+              <h3 style={{ margin: "0 0 14px", fontSize: 18 }}>{sl.title || "(ไม่มีชื่อ)"}</h3>
+              <ScheduleFullDetails data={data} lang={schedActiveLang} fg="#222" subtle="#888" chipBg="rgba(0,0,0,0.05)" border="#e5e5e5" />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
