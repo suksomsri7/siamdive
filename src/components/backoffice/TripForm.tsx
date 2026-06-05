@@ -14,6 +14,9 @@ export type LangData = typeof EMPTY_LANG;
 export type VideoItem = { url: string; name: string };
 export type PriceTier = { tier: string; costPrice: string; regularPrice: string; salePrice: string; agentPrice: string };
 
+export type DivePackageItem = { numberOfDives: string; price: string };
+export type MealPlanItem = { name: string; price: string; included: boolean; description: string };
+
 export type BoatFormData = {
   name: string;
   companyId: string;
@@ -27,6 +30,14 @@ export type BoatFormData = {
   videos: VideoItem[];
   priceTiers: PriceTier[];
   serviceAreaIds: string[];
+  // dive-resort only (ignored for other boat types)
+  stars: string;
+  latitude: string;
+  longitude: string;
+  ecoLabels: string[];
+  tripadvisorRating: string;
+  divePackages: DivePackageItem[];
+  mealPlans: MealPlanItem[];
 } & Record<LangKey, LangData>;
 
 // backward compat alias
@@ -40,6 +51,8 @@ export function emptyBoatForm(tiers: string[], type: BoatFormData["type"] = "DAY
     photos: [], covers: [], videos: [],
     priceTiers: tiers.map(t => ({ tier: t, costPrice: "", regularPrice: "", salePrice: "", agentPrice: "" })),
     serviceAreaIds: [],
+    stars: "", latitude: "", longitude: "", ecoLabels: [], tripadvisorRating: "",
+    divePackages: [], mealPlans: [],
     ...langs,
   };
 }
@@ -392,6 +405,56 @@ export function BoatForm({ form, onChange, companies, serviceAreas = [], countri
           <span style={{ fontSize: 12, color: "#555" }}>Featured</span>
         </label>
       </div>
+
+      {/* ── Dive-resort details (only for DIVE_RESORT) ─────────────────── */}
+      {form.type === "DIVE_RESORT" && (
+        <div style={{ border: "1px solid #1d2a1d", borderRadius: 9, padding: 14, display: "flex", flexDirection: "column", gap: 14, background: "#0f140f" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#6cc26c", letterSpacing: "0.05em" }}>🏝️ DIVE RESORT DETAILS</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+            <div><label style={lbl}>ดาว (1–5)</label>
+              <input type="number" min={1} max={5} value={form.stars} onChange={e => set("stars", e.target.value)} placeholder="3" style={inp} /></div>
+            <div><label style={lbl}>TripAdvisor</label>
+              <input type="number" step="0.1" min={0} max={5} value={form.tripadvisorRating} onChange={e => set("tripadvisorRating", e.target.value)} placeholder="4.6" style={inp} /></div>
+            <div><label style={lbl}>Latitude</label>
+              <input value={form.latitude} onChange={e => set("latitude", e.target.value)} placeholder="4.2537" style={inp} /></div>
+            <div><label style={lbl}>Longitude</label>
+              <input value={form.longitude} onChange={e => set("longitude", e.target.value)} placeholder="118.6336" style={inp} /></div>
+          </div>
+
+          <div><label style={lbl}>Eco labels (Green Fins ฯลฯ)</label>
+            <TagInput tags={form.ecoLabels} onChange={t => set("ecoLabels", t)} /></div>
+
+          {/* Dive packages */}
+          <div>
+            <label style={lbl}>แพ็กเกจดำน้ำ (เลือกจำนวนไดฟ์)</label>
+            {form.divePackages.map((dp, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <input type="number" value={dp.numberOfDives} placeholder="จำนวนไดฟ์" onChange={e => { const a = [...form.divePackages]; a[i] = { ...a[i], numberOfDives: e.target.value }; set("divePackages", a); }} style={{ ...inp, width: 120 }} />
+                <input type="number" value={dp.price} placeholder={`ราคา/คน (${form.currency})`} onChange={e => { const a = [...form.divePackages]; a[i] = { ...a[i], price: e.target.value }; set("divePackages", a); }} style={inp} />
+                <button type="button" onClick={() => set("divePackages", form.divePackages.filter((_, j) => j !== i))} style={{ background: "#2a1515", border: "1px solid #422", color: "#c66", borderRadius: 7, padding: "0 12px", cursor: "pointer" }}>×</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => set("divePackages", [...form.divePackages, { numberOfDives: "", price: "" }])} style={{ background: "#15201a", border: "1px solid #243", color: "#6c6", borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>+ เพิ่มแพ็กเกจดำน้ำ</button>
+          </div>
+
+          {/* Meal plans */}
+          <div>
+            <label style={lbl}>มื้ออาหาร (Meal plans)</label>
+            {form.mealPlans.map((mp, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                <input value={mp.name} placeholder="เช่น Full Board" onChange={e => { const a = [...form.mealPlans]; a[i] = { ...a[i], name: e.target.value }; set("mealPlans", a); }} style={{ ...inp, flex: 2, minWidth: 120 }} />
+                <input type="number" value={mp.price} placeholder={`ราคา (${form.currency})`} onChange={e => { const a = [...form.mealPlans]; a[i] = { ...a[i], price: e.target.value }; set("mealPlans", a); }} style={{ ...inp, flex: 1, minWidth: 90 }} />
+                <label style={{ display: "flex", alignItems: "center", gap: 5, color: "#777", fontSize: 12 }}>
+                  <input type="checkbox" checked={mp.included} onChange={e => { const a = [...form.mealPlans]; a[i] = { ...a[i], included: e.target.checked }; set("mealPlans", a); }} style={{ accentColor: "#3b82f6" }} /> รวมในราคา
+                </label>
+                <button type="button" onClick={() => set("mealPlans", form.mealPlans.filter((_, j) => j !== i))} style={{ background: "#2a1515", border: "1px solid #422", color: "#c66", borderRadius: 7, padding: "0 12px", cursor: "pointer" }}>×</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => set("mealPlans", [...form.mealPlans, { name: "", price: "", included: false, description: "" }])} style={{ background: "#15201a", border: "1px solid #243", color: "#6c6", borderRadius: 7, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>+ เพิ่มมื้ออาหาร</button>
+          </div>
+        </div>
+      )}
 
       {/* Cover Images */}
       <div>

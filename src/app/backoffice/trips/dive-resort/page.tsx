@@ -18,6 +18,10 @@ type BoatRow = {
   videos: { url: string; name: string; order: number }[];
   priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[];
   serviceAreas: { serviceAreaId: string; serviceArea: { id: string; translations: { lang: string; name: string }[] } }[];
+  currency?: string;
+  stars?: number | null; latitude?: number | null; longitude?: number | null; ecoLabels?: string[]; tripadvisorRating?: number | null;
+  divePackages?: { numberOfDives: number; price: number | null }[];
+  mealPlans?: { name: string; price: number | null; included: boolean; description: string }[];
 };
 type CompanyRow = { id: string; translations: { lang: string; name: string }[] };
 
@@ -35,6 +39,14 @@ function rowToBoatForm(b: BoatRow): BoatFormData {
     return { tier, costPrice: p?.costPrice?.toString() ?? "", regularPrice: p?.regularPrice?.toString() ?? "", salePrice: p?.salePrice?.toString() ?? "", agentPrice: p?.agentPrice?.toString() ?? "" };
   });
   form.serviceAreaIds = b.serviceAreas.map((sa: { serviceAreaId: string }) => sa.serviceAreaId);
+  form.currency = b.currency ?? "USD";
+  form.stars = b.stars?.toString() ?? "";
+  form.latitude = b.latitude?.toString() ?? "";
+  form.longitude = b.longitude?.toString() ?? "";
+  form.ecoLabels = b.ecoLabels ?? [];
+  form.tripadvisorRating = b.tripadvisorRating?.toString() ?? "";
+  form.divePackages = (b.divePackages ?? []).map(d => ({ numberOfDives: d.numberOfDives.toString(), price: d.price?.toString() ?? "" }));
+  form.mealPlans = (b.mealPlans ?? []).map(m => ({ name: m.name, price: m.price?.toString() ?? "", included: m.included, description: m.description ?? "" }));
   for (const tr of b.translations) {
     if (ALL_LANGS.includes(tr.lang as typeof ALL_LANGS[number]))
       (form as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, keywords: tr.keywords ?? [] };
@@ -91,7 +103,10 @@ export default function DiveResortPage() {
   const closeBoat = () => { setBoatOpen(false); setEditBoatId(null); };
   const saveBoat = async () => {
     setSavingBoat(true);
-    const body = { companyId: boatForm.companyId || null, name: boatForm.name, type: "DIVE_RESORT", capacity: boatForm.capacity || null, photos: boatForm.photos, covers: boatForm.covers, status: boatForm.status, featured: boatForm.featured, translations: ALL_LANGS.map(l => ({ lang: l, ...boatForm[l as LangKey] })), videos: boatForm.videos, priceTiers: boatForm.priceTiers.map(p => ({ tier: p.tier, costPrice: p.costPrice ? Number(p.costPrice) : null, regularPrice: Number(p.regularPrice) || 0, salePrice: p.salePrice ? Number(p.salePrice) : null, agentPrice: p.agentPrice ? Number(p.agentPrice) : null })), serviceAreaIds: boatForm.serviceAreaIds };
+    const body = { companyId: boatForm.companyId || null, name: boatForm.name, type: "DIVE_RESORT", capacity: boatForm.capacity || null, photos: boatForm.photos, covers: boatForm.covers, status: boatForm.status, featured: boatForm.featured, currency: boatForm.currency, translations: ALL_LANGS.map(l => ({ lang: l, ...boatForm[l as LangKey] })), videos: boatForm.videos, priceTiers: boatForm.priceTiers.map(p => ({ tier: p.tier, costPrice: p.costPrice ? Number(p.costPrice) : null, regularPrice: Number(p.regularPrice) || 0, salePrice: p.salePrice ? Number(p.salePrice) : null, agentPrice: p.agentPrice ? Number(p.agentPrice) : null })), serviceAreaIds: boatForm.serviceAreaIds,
+      stars: boatForm.stars, latitude: boatForm.latitude, longitude: boatForm.longitude, ecoLabels: boatForm.ecoLabels, tripadvisorRating: boatForm.tripadvisorRating,
+      divePackages: boatForm.divePackages.filter(d => d.numberOfDives !== "").map(d => ({ numberOfDives: d.numberOfDives, price: d.price })),
+      mealPlans: boatForm.mealPlans.filter(m => m.name.trim()).map(m => ({ name: m.name, price: m.price, included: m.included, description: m.description })) };
     if (editBoatId) await fetch(`/api/boats/${editBoatId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/boats", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingBoat(false); closeBoat(); load();
@@ -206,7 +221,7 @@ export default function DiveResortPage() {
       </div>
 
       {/* ── Package panel ── */}
-      {pkgBoat && <PackagePanel boatId={pkgBoat.id} boatName={pkgBoat.name} onClose={() => closePkgPanel(pkgBoat.id)} seasonPricing defaultEditId={editPkgId ?? undefined} defaultNew={newPkg} />}
+      {pkgBoat && <PackagePanel boatId={pkgBoat.id} boatName={pkgBoat.name} onClose={() => closePkgPanel(pkgBoat.id)} seasonPricing roomFields label="ห้องพัก" defaultEditId={editPkgId ?? undefined} defaultNew={newPkg} />}
       {optionsBoat && <OptionsPanel boatId={optionsBoat.id} boatName={optionsBoat.name} onClose={() => setOptionsBoat(null)} />}
 
       {boatOpen && (

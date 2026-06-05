@@ -26,6 +26,8 @@ type PkgForm = {
   photos: string[];
   priceTiers: PriceTierForm[];
   seasonPeriods: SeasonPeriodForm[];
+  // dive-resort room attributes (only edited when roomFields=true)
+  bedType: string; occupancyMin: string; occupancyMax: string; roomSizeSqm: string; pricePerNight: string; amenities: string[];
 } & Record<LangKey, LangForm>;
 
 type PkgRow = {
@@ -34,6 +36,7 @@ type PkgRow = {
   translations: { lang: string; title: string; slug: string; excerpt: string; content: string; keywords: string[] }[];
   priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[];
   seasonPeriods: { id: string; season: string; startDate: string; endDate: string }[];
+  bedType?: string | null; occupancyMin?: number | null; occupancyMax?: number | null; roomSizeSqm?: number | null; pricePerNight?: number | null; amenities?: string[];
 };
 
 const SEASONS: { tier: SeasonTier; label: string; color: string }[] = [
@@ -56,7 +59,7 @@ function emptyLang(): LangForm {
 
 function emptyForm(): PkgForm {
   const langs = Object.fromEntries(ALL_LANGS.map(l => [l, emptyLang()])) as Record<LangKey, LangForm>;
-  return { name: "", totalSeats: "", status: "DRAFT", photos: [], priceTiers: emptyTiers(), seasonPeriods: [], ...langs };
+  return { name: "", totalSeats: "", status: "DRAFT", photos: [], priceTiers: emptyTiers(), seasonPeriods: [], bedType: "", occupancyMin: "", occupancyMax: "", roomSizeSqm: "", pricePerNight: "", amenities: [], ...langs };
 }
 
 function rowToForm(pkg: PkgRow): PkgForm {
@@ -65,6 +68,12 @@ function rowToForm(pkg: PkgRow): PkgForm {
   form.totalSeats = pkg.totalSeats?.toString() ?? "";
   form.status = pkg.status as "DRAFT" | "PUBLISHED";
   form.photos = pkg.photos ?? [];
+  form.bedType = pkg.bedType ?? "";
+  form.occupancyMin = pkg.occupancyMin?.toString() ?? "";
+  form.occupancyMax = pkg.occupancyMax?.toString() ?? "";
+  form.roomSizeSqm = pkg.roomSizeSqm?.toString() ?? "";
+  form.pricePerNight = pkg.pricePerNight?.toString() ?? "";
+  form.amenities = pkg.amenities ?? [];
   form.priceTiers = SEASONS.map(s => {
     const p = pkg.priceTiers?.find(x => x.tier === s.tier);
     return { tier: s.tier, costPrice: p?.costPrice?.toString() ?? "", regularPrice: p?.regularPrice?.toString() ?? "", salePrice: p?.salePrice?.toString() ?? "", agentPrice: p?.agentPrice?.toString() ?? "" };
@@ -90,9 +99,9 @@ const taStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 80, fon
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type Props = { boatId: string; boatName: string; onClose: () => void; seasonPricing?: boolean; defaultEditId?: string; defaultNew?: boolean; label?: string; };
+type Props = { boatId: string; boatName: string; onClose: () => void; seasonPricing?: boolean; defaultEditId?: string; defaultNew?: boolean; label?: string; roomFields?: boolean; };
 
-export default function PackagePanel({ boatId, boatName, onClose, seasonPricing = false, defaultEditId, defaultNew, label = "Package" }: Props) {
+export default function PackagePanel({ boatId, boatName, onClose, seasonPricing = false, defaultEditId, defaultNew, label = "Package", roomFields = false }: Props) {
   const [packages, setPackages] = useState<PkgRow[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -142,6 +151,10 @@ export default function PackagePanel({ boatId, boatName, onClose, seasonPricing 
     const body = {
       boatId, name: form.name, totalSeats: form.totalSeats || null, status: form.status,
       photos: form.photos,
+      ...(roomFields ? {
+        bedType: form.bedType || null, occupancyMin: form.occupancyMin || null, occupancyMax: form.occupancyMax || null,
+        roomSizeSqm: form.roomSizeSqm || null, pricePerNight: form.pricePerNight || null, amenities: form.amenities,
+      } : {}),
       translations: ALL_LANGS.map(l => ({ lang: l, ...(form[l] as LangForm) })),
       priceTiers: seasonPricing ? form.priceTiers.map(t => ({
         tier: t.tier,
@@ -280,6 +293,22 @@ export default function PackagePanel({ boatId, boatName, onClose, seasonPricing 
                 </select>
               </div>
             </div>
+
+            {/* Room attributes (dive resort) */}
+            {roomFields && (
+              <div style={{ border: "1px solid #1d2a1d", borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 10, background: "#0f140f" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#6cc26c" }}>🛏️ รายละเอียดห้องพัก</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  <div><label style={labelStyle}>ประเภทเตียง</label><input value={form.bedType} onChange={e => set("bedType", e.target.value)} style={inputStyle} placeholder="Double or Twin" /></div>
+                  <div><label style={labelStyle}>จุขั้นต่ำ</label><input type="number" value={form.occupancyMin} onChange={e => set("occupancyMin", e.target.value)} style={inputStyle} placeholder="1" /></div>
+                  <div><label style={labelStyle}>จุสูงสุด</label><input type="number" value={form.occupancyMax} onChange={e => set("occupancyMax", e.target.value)} style={inputStyle} placeholder="2" /></div>
+                  <div><label style={labelStyle}>ขนาด (ตร.ม.)</label><input type="number" value={form.roomSizeSqm} onChange={e => set("roomSizeSqm", e.target.value)} style={inputStyle} placeholder="—" /></div>
+                  <div style={{ gridColumn: "span 2" }}><label style={labelStyle}>ราคาห้อง/คืน</label><input type="number" value={form.pricePerNight} onChange={e => set("pricePerNight", e.target.value)} style={inputStyle} placeholder="—" /></div>
+                </div>
+                <div><label style={labelStyle}>สิ่งอำนวยความสะดวก (คั่นด้วย ,)</label>
+                  <input value={form.amenities.join(", ")} onChange={e => set("amenities", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} style={inputStyle} placeholder="Air Conditioning, Private bathroom" /></div>
+              </div>
+            )}
 
             {/* Photos — unlimited gallery */}
             <div>
