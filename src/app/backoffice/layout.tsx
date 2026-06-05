@@ -20,6 +20,7 @@ const NAV = [
       { label: "Land Tour", href: "/backoffice/trips/land-tour", icon: "🗺" },
       { label: "Liveaboard", href: "/backoffice/trips/liveaboard", icon: "🚢" },
       { label: "Dive Resort", href: "/backoffice/trips/dive-resort", icon: "🏝" },
+      { label: "Dive Center", href: "/backoffice/trips/dive-center", icon: "🏬" },
       { label: "Freedive Trips", href: "/backoffice/trips/freedive", icon: "🫧" },
       { label: "Scuba Courses", href: "/backoffice/courses", icon: "🎓" },
       { label: "Freedive Courses", href: "/backoffice/freedive-courses", icon: "🫁" },

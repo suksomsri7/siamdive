@@ -20,7 +20,7 @@ export type MealPlanItem = { name: string; price: string; included: boolean; des
 export type BoatFormData = {
   name: string;
   companyId: string;
-  type: "DAYTRIP" | "LIVEABOARD" | "DIVE_RESORT" | "FREEDIVE" | "LAND_TOUR" | "SNORKELING";
+  type: "DAYTRIP" | "LIVEABOARD" | "DIVE_RESORT" | "DIVE_CENTER" | "FREEDIVE" | "LAND_TOUR" | "SNORKELING";
   capacity: string;
   currency: string;
   status: "DRAFT" | "PUBLISHED";

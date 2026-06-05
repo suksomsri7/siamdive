@@ -16,6 +16,7 @@ export const BOAT_TYPE_PERM: Record<string, string> = {
   LAND_TOUR: "land-tour",
   LIVEABOARD: "liveaboard",
   DIVE_RESORT: "dive-resort",
+  DIVE_CENTER: "dive-center",
   FREEDIVE: "freedive",
   SCUBA_COURSES: "scuba-courses",
   FREEDIVE_COURSES: "freedive-courses",

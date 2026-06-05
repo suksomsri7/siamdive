@@ -30,6 +30,7 @@ const SOURCES = [
   { value: "LAND_TOUR",        label: "Land Tour",          icon: "🗺",  itemRefType: "SCHEDULE" as const, boatLabel: "ทัวร์"        },
   { value: "LIVEABOARD",       label: "Liveaboard",         icon: "🚢",  itemRefType: "BOAT"     as const, boatLabel: "เรือ"         },
   { value: "DIVE_RESORT",      label: "Dive Resort",        icon: "🏝",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
+  { value: "DIVE_CENTER",      label: "Dive Center",        icon: "🏬",  itemRefType: "BOAT"     as const, boatLabel: "Dive Center"  },
   { value: "FREEDIVE",         label: "Freedive Trips",     icon: "🫧",  itemRefType: "SCHEDULE" as const, boatLabel: "เรือ/ทัวร์"  },
   { value: "SCUBA_COURSES",    label: "Scuba Courses",      icon: "🎓",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },
   { value: "FREEDIVE_COURSES", label: "Freedive Courses",   icon: "🫁",  itemRefType: "PACKAGE"  as const, boatLabel: "Dive Center"  },

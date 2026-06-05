@@ -29,7 +29,7 @@ base_url: "https://siamdive.com/api"
 # Format: <resource>.<action>  e.g. "daytrip.read", "blogs.write"
 #
 # Resources:
-#   daytrip | snorkeling | land-tour | liveaboard | dive-resort | freedive
+#   daytrip | snorkeling | land-tour | liveaboard | dive-resort | dive-center | freedive
 #   scuba-courses | freedive-courses
 #   companies | service-areas
 #   blogs | upload

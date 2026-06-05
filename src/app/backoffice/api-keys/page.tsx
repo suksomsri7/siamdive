@@ -19,6 +19,7 @@ const PERM_GROUPS = [
       { key: "land-tour",  label: "🗺 Land Tour",         actions: ["read","write","delete"] as Action[] },
       { key: "liveaboard", label: "🚢 Liveaboard",        actions: ["read","write","delete"] as Action[] },
       { key: "dive-resort",label: "🏝 Dive Resort",        actions: ["read","write","delete"] as Action[] },
+      { key: "dive-center",label: "🏬 Dive Center",        actions: ["read","write","delete"] as Action[] },
       { key: "freedive",   label: "🫧 Freedive Trips",    actions: ["read","write","delete"] as Action[] },
     ],
   },

@@ -12,7 +12,7 @@ const SECTIONS = [
     endpoints: [
       {
         resource: "Boats / เรือ-ทัวร์",
-        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | freedive",
+        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | dive-center | freedive",
         routes: [
           { method:"GET",    path:"/boats",          perm:"*.read",   desc:"รายการเรือทั้งหมด รองรับ ?type=DAYTRIP|LIVEABOARD|... และ ?companyId=" },
           { method:"POST",   path:"/boats",          perm:"*.write",  desc:"สร้างเรือใหม่" },
@@ -23,7 +23,7 @@ const SECTIONS = [
       },
       {
         resource: "Schedules / ตาราง",
-        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | freedive",
+        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | dive-center | freedive",
         routes: [
           { method:"GET",    path:"/schedules",      perm:"*.read",   desc:"รายการ Schedule รองรับ ?boatId=" },
           { method:"POST",   path:"/schedules",      perm:"*.write",  desc:"สร้าง Schedule ใหม่ — packages[]: { packageId, availableSeats?, isFull? }" },
@@ -34,7 +34,7 @@ const SECTIONS = [
       },
       {
         resource: "Packages / แพ็กเกจ",
-        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | freedive",
+        perm: "daytrip | snorkeling | land-tour | liveaboard | dive-resort | dive-center | freedive",
         routes: [
           { method:"GET",    path:"/packages",       perm:"*.read",   desc:"รายการ Package รองรับ ?boatId=" },
           { method:"POST",   path:"/packages",       perm:"*.write",  desc:"สร้าง Package ใหม่" },
@@ -301,6 +301,7 @@ export default function ApiDocsPage() {
             "land-tour.read/write/delete",
             "liveaboard.read/write/delete",
             "dive-resort.read/write/delete",
+            "dive-center.read/write/delete",
             "freedive.read/write/delete",
             "scuba-courses.read/write/delete",
             "freedive-courses.read/write/delete",

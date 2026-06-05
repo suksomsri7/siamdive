@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   }
 
   const companyId = searchParams.get("companyId");
-  const typeCast = type as "DAYTRIP" | "LIVEABOARD" | "DIVE_RESORT" | "FREEDIVE" | "LAND_TOUR" | "SNORKELING" | null;
+  const typeCast = type as "DAYTRIP" | "LIVEABOARD" | "DIVE_RESORT" | "DIVE_CENTER" | "FREEDIVE" | "LAND_TOUR" | "SNORKELING" | null;
   const boats = await prisma.boat.findMany({
     where: { ...(companyId ? { companyId } : {}), ...(typeCast ? { type: typeCast } : {}) },
     include: {
