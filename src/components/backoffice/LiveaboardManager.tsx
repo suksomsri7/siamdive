@@ -555,6 +555,7 @@ export default function LiveaboardManager({
               </div>
             </div>
             <div style={{ position: "sticky", bottom: 0, padding: "14px 20px", background: "#0d0d0d", borderTop: "1px solid #111", display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => setSchedPreviewOpen(true)} style={{ background: "transparent", border: "1px solid #3b82f6", color: "#3b82f6", borderRadius: 8, padding: "11px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>👁 ดูตัวอย่าง</button>
               <button onClick={saveSched} disabled={savingSched}
                 style={{ flex: 1, background: "#3b82f6", border: "none", color: "#fff", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 700, cursor: savingSched ? "wait" : "pointer" }}>
                 {savingSched ? "กำลังบันทึก..." : editSchedId ? "บันทึกการแก้ไข" : "เพิ่ม Trip"}
