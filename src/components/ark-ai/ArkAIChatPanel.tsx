@@ -38,13 +38,13 @@ function readBrowserId(key: string): string | null {
 }
 
 // Mirrors slots.ts TripCategory enum — picking a schedule from a card
-// implies the user wants this category, so we set it eagerly. DIVE_RESORT
-// rolls into "liveaboard" because that's the closest planning bucket.
-const TYPE_TO_CATEGORY: Record<string, "liveaboard" | "daytrip" | "snorkeling" | "land_tour"> = {
+// implies the user wants this category, so we set it eagerly. DIVE_RESORT is
+// its own category (a land/water-based stay, distinct from a liveaboard).
+const TYPE_TO_CATEGORY: Record<string, "liveaboard" | "daytrip" | "snorkeling" | "land_tour" | "dive_resort"> = {
   DAYTRIP:     "daytrip",
   SNORKELING:  "snorkeling",
   LIVEABOARD:  "liveaboard",
-  DIVE_RESORT: "liveaboard",
+  DIVE_RESORT: "dive_resort",
   LAND_TOUR:   "land_tour",
 };
 

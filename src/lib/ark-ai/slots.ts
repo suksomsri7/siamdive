@@ -15,7 +15,7 @@ export type Region =
   | "maldives" | "red_sea" | "indonesia" | "palau" | "philippines" | "malaysia";
 export type CertLevel = "none" | "ow" | "aow" | "rescue+";
 export type Style = "relaxed" | "intense" | "family" | "photography" | "training";
-export type TripCategory = "liveaboard" | "daytrip" | "snorkeling" | "land_tour";
+export type TripCategory = "liveaboard" | "daytrip" | "snorkeling" | "land_tour" | "dive_resort";
 
 export type Dates = { from: string; to?: string; label?: string };
 export type Headcount = { adults: number; kids?: number };
@@ -51,12 +51,12 @@ export type SlotField = keyof Slots;
 export const REQUIRED_FIELDS: SlotField[] = ["dates", "headcount", "region"];
 
 // Liveaboard / dive-resort trips don't require an explicit headcount —
-// cabins are sold by capacity, the user usually already knows their group,
-// and asking just adds friction (user feedback 2026-05-21).
+// cabins/rooms are sold by capacity, the user usually already knows their
+// group, and asking just adds friction (user feedback 2026-05-21).
 function requiredFieldsFor(slots: Slots | null | undefined): SlotField[] {
   const cats = slots?.categories || [];
-  const liveaboardOnly = cats.length > 0 && cats.every(c => c === "liveaboard");
-  if (liveaboardOnly) return ["dates", "region"];
+  const stayOnly = cats.length > 0 && cats.every(c => c === "liveaboard" || c === "dive_resort");
+  if (stayOnly) return ["dates", "region"];
   return REQUIRED_FIELDS;
 }
 
@@ -78,7 +78,7 @@ const REGIONS: Region[] = [
 ];
 const CERTS: CertLevel[] = ["none", "ow", "aow", "rescue+"];
 const STYLES: Style[] = ["relaxed", "intense", "family", "photography", "training"];
-const TRIP_CATEGORIES: TripCategory[] = ["liveaboard", "daytrip", "snorkeling", "land_tour"];
+const TRIP_CATEGORIES: TripCategory[] = ["liveaboard", "daytrip", "snorkeling", "land_tour", "dive_resort"];
 const COMPANION_ACTIVITIES = ["snorkel", "land_tour", "relax"] as const;
 type CompanionActivity = (typeof COMPANION_ACTIVITIES)[number];
 
@@ -329,8 +329,8 @@ User says: "this weekend" → next Sat–Sun ISO
       },
       categories: {
         type: "array",
-        items: { type: "string", enum: ["liveaboard", "daytrip", "snorkeling", "land_tour"] },
-        description: "Type(s) of trip the user wants. liveaboard = multi-day boat trip with onboard accommodation. daytrip = single-day dive trip returning same evening. snorkeling = snorkel-only day trip (no scuba). land_tour = land-based sightseeing (Big Buddha / Old Town / island hopping by speedboat). Multiple values OK if user wants to combine. Set this whenever the user names a category OR when they confirm one via a $$ASK$$ button.",
+        items: { type: "string", enum: ["liveaboard", "daytrip", "snorkeling", "land_tour", "dive_resort"] },
+        description: "Type(s) of trip the user wants. liveaboard = multi-day boat trip sleeping ON the boat. dive_resort = multi-day stay at a land/water-based dive resort or lodge (sleep on land, dive daily from the resort) — distinct from liveaboard. daytrip = single-day dive trip returning same evening. snorkeling = snorkel-only day trip (no scuba). land_tour = land-based sightseeing (Big Buddha / Old Town / island hopping by speedboat). Multiple values OK if user wants to combine. Set this whenever the user names a category OR when they confirm one via a $$ASK$$ button.",
       },
       budget: {
         type: "object",

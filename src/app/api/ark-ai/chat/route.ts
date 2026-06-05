@@ -622,7 +622,8 @@ export async function POST(req: NextRequest) {
   // — the `categories` slot already supports multi-pick if the user wants
   // both ("liveaboard + daytrip" → ["LIVEABOARD","DAYTRIP"]).
   const CATEGORY_TO_BOAT_TYPES: Record<string, string[]> = {
-    liveaboard: ["LIVEABOARD", "DIVE_RESORT"],
+    liveaboard: ["LIVEABOARD"],
+    dive_resort: ["DIVE_RESORT"],
     daytrip: ["DAYTRIP"],
     snorkeling: ["SNORKELING"],
     land_tour: ["LAND_TOUR"],
@@ -634,7 +635,11 @@ export async function POST(req: NextRequest) {
     // stream). Same pivot pattern as the date-hint regex above.
     const m = lastUserMsg.toLowerCase();
     const fromKeyword: string[] = [];
-    if (/liveaboard|live[\s-]?aboard|ค้างคืน|เรือ\s*นอน|นอน\s*บน\s*เรือ|multi[\s-]?day|ลิฟ(?:เวอร์)?บอร์ด/.test(m)) fromKeyword.push("LIVEABOARD", "DIVE_RESORT");
+    if (/liveaboard|live[\s-]?aboard|ค้างคืน|เรือ\s*นอน|นอน\s*บน\s*เรือ|multi[\s-]?day|ลิฟ(?:เวอร์)?บอร์ด/.test(m)) fromKeyword.push("LIVEABOARD");
+    // dive resort = land/water-based lodge, sleep on land — distinct from a
+    // liveaboard (sleep on the boat). Keep these keywords separate so the two
+    // categories don't get conflated in recommendations.
+    if (/dive[\s-]?resort|resort|รีสอร์[ตท]|ที่พัก\s*ดำน้ำ|ดำน้ำ\s*ค้าง\s*รีสอร์[ตท]|พัก\s*รีสอร์[ตท]/.test(m)) fromKeyword.push("DIVE_RESORT");
     if (/day[\s-]?trip|เดย์\s*ทริป|ดำน้ำ\s*วันเดียว|ไป[\s-]?กลับ/.test(m)) fromKeyword.push("DAYTRIP");
     if (/snorkel|สนอร์เกิล|ดำ\s*ผิว\s*น้ำ/.test(m)) fromKeyword.push("SNORKELING");
     if (/land[\s-]?tour|ทัวร์บก|เที่ยว\s*บก/.test(m)) fromKeyword.push("LAND_TOUR");
