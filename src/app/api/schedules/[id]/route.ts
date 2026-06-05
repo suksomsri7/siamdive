@@ -44,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!canDo(auth, `${permRes}.write`)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { dateType, departureDate, returnDate, weekDays, status, season, note, totalSeats, availableSeats, fromPrice, sourceUrl, sourceId, translations, packages } = body;
+  const { dateType, departureDate, returnDate, weekDays, status, season, note, totalSeats, availableSeats, fromPrice, sourceUrl, sourceId, logistics, translations, packages } = body;
 
   // Partial-safe: only touch translations / packages if the client explicitly sent them.
   // Old behavior wiped both unconditionally — backoffice form that omits these fields was
@@ -83,6 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (fromPrice !== undefined) updateData.fromPrice = fromPrice != null && fromPrice !== "" ? Number(fromPrice) : null;
   if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl ?? null;
   if (sourceId !== undefined) updateData.sourceId = sourceId ?? null;
+  if (logistics !== undefined) updateData.logistics = logistics ?? {};
 
   if (touchTranslations) {
     updateData.itinerary = translations?.find((t: { lang: string }) => t.lang === "en")?.itinerary ?? "";
@@ -100,6 +101,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           keywords: tr.keywords ?? [],
           included: tr.included ?? [],
           excluded: tr.excluded ?? [],
+          details: tr.details ?? {},
         };
       }),
     };

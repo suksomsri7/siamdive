@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.response;
 
-  const { boatId, dateType, departureDate, returnDate, weekDays, status, season, note, totalSeats, availableSeats, fromPrice, sourceUrl, sourceId, translations, packages } = await req.json();
+  const { boatId, dateType, departureDate, returnDate, weekDays, status, season, note, totalSeats, availableSeats, fromPrice, sourceUrl, sourceId, logistics, translations, packages } = await req.json();
 
   if (auth.source === "apiKey") {
     const boat = await prisma.boat.findUnique({ where: { id: boatId }, select: { type: true } });
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       fromPrice: fromPrice != null && fromPrice !== "" ? Number(fromPrice) : null,
       sourceUrl: sourceUrl ?? null,
       sourceId: sourceId ?? null,
+      logistics: logistics ?? {},
       itinerary: translations?.find((t: { lang: string }) => t.lang === "en")?.itinerary ?? "",
       translations: {
         create: LANGS.map(lang => {
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
             keywords: tr.keywords ?? [],
             included: tr.included ?? [],
             excluded: tr.excluded ?? [],
+            details: tr.details ?? {},
           };
         }),
       },

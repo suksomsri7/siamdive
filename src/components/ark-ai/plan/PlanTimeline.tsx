@@ -11,7 +11,12 @@ import type { PlanItem } from "./plan-item";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
-  schedule: { title: string; excerpt: string; content: string; route: string; included?: string[]; excluded?: string[] } | null;
+  schedule: {
+    title: string; excerpt: string; content: string; route: string;
+    included?: string[]; excluded?: string[];
+    details?: { requirements?: string; highlights?: string; marineLife?: string[]; optionalExtras?: string[]; goodToKnow?: string; paymentTerms?: string };
+    logistics?: { departurePort?: string; departureTime?: string; departureAirport?: string; returnPort?: string; returnTime?: string; returnAirport?: string; requiredCert?: string; requiredDives?: number; totalDivesMin?: number; totalDivesMax?: number };
+  } | null;
 };
 
 type Props = {
@@ -390,6 +395,14 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     content: { th: "รายละเอียด", en: "Details", cn: "详情", de: "Details", fr: "Détails", ru: "Детали", ko: "상세정보", ja: "詳細" },
     included: { th: "รวมในราคา", en: "What's included", cn: "费用包含", de: "Inklusive", fr: "Inclus", ru: "Включено", ko: "포함 사항", ja: "料金に含まれるもの" },
     notIncluded: { th: "ไม่รวมในราคา", en: "Not included", cn: "费用不含", de: "Nicht inklusive", fr: "Non inclus", ru: "Не включено", ko: "불포함 사항", ja: "料金に含まれないもの" },
+    requirements: { th: "เงื่อนไขผู้ร่วมทริป", en: "Requirements", cn: "参加要求", de: "Voraussetzungen", fr: "Prérequis", ru: "Требования", ko: "참가 요건", ja: "参加条件" },
+    departure: { th: "ออกเดินทาง", en: "Departure", cn: "出发", de: "Abfahrt", fr: "Départ", ru: "Отправление", ko: "출발", ja: "出発" },
+    arrival: { th: "เดินทางกลับ", en: "Return", cn: "返回", de: "Rückkehr", fr: "Retour", ru: "Возвращение", ko: "도착", ja: "帰着" },
+    highlights: { th: "ไฮไลต์เส้นทาง", en: "Itinerary highlights", cn: "行程亮点", de: "Highlights", fr: "Points forts", ru: "Особенности маршрута", ko: "일정 하이라이트", ja: "行程ハイライト" },
+    marineLife: { th: "สิ่งมีชีวิตที่อาจพบ", en: "Marine life you could encounter", cn: "可能邂逅的海洋生物", de: "Meeresleben", fr: "Vie marine", ru: "Морская жизнь", ko: "만날 수 있는 해양 생물", ja: "出会える海洋生物" },
+    optionalExtras: { th: "บริการเสริม (จ่ายเพิ่ม)", en: "Optional extras", cn: "可选附加项", de: "Optionale Extras", fr: "Options en supplément", ru: "Дополнительно", ko: "선택 추가 옵션", ja: "オプション" },
+    goodToKnow: { th: "ข้อควรรู้", en: "Good to know", cn: "须知", de: "Gut zu wissen", fr: "Bon à savoir", ru: "Полезно знать", ko: "알아두면 좋은 정보", ja: "知っておくと良いこと" },
+    payment: { th: "การชำระเงินและการยกเลิก", en: "Payment & cancellation terms", cn: "付款与取消条款", de: "Zahlung & Stornierung", fr: "Paiement et annulation", ru: "Оплата и отмена", ko: "결제 및 취소 약관", ja: "支払い・キャンセル規定" },
   };
   const label = (key: string) => SECTION_LABEL[key]?.[lang] || SECTION_LABEL[key]?.en || key;
 
@@ -899,26 +912,49 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                       <div className="trip-rich" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
                     </div>
                   )}
-                  {isLiveaboard && (((s?.included?.length ?? 0) > 0) || ((s?.excluded?.length ?? 0) > 0)) && (
-                    <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
-                      {(s?.included?.length ?? 0) > 0 && (
-                        <div>
-                          <p style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("included")}</p>
-                          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                            {s!.included!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg)", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#16a34a", flexShrink: 0 }}>✓</span><span>{x}</span></li>))}
-                          </ul>
-                        </div>
-                      )}
-                      {(s?.excluded?.length ?? 0) > 0 && (
-                        <div>
-                          <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("notIncluded")}</p>
-                          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                            {s!.excluded!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg-subtle)", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#dc2626", flexShrink: 0 }}>✗</span><span>{x}</span></li>))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {isLiveaboard && (() => {
+                    const d = s?.details || {};
+                    const lg = s?.logistics || {};
+                    const hasFull = !!(d.requirements || d.highlights || (d.marineLife?.length) || (s?.included?.length) || (s?.excluded?.length) || (d.optionalExtras?.length) || d.goodToKnow || d.paymentTerms || lg.departurePort || lg.departureTime || lg.returnPort);
+                    if (!hasFull) return null;
+                    const liItem = (x: string, i: number, color: string, mark: string) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg)", marginBottom: 6, lineHeight: 1.45 }}><span style={{ color, flexShrink: 0, fontWeight: 700 }}>{mark}</span><span>{x}</span></li>);
+                    const Section = ({ title, children, open = false }: { title: string; children: React.ReactNode; open?: boolean }) => (
+                      <details open={open} style={{ borderTop: "1px solid var(--plan-border-soft)", padding: "12px 0" }}>
+                        <summary style={{ listStyle: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--plan-fg)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>{title}<span style={{ color: "var(--plan-fg-subtle)", fontWeight: 400 }}>⌄</span></summary>
+                        <div style={{ marginTop: 10 }}>{children}</div>
+                      </details>
+                    );
+                    const logiRow = (lbl: string, parts: (string | number | undefined)[]) => { const v = parts.filter(Boolean).join(" · "); return v ? <div style={{ fontSize: 13, color: "var(--plan-fg)", marginBottom: 4 }}><span style={{ color: "var(--plan-fg-subtle)" }}>{lbl}: </span>{v}</div> : null; };
+                    return (
+                      <div style={{ marginTop: 18 }}>
+                        {/* Requirements */}
+                        {(d.requirements || lg.requiredCert || lg.requiredDives) && (
+                          <div style={{ background: "var(--plan-surface-2,rgba(0,0,0,0.04))", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+                            <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("requirements")}</p>
+                            {(lg.totalDivesMin || lg.totalDivesMax || lg.requiredCert || lg.requiredDives) && <div style={{ fontSize: 13, color: "var(--plan-fg)", marginBottom: 4 }}>{[lg.requiredDives ? `${lg.requiredDives}+ dives` : null, lg.requiredCert, (lg.totalDivesMin || lg.totalDivesMax) ? `≈ ${lg.totalDivesMin ?? ""}–${lg.totalDivesMax ?? ""} dives` : null].filter(Boolean).join(" · ")}</div>}
+                            {d.requirements && <div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.requirements }} />}
+                          </div>
+                        )}
+                        {/* Departure / Return */}
+                        {(lg.departurePort || lg.departureTime || lg.returnPort || lg.returnTime) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14, marginBottom: 12 }}>
+                            <div><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("departure")}</p>{logiRow("🛳️", [lg.departurePort, lg.departureTime])}{logiRow("✈️", [lg.departureAirport])}</div>
+                            <div><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("arrival")}</p>{logiRow("🛳️", [lg.returnPort, lg.returnTime])}{logiRow("✈️", [lg.returnAirport])}</div>
+                          </div>
+                        )}
+                        {/* Itinerary highlights */}
+                        {d.highlights && (<div style={{ marginBottom: 12 }}><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("highlights")}</p><div className="trip-rich" dangerouslySetInnerHTML={{ __html: d.highlights }} /></div>)}
+                        {/* Marine life chips */}
+                        {(d.marineLife?.length ?? 0) > 0 && (<div style={{ marginBottom: 12 }}><p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("marineLife")}</p><div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{d.marineLife!.map((m, i) => <span key={i} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 999, background: "var(--plan-surface-2,rgba(0,0,0,0.05))", color: "var(--plan-fg)" }}>{m}</span>)}</div></div>)}
+                        {/* Accordions */}
+                        {(s?.included?.length ?? 0) > 0 && (<Section title={label("included")} open><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{s!.included!.map((x, i) => liItem(x, i, "#dc2626", "▪"))}</ul></Section>)}
+                        {(s?.excluded?.length ?? 0) > 0 && (<Section title={label("notIncluded")}><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{s!.excluded!.map((x, i) => liItem(x, i, "#9ca3af", "▪"))}</ul></Section>)}
+                        {(d.optionalExtras?.length ?? 0) > 0 && (<Section title={label("optionalExtras")}><ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{d.optionalExtras!.map((x, i) => liItem(x, i, "#2563eb", "▪"))}</ul></Section>)}
+                        {d.goodToKnow && (<Section title={label("goodToKnow")}><div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.goodToKnow }} /></Section>)}
+                        {d.paymentTerms && (<Section title={label("payment")}><div className="trip-rich" style={{ fontSize: 13 }} dangerouslySetInnerHTML={{ __html: d.paymentTerms }} /></Section>)}
+                      </div>
+                    );
+                  })()}
                 </>
               );
             })()}

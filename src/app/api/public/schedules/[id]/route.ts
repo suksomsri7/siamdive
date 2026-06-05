@@ -12,9 +12,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       departureDate: true,
       returnDate: true,
       status: true,
+      logistics: true,
       translations: {
         where: { lang: { in: [lang, "en"] } },
-        select: { lang: true, title: true, excerpt: true, content: true, route: true, included: true, excluded: true },
+        select: { lang: true, title: true, excerpt: true, content: true, route: true, included: true, excluded: true, details: true },
       },
       boat: {
         select: {
@@ -38,6 +39,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     id: schedule.id,
     boat: boatTr ? { title: boatTr.title, excerpt: boatTr.excerpt, content: boatTr.content } : null,
-    schedule: schedTr ? { title: schedTr.title, excerpt: schedTr.excerpt, content: schedTr.content, route: schedTr.route, included: schedTr.included ?? [], excluded: schedTr.excluded ?? [] } : null,
+    schedule: schedTr ? { title: schedTr.title, excerpt: schedTr.excerpt, content: schedTr.content, route: schedTr.route, included: schedTr.included ?? [], excluded: schedTr.excluded ?? [], details: schedTr.details ?? {}, logistics: schedule.logistics ?? {} } : null,
   });
 }

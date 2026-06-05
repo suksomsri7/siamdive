@@ -264,6 +264,7 @@ model Schedule {
   fromPrice      Float? // starting/"from" price for this departure (in the boat's currency); used by imports where per-cabin price is unknown
   note           String?
   itinerary      String                @default("")
+  logistics      Json                  @default("{}") // liveaboard only: {departurePort,departureTime,departureAirport,returnPort,returnTime,returnAirport,requiredCert,requiredDives,totalDivesMin,totalDivesMax} (lang-independent)
   sourceUrl      String? // external source page (e.g. liveaboard.com departure URL) — set by importers
   sourceId       String? // external stable id (e.g. liveaboard tour id) — used by cron sync to match/upsert
   translations   ScheduleTranslation[]
@@ -315,6 +316,7 @@ model ScheduleTranslation {
   keywords   String[]
   included   String[] @default([]) // liveaboard only: "what's included" list (plain text per item)
   excluded   String[] @default([]) // liveaboard only: "not included" list (plain text per item)
+  details    Json     @default("{}") // liveaboard only: PADI-style full-detail sections {requirements,highlights(html),marineLife[],optionalExtras[],goodToKnow(html),paymentTerms(html)}
 
   @@unique([scheduleId, lang])
 }
