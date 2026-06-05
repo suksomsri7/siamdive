@@ -98,6 +98,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           itinerary: tr.itinerary ?? "",
           route: tr.route ?? "",
           keywords: tr.keywords ?? [],
+          included: tr.included ?? [],
+          excluded: tr.excluded ?? [],
         };
       }),
     };

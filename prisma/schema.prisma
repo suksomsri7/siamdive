@@ -313,6 +313,8 @@ model ScheduleTranslation {
   itinerary  String   @default("")
   route      String   @default("")
   keywords   String[]
+  included   String[] @default([]) // liveaboard only: "what's included" list (plain text per item)
+  excluded   String[] @default([]) // liveaboard only: "not included" list (plain text per item)
 
   @@unique([scheduleId, lang])
 }

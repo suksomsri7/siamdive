@@ -11,7 +11,7 @@ import type { PlanItem } from "./plan-item";
 
 type FetchedDetail = {
   boat: { title: string; excerpt: string; content: string } | null;
-  schedule: { title: string; excerpt: string; content: string; route: string } | null;
+  schedule: { title: string; excerpt: string; content: string; route: string; included?: string[]; excluded?: string[] } | null;
 };
 
 type Props = {
@@ -388,6 +388,8 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
     excerpt: { th: "สรุป", en: "Summary", cn: "摘要", de: "Zusammenfassung", fr: "Résumé", ru: "Описание", ko: "요약", ja: "概要" },
     route:   { th: "เส้นทาง", en: "Route", cn: "路线", de: "Route", fr: "Itinéraire", ru: "Маршрут", ko: "경로", ja: "ルート" },
     content: { th: "รายละเอียด", en: "Details", cn: "详情", de: "Details", fr: "Détails", ru: "Детали", ko: "상세정보", ja: "詳細" },
+    included: { th: "รวมในราคา", en: "What's included", cn: "费用包含", de: "Inklusive", fr: "Inclus", ru: "Включено", ko: "포함 사항", ja: "料金に含まれるもの" },
+    notIncluded: { th: "ไม่รวมในราคา", en: "Not included", cn: "费用不含", de: "Nicht inklusive", fr: "Non inclus", ru: "Не включено", ko: "불포함 사항", ja: "料金に含まれないもの" },
   };
   const label = (key: string) => SECTION_LABEL[key]?.[lang] || SECTION_LABEL[key]?.en || key;
 
@@ -895,6 +897,26 @@ function TripSection({ trip, originalIdx, planId, lang, canEdit, overlap, confli
                     <div>
                       <p style={{ fontSize: 11, color: "var(--plan-fg-subtle)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{label("content")}</p>
                       <div className="trip-rich" dangerouslySetInnerHTML={{ __html: sContentTrimmed }} />
+                    </div>
+                  )}
+                  {isLiveaboard && (((s?.included?.length ?? 0) > 0) || ((s?.excluded?.length ?? 0) > 0)) && (
+                    <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
+                      {(s?.included?.length ?? 0) > 0 && (
+                        <div>
+                          <p style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("included")}</p>
+                          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                            {s!.included!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg)", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#16a34a", flexShrink: 0 }}>✓</span><span>{x}</span></li>))}
+                          </ul>
+                        </div>
+                      )}
+                      {(s?.excluded?.length ?? 0) > 0 && (
+                        <div>
+                          <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{label("notIncluded")}</p>
+                          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                            {s!.excluded!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--plan-fg-subtle)", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#dc2626", flexShrink: 0 }}>✗</span><span>{x}</span></li>))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

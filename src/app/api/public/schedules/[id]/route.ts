@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       status: true,
       translations: {
         where: { lang: { in: [lang, "en"] } },
-        select: { lang: true, title: true, excerpt: true, content: true, route: true },
+        select: { lang: true, title: true, excerpt: true, content: true, route: true, included: true, excluded: true },
       },
       boat: {
         select: {
@@ -38,6 +38,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     id: schedule.id,
     boat: boatTr ? { title: boatTr.title, excerpt: boatTr.excerpt, content: boatTr.content } : null,
-    schedule: schedTr ? { title: schedTr.title, excerpt: schedTr.excerpt, content: schedTr.content, route: schedTr.route } : null,
+    schedule: schedTr ? { title: schedTr.title, excerpt: schedTr.excerpt, content: schedTr.content, route: schedTr.route, included: schedTr.included ?? [], excluded: schedTr.excluded ?? [] } : null,
   });
 }

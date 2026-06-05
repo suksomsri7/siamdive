@@ -286,7 +286,7 @@ function getCurrentPackageMinPrice(pkg: PackageData): number | null {
     .filter(n => n > 0);
   return prices.length ? Math.min(...prices) : null;
 }
-type ScheduleTranslation = { lang: string; title: string; excerpt: string; content: string; itinerary: string; route: string };
+type ScheduleTranslation = { lang: string; title: string; excerpt: string; content: string; itinerary: string; route: string; included?: string[]; excluded?: string[] };
 type ScheduleData = {
   id: string;
   departureDate: string | null;
@@ -548,6 +548,8 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
       itinerary: schedTr?.itinerary || "",
       excerpt: schedTr?.excerpt || "",
       content: schedTr?.content || "",
+      included: schedTr?.included || [],
+      excluded: schedTr?.excluded || [],
       priceMin: allPrices.length ? Math.min(...allPrices) : 0,
       priceMax: allPrices.length ? Math.max(...allPrices) : 0,
     } : undefined;
@@ -1091,6 +1093,26 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
                                 <div style={{ marginTop: 14 }}>
                                   <p style={{ fontSize: 11, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>รายละเอียด</p>
                                   <div className="rich-content" dangerouslySetInnerHTML={{ __html: st.content }} />
+                                </div>
+                              )}
+                              {(boat?.type || trip.type) === "LIVEABOARD" && (((st?.included?.length ?? 0) > 0) || ((st?.excluded?.length ?? 0) > 0)) && (
+                                <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
+                                  {(st?.included?.length ?? 0) > 0 && (
+                                    <div>
+                                      <p style={{ fontSize: 11, color: "#4ade80", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>รวมในราคา</p>
+                                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                        {st!.included!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "#ccc", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#4ade80", flexShrink: 0 }}>✓</span><span>{x}</span></li>))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {(st?.excluded?.length ?? 0) > 0 && (
+                                    <div>
+                                      <p style={{ fontSize: 11, color: "#f87171", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>ไม่รวมในราคา</p>
+                                      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                        {st!.excluded!.map((x, i) => (<li key={i} style={{ display: "flex", gap: 8, fontSize: 13, color: "#999", marginBottom: 6, lineHeight: 1.4 }}><span style={{ color: "#f87171", flexShrink: 0 }}>✗</span><span>{x}</span></li>))}
+                                      </ul>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

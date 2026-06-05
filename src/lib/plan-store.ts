@@ -15,6 +15,8 @@ export type PlanTripSchedule = {
   itinerary: string;
   excerpt?: string;
   content?: string;
+  included?: string[]; // liveaboard only
+  excluded?: string[]; // liveaboard only
   /** Cheapest tier across every package on this schedule, in THB/person.
    *  0 means the schedule had no priced packages (rare). Drives the
    *  "เริ่ม X — Y บาท/คน" range surfaced in the trip card + book bar. */

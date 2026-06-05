@@ -6,7 +6,7 @@ import PackagePanel from "@/components/backoffice/PackagePanel";
 import OptionsPanel from "@/components/backoffice/OptionsPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SchedLang = { title: string; slug: string; excerpt: string; content: string; itinerary: string; keywords: string[] };
+type SchedLang = { title: string; slug: string; excerpt: string; content: string; itinerary: string; keywords: string[]; included: string[]; excluded: string[] };
 type SchedPackage = { packageId: string; availableSeats: string; isFull: boolean; appendScheduleDetail: boolean; regularPrice: string; salePrice: string };
 type ScheduleRow = {
   id: string; boatId: string; dateType: string; departureDate: string | null; returnDate: string | null; weekDays: string[];
@@ -74,7 +74,7 @@ function rowToBoatForm(b: BoatRow): BoatFormData {
   return form;
 }
 
-const emptySchedLang = (): SchedLang => ({ title: "", slug: "", excerpt: "", content: "", itinerary: "", keywords: [] });
+const emptySchedLang = (): SchedLang => ({ title: "", slug: "", excerpt: "", content: "", itinerary: "", keywords: [], included: [], excluded: [] });
 const emptySchedForm = (boatId = "") => ({
   boatId, dateType: "single" as "single" | "period" | "daily" | "weekly",
   departureDate: "", returnDate: "",
@@ -172,7 +172,7 @@ export default function LiveaboardManager({
     base.season = s.season ?? null;
     base.fromPrice = s.fromPrice?.toString() ?? "";
     base.packages = (s.packages ?? []).map(p => { const t0 = p.priceTiers?.[0]; return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: t0?.regularPrice?.toString() ?? "", salePrice: t0?.salePrice?.toString() ?? "" }; });
-    for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [] }; }
+    for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [], included: tr.included ?? [], excluded: tr.excluded ?? [] }; }
     loadPackageOptions(s.boatId);
     setSchedForm(base); setEditSchedId(s.id); setSchedActiveLang("en"); setSchedOpen(true);
   };
@@ -180,7 +180,7 @@ export default function LiveaboardManager({
   const saveSched = async () => {
     setSavingSched(true);
     const pkgsWithPrices = schedForm.packages.map(p => ({ packageId: p.packageId, availableSeats: p.availableSeats, isFull: p.isFull, appendScheduleDetail: p.appendScheduleDetail, priceTiers: (p.regularPrice || p.salePrice) ? [{ tier: "DIVER", regularPrice: p.regularPrice || "0", salePrice: p.salePrice || null }] : [] }));
-    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => ({ lang: l, ...(schedForm[l] as SchedLang) })) };
+    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => { const sl = schedForm[l] as SchedLang; return { lang: l, ...sl, included: (sl.included ?? []).map(x => x.trim()).filter(Boolean), excluded: (sl.excluded ?? []).map(x => x.trim()).filter(Boolean) }; }) };
     if (editSchedId) await fetch(`/api/schedules/${editSchedId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingSched(false); closeSched(); load();
@@ -494,6 +494,10 @@ export default function LiveaboardManager({
                       </div>
                       <div><label style={lbl}>Excerpt</label><textarea value={lf.excerpt} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), excerpt: e.target.value } }))} style={{ ...inp, minHeight: 60, resize: "vertical", fontFamily: "inherit" }} /></div>
                       <div><label style={lbl}>Detail</label><RichEditor value={lf.content} onChange={h => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), content: h } }))} /></div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div><label style={lbl}>✓ Included (1 รายการ/บรรทัด)</label><textarea value={(lf.included ?? []).join("\n")} placeholder={"Nitrox\nAirport transfer\nFull board"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), included: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 110, resize: "vertical", fontFamily: "inherit" }} /></div>
+                        <div><label style={lbl}>✗ Not included (1 รายการ/บรรทัด)</label><textarea value={(lf.excluded ?? []).join("\n")} placeholder={"Alcoholic drinks\nGratuities\nNitrox"} onChange={e => setSchedForm(f => ({ ...f, [l]: { ...(f[l] as SchedLang), excluded: e.target.value.split("\n") } }))} style={{ ...inp, minHeight: 110, resize: "vertical", fontFamily: "inherit" }} /></div>
+                      </div>
 
                       <div>
                         <label style={lbl}>Keywords</label>

@@ -79,6 +79,8 @@ export async function POST(req: NextRequest) {
             itinerary: tr.itinerary ?? "",
             route: tr.route ?? "",
             keywords: tr.keywords ?? [],
+            included: tr.included ?? [],
+            excluded: tr.excluded ?? [],
           };
         }),
       },
