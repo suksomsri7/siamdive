@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
     if (companionCand) topPicks.push(companionCand);
   }
 
-  const trips = topPicks.map(({ s }) => {
+  const scheduledTrips = topPicks.map(({ s }) => {
     const bt = pickByLang(s.boat.translations, lang);
     const areaTrans = s.boat.serviceAreas[0]?.serviceArea
       ? pickByLang(s.boat.serviceAreas[0].serviceArea.translations, lang)
@@ -366,6 +366,60 @@ export async function POST(req: NextRequest) {
       },
     };
   });
+
+  // Dive resorts have NO Schedule rows (they're "stay any dates"), so the
+  // schedule pipeline above never surfaces them. When the user asked for a
+  // dive_resort, query PUBLISHED DIVE_RESORT boats in-region and append them
+  // as UNSCHEDULED trip cards (no `schedule` field → PlanTimeline drops them
+  // into the unscheduled bucket / UnscheduledCard, with no fake date). Capped
+  // at 2 so a resort-only request still yields a real, non-empty plan.
+  const wantsResort = (slots.categories || []).includes("dive_resort");
+  const resortTrips: Array<Record<string, unknown>> = [];
+  if (wantsResort) {
+    const resorts = await prisma.boat.findMany({
+      where: { status: "PUBLISHED", type: "DIVE_RESORT" },
+      include: {
+        translations: { select: { lang: true, title: true, slug: true } },
+        priceTiers: { select: { tier: true, regularPrice: true, salePrice: true } },
+        serviceAreas: {
+          include: {
+            serviceArea: {
+              include: {
+                translations: { select: { lang: true, name: true } },
+                country: { select: { code: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const inRegionResorts = resorts.filter(b => {
+      if (region === "both") return true;
+      const codes = b.serviceAreas.map(sa => sa.serviceArea.country?.code).filter((c): c is string => !!c);
+      if (codes.length) return codes.some(c => regionMatchesCountry(region, c));
+      const areas = b.serviceAreas.map(sa => pickByLang(sa.serviceArea.translations, lang)?.name || "").filter(Boolean);
+      return areas.some(a => regionMatchesArea(region, a));
+    }).slice(0, 2);
+    for (const b of inRegionResorts) {
+      const bt = pickByLang(b.translations, lang);
+      const areaTrans = b.serviceAreas[0]?.serviceArea ? pickByLang(b.serviceAreas[0].serviceArea.translations, lang) : null;
+      const prices = b.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
+      resortTrips.push({
+        boatId: b.id,
+        title: bt?.title || b.name,
+        slug: bt?.slug || b.id,
+        type: b.type,
+        area: areaTrans?.name || "",
+        cover: b.covers?.[0] || null,
+        addedAt: Date.now(),
+        priceMin: prices.length ? Math.min(...prices) : 0,
+        priceMax: prices.length ? Math.max(...prices) : 0,
+        // intentionally no `schedule` — resort stays are date-flexible
+      });
+    }
+  }
+
+  const trips = [...scheduledTrips, ...resortTrips];
 
   const chosenAreaIds = Array.from(new Set(
     topPicks.flatMap(({ s }) => s.boat.serviceAreas.map(sa => sa.serviceAreaId)),
@@ -454,7 +508,7 @@ export async function POST(req: NextRequest) {
       where: { id: targetPlanId },
       data: {
         trips: merged as never,
-        coverUrl: existing.coverUrl ?? trips[0]?.cover ?? null,
+        coverUrl: existing.coverUrl ?? (trips[0]?.cover as string | null | undefined) ?? null,
       },
     });
     return Response.json({
@@ -471,7 +525,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         name: planName,
-        coverUrl: trips[0]?.cover ?? null,
+        coverUrl: (trips[0]?.cover as string | null | undefined) ?? null,
         trips: trips as never,
         source: "ARK_AI",
         aiPrompt: JSON.stringify(slots),
