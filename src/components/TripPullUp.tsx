@@ -8,6 +8,7 @@ import { addPendingPick } from "@/lib/pending-picks";
 import PlanSelectorSheet from "./ark-ai/plan/PlanSelectorSheet";
 import DateConflictModal from "./ark-ai/plan/DateConflictModal";
 import BodyPortal from "./ark-ai/BodyPortal";
+import ResortConfigurator from "./ResortConfigurator";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Trip = {
@@ -250,7 +251,16 @@ type PackageData = {
   translations: PackageTranslation[];
   priceTiers: { tier: string; regularPrice: number; salePrice: number | null }[];
   seasonPeriods: { season: string; startDate: string; endDate: string }[];
+  // dive-resort room attributes (null for liveaboard/daytrip cabins)
+  bedType?: string | null;
+  occupancyMin?: number | null;
+  occupancyMax?: number | null;
+  roomSizeSqm?: number | null;
+  amenities?: string[];
+  pricePerNight?: number | null;
 };
+type DivePackageData = { id: string; numberOfDives: number; price: number | null };
+type MealPlanData = { id: string; name: string; price: number | null; included: boolean; description: string };
 
 // For seasonal packages, priceTier.tier stores the season name (HIGH_SEASON,
 // PEAK_SEASON, GREEN_SEASON, ALL_SEASON). seasonPeriods defines date ranges per
@@ -297,6 +307,13 @@ type BoatData = {
   priceTiers: BoatPriceTier[];
   packages: PackageData[];
   schedules: ScheduleData[];
+  // dive-resort structured fields
+  currency?: string;
+  stars?: number | null;
+  ecoLabels?: string[];
+  tripadvisorRating?: number | null;
+  divePackages?: DivePackageData[];
+  mealPlans?: MealPlanData[];
 };
 
 function pickTrans<T extends { lang: string }>(arr: T[] | undefined, lang: string): T | undefined {
@@ -890,6 +907,11 @@ export function InfoModal({ trip, lang = "en", initialDate, onClose }: { trip: T
 
         {loading && (
           <div style={{ textAlign: "center", padding: "20px 0", color: "#555", fontSize: 13 }}>กำลังโหลด...</div>
+        )}
+
+        {/* Dive-resort configurator (PADI-style) — only for DIVE_RESORT boats */}
+        {boat && boat.type === "DIVE_RESORT" && (
+          <ResortConfigurator resort={boat} lang={lang} />
         )}
 
         {/* Packages — collapsible accordion */}

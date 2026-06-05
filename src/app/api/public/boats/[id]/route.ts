@@ -15,6 +15,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       options:      { orderBy: { order: "asc" }, include: { translations: true } },
       serviceAreas: { include: { serviceArea: { include: { translations: true } } } },
       company:      { include: { translations: true } },
+      divePackages: { orderBy: { order: "asc" } },
+      mealPlans:    { orderBy: { order: "asc" } },
       packages: {
         orderBy: { createdAt: "asc" },
         include: {
