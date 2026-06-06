@@ -19,9 +19,10 @@ function emptyForm(): OptionForm {
   return { price: "", ...langs };
 }
 
-type Props = { boatId: string; boatName: string; onClose: () => void };
+type Props = { boatId: string; boatName: string; onClose: () => void; currency?: string };
 
-export default function OptionsPanel({ boatId, boatName, onClose }: Props) {
+export default function OptionsPanel({ boatId, boatName, onClose, currency = "THB" }: Props) {
+  const cur = (n: number) => currency === "USD" ? `$${n.toLocaleString()}` : `฿${n.toLocaleString()}`;
   const [options, setOptions] = useState<OptionRow[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function OptionsPanel({ boatId, boatName, onClose }: Props) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 700, color: "#ccc", fontSize: 13, flex: 1 }}>{label}</span>
                   <span style={{ fontSize: 12, color: "#4ade80", fontWeight: 600 }}>
-                    {opt.price > 0 ? `+฿${opt.price.toLocaleString()}` : "ฟรี"}
+                    {opt.price > 0 ? `+${cur(opt.price)}` : "ฟรี"}
                   </span>
                 </div>
                 {enTr?.description && <div style={{ fontSize: 11, color: "#444", marginTop: 4 }}>{enTr.description}</div>}
@@ -134,7 +135,7 @@ export default function OptionsPanel({ boatId, boatName, onClose }: Props) {
           <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Price */}
             <div>
-              <label style={labelStyle}>ราคา (฿)</label>
+              <label style={labelStyle}>ราคา ({currency === "USD" ? "$" : "฿"})</label>
               <input value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} style={{ ...inputStyle, width: 130 }} type="number" placeholder="0" min="0" />
             </div>
 

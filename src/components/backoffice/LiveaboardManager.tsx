@@ -10,13 +10,13 @@ import OptionsPanel from "@/components/backoffice/OptionsPanel";
 type SchedLang = { title: string; slug: string; excerpt: string; content: string; itinerary: string; keywords: string[]; included: string[]; excluded: string[]; requirements: string; highlights: string; marineLife: string[]; optionalExtras: string[]; goodToKnow: string; paymentTerms: string };
 type SchedLogistics = { departurePort: string; departureTime: string; departureAirport: string; returnPort: string; returnTime: string; returnAirport: string; requiredCert: string; requiredDives: string; totalDivesMin: string; totalDivesMax: string };
 const emptyLogistics = (): SchedLogistics => ({ departurePort: "", departureTime: "", departureAirport: "", returnPort: "", returnTime: "", returnAirport: "", requiredCert: "", requiredDives: "", totalDivesMin: "", totalDivesMax: "" });
-type SchedPackage = { packageId: string; availableSeats: string; isFull: boolean; appendScheduleDetail: boolean; regularPrice: string; salePrice: string };
+type SchedPackage = { packageId: string; availableSeats: string; isFull: boolean; appendScheduleDetail: boolean; regularPrice: string; salePrice: string; ndRegularPrice: string; ndSalePrice: string };
 type ScheduleRow = {
   id: string; boatId: string; dateType: string; departureDate: string | null; returnDate: string | null; weekDays: string[];
   totalSeats: number | null; availableSeats: number | null; status: string; season: string | null; note: string | null; itinerary: string; fromPrice: number | null;
   logistics?: Partial<SchedLogistics> | null;
   translations: (SchedLang & { lang: string; route?: string; details?: Record<string, unknown> })[];
-  packages: { packageId: string; priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[] }[];
+  packages: { packageId: string; availableSeats?: number | null; isFull?: boolean; appendScheduleDetail?: boolean; priceTiers: { tier: string; costPrice: number | null; regularPrice: number; salePrice: number | null; agentPrice: number | null }[] }[];
 };
 type PackageOption = { id: string; name: string; title: string };
 type BoatRow = {
@@ -181,7 +181,7 @@ export default function LiveaboardManager({
     base.note = s.note ?? "";
     const lg = (s.logistics ?? {}) as Partial<SchedLogistics>;
     base.logistics = { ...emptyLogistics(), ...Object.fromEntries(Object.entries(lg).map(([k, v]) => [k, v == null ? "" : String(v)])) } as SchedLogistics;
-    base.packages = (s.packages ?? []).map(p => { const t0 = p.priceTiers?.[0]; return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: t0?.regularPrice?.toString() ?? "", salePrice: t0?.salePrice?.toString() ?? "" }; });
+    base.packages = (s.packages ?? []).map(p => { const dv = p.priceTiers?.find(t => t.tier === "DIVER") ?? p.priceTiers?.[0]; const nd = p.priceTiers?.find(t => t.tier === "NON_DIVER"); return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: dv?.regularPrice?.toString() ?? "", salePrice: dv?.salePrice?.toString() ?? "", ndRegularPrice: nd?.regularPrice?.toString() ?? "", ndSalePrice: nd?.salePrice?.toString() ?? "" }; });
     for (const tr of s.translations ?? []) { if (ALL_LANGS.includes(tr.lang as LangKey)) { const dt = (tr.details ?? {}) as Record<string, unknown>; (base as Record<string, unknown>)[tr.lang] = { title: tr.title, slug: tr.slug, excerpt: tr.excerpt, content: tr.content, itinerary: tr.itinerary, keywords: tr.keywords ?? [], included: tr.included ?? [], excluded: tr.excluded ?? [], requirements: (dt.requirements as string) ?? "", highlights: (dt.highlights as string) ?? "", marineLife: (dt.marineLife as string[]) ?? [], optionalExtras: (dt.optionalExtras as string[]) ?? [], goodToKnow: (dt.goodToKnow as string) ?? "", paymentTerms: (dt.paymentTerms as string) ?? "" }; } }
     loadPackageOptions(s.boatId);
     setSchedForm(base); setEditSchedId(s.id); setSchedActiveLang("en"); setSchedOpen(true);
@@ -189,7 +189,7 @@ export default function LiveaboardManager({
   const closeSched = () => { setSchedOpen(false); setEditSchedId(null); };
   const saveSched = async () => {
     setSavingSched(true);
-    const pkgsWithPrices = schedForm.packages.map(p => ({ packageId: p.packageId, availableSeats: p.availableSeats, isFull: p.isFull, appendScheduleDetail: p.appendScheduleDetail, priceTiers: (p.regularPrice || p.salePrice) ? [{ tier: "DIVER", regularPrice: p.regularPrice || "0", salePrice: p.salePrice || null }] : [] }));
+    const pkgsWithPrices = schedForm.packages.map(p => { const tiers: { tier: string; regularPrice: string; salePrice: string | null }[] = []; if (p.regularPrice || p.salePrice) tiers.push({ tier: "DIVER", regularPrice: p.regularPrice || "0", salePrice: p.salePrice || null }); if (p.ndRegularPrice || p.ndSalePrice) tiers.push({ tier: "NON_DIVER", regularPrice: p.ndRegularPrice || "0", salePrice: p.ndSalePrice || null }); return { packageId: p.packageId, availableSeats: p.availableSeats, isFull: p.isFull, appendScheduleDetail: p.appendScheduleDetail, priceTiers: tiers }; });
     const lg0 = schedForm.logistics; const num = (v: string) => v && !isNaN(Number(v)) ? Number(v) : undefined;
     const logistics = { departurePort: lg0.departurePort || undefined, departureTime: lg0.departureTime || undefined, departureAirport: lg0.departureAirport || undefined, returnPort: lg0.returnPort || undefined, returnTime: lg0.returnTime || undefined, returnAirport: lg0.returnAirport || undefined, requiredCert: lg0.requiredCert || undefined, requiredDives: num(lg0.requiredDives), totalDivesMin: num(lg0.totalDivesMin), totalDivesMax: num(lg0.totalDivesMax) };
     const cleanList = (a: string[]) => (a ?? []).map(x => x.trim()).filter(Boolean);
@@ -361,7 +361,7 @@ export default function LiveaboardManager({
 
       {/* ── Cabin panel ── */}
       {pkgBoat && <PackagePanel boatId={pkgBoat.id} boatName={pkgBoat.name} onClose={() => setPkgBoat(null)} label="Cabin" cabinFields />}
-      {optionsBoat && <OptionsPanel boatId={optionsBoat.id} boatName={optionsBoat.name} onClose={() => setOptionsBoat(null)} />}
+      {optionsBoat && <OptionsPanel boatId={optionsBoat.id} boatName={optionsBoat.name} onClose={() => setOptionsBoat(null)} currency={boats.find(b => b.id === optionsBoat.id)?.currency || "THB"} />}
 
       {/* ── Boat slide panel ── */}
       {boatOpen && (
@@ -451,9 +451,9 @@ export default function LiveaboardManager({
                         ...f,
                         packages: checked
                           ? f.packages.filter(x => x.packageId !== pkg.id)
-                          : [...f.packages, { packageId: pkg.id, availableSeats: "", isFull: false, appendScheduleDetail: false, regularPrice: "", salePrice: "" }],
+                          : [...f.packages, { packageId: pkg.id, availableSeats: "", isFull: false, appendScheduleDetail: false, regularPrice: "", salePrice: "", ndRegularPrice: "", ndSalePrice: "" }],
                       }));
-                      const updatePkg = (field: "availableSeats" | "isFull" | "appendScheduleDetail" | "regularPrice" | "salePrice", val: string | boolean) => setSchedForm(f => ({
+                      const updatePkg = (field: "availableSeats" | "isFull" | "appendScheduleDetail" | "regularPrice" | "salePrice" | "ndRegularPrice" | "ndSalePrice", val: string | boolean) => setSchedForm(f => ({
                         ...f, packages: f.packages.map(x => x.packageId !== pkg.id ? x : { ...x, [field]: val }),
                       }));
                       return (
@@ -478,13 +478,24 @@ export default function LiveaboardManager({
                                   ต่อท้าย Schedule detail
                                 </label>
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 8px" }}>
-                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ราคาขาย:</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 12px 4px" }}>
+                                <span style={{ fontSize: 11, color: "#3b82f6", fontWeight: 700, flexShrink: 0, width: 70 }}>นักดำน้ำ</span>
+                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ราคา:</span>
                                 <input type="number" value={sp.regularPrice} onChange={e => updatePkg("regularPrice", e.target.value)} placeholder="0"
-                                  style={{ ...inp, width: 110, fontSize: 12 }} />
-                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ราคาส่วนลด:</span>
+                                  style={{ ...inp, width: 100, fontSize: 12 }} />
+                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ลด:</span>
                                 <input type="number" value={sp.salePrice} onChange={e => updatePkg("salePrice", e.target.value)} placeholder="ไม่มี"
-                                  style={{ ...inp, width: 110, fontSize: 12 }} />
+                                  style={{ ...inp, width: 100, fontSize: 12 }} />
+                                <span style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{boats.find(b => b.id === schedForm.boatId)?.currency || "THB"}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 12px 8px" }}>
+                                <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 700, flexShrink: 0, width: 70 }}>ไม่ดำน้ำ</span>
+                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ราคา:</span>
+                                <input type="number" value={sp.ndRegularPrice} onChange={e => updatePkg("ndRegularPrice", e.target.value)} placeholder="ไม่มี"
+                                  style={{ ...inp, width: 100, fontSize: 12 }} />
+                                <span style={{ fontSize: 11, color: "#444", flexShrink: 0 }}>ลด:</span>
+                                <input type="number" value={sp.ndSalePrice} onChange={e => updatePkg("ndSalePrice", e.target.value)} placeholder="ไม่มี"
+                                  style={{ ...inp, width: 100, fontSize: 12 }} />
                                 <span style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{boats.find(b => b.id === schedForm.boatId)?.currency || "THB"}</span>
                               </div>
                             </div>

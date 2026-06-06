@@ -47,44 +47,55 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { name, totalSeats, status, photos, translations, priceTiers, seasonPeriods,
     bedType, occupancyMin, occupancyMax, roomSizeSqm, amenities, pricePerNight } = body;
   const pkgNum = (v: unknown) => (v === "" || v == null ? null : Number(v));
-  await prisma.packageTranslation.deleteMany({ where: { packageId: id } });
-  await prisma.packagePriceTier.deleteMany({ where: { packageId: id } });
-  await prisma.packageSeasonPeriod.deleteMany({ where: { packageId: id } });
+  // Partial-safe: only delete+recreate child rows the client actually sent.
+  // A partial PUT (e.g. {roomSizeSqm}) must NOT wipe photos / translations / priceTiers.
+  const touchTranslations = translations !== undefined;
+  const touchPriceTiers = priceTiers !== undefined;
+  const touchSeasons = seasonPeriods !== undefined;
+  if (touchTranslations) await prisma.packageTranslation.deleteMany({ where: { packageId: id } });
+  if (touchPriceTiers) await prisma.packagePriceTier.deleteMany({ where: { packageId: id } });
+  if (touchSeasons) await prisma.packageSeasonPeriod.deleteMany({ where: { packageId: id } });
   const pkg = await prisma.package.update({
     where: { id },
     data: {
-      name,
-      totalSeats: totalSeats ? Number(totalSeats) : null,
-      photos: photos ?? [],
-      status: status ?? "DRAFT",
+      ...(name !== undefined ? { name } : {}),
+      ...(totalSeats !== undefined ? { totalSeats: totalSeats ? Number(totalSeats) : null } : {}),
+      ...(photos !== undefined ? { photos: photos ?? [] } : {}),
+      ...(status !== undefined ? { status: status ?? "DRAFT" } : {}),
       ...(bedType !== undefined ? { bedType: bedType ?? null } : {}),
       ...(occupancyMin !== undefined ? { occupancyMin: pkgNum(occupancyMin) } : {}),
       ...(occupancyMax !== undefined ? { occupancyMax: pkgNum(occupancyMax) } : {}),
       ...(roomSizeSqm !== undefined ? { roomSizeSqm: pkgNum(roomSizeSqm) } : {}),
       ...(amenities !== undefined ? { amenities: Array.isArray(amenities) ? amenities : [] } : {}),
       ...(pricePerNight !== undefined ? { pricePerNight: pkgNum(pricePerNight) } : {}),
-      translations: {
-        create: LANGS.map(lang => {
-          const tr = translations?.find((t: { lang: string }) => t.lang === lang) ?? {};
-          return { lang, title: tr.title ?? "", slug: tr.slug ?? "", excerpt: tr.excerpt ?? "", content: tr.content ?? "", itinerary: tr.itinerary ?? "", route: tr.route ?? "", keywords: tr.keywords ?? [] };
-        }),
-      },
-      priceTiers: priceTiers?.length ? {
-        create: (priceTiers as TierInput[]).map(t => ({
-          tier: t.tier,
-          costPrice: t.costPrice ? Number(t.costPrice) : null,
-          regularPrice: Number(t.regularPrice) || 0,
-          salePrice: t.salePrice ? Number(t.salePrice) : null,
-          agentPrice: t.agentPrice ? Number(t.agentPrice) : null,
-        })),
-      } : undefined,
-      seasonPeriods: seasonPeriods?.length ? {
-        create: (seasonPeriods as PeriodInput[]).map(p => ({
-          season: p.season,
-          startDate: new Date(p.startDate),
-          endDate: new Date(p.endDate),
-        })),
-      } : undefined,
+      ...(touchTranslations ? {
+        translations: {
+          create: LANGS.map(lang => {
+            const tr = translations?.find((t: { lang: string }) => t.lang === lang) ?? {};
+            return { lang, title: tr.title ?? "", slug: tr.slug ?? "", excerpt: tr.excerpt ?? "", content: tr.content ?? "", itinerary: tr.itinerary ?? "", route: tr.route ?? "", keywords: tr.keywords ?? [] };
+          }),
+        },
+      } : {}),
+      ...(touchPriceTiers && priceTiers?.length ? {
+        priceTiers: {
+          create: (priceTiers as TierInput[]).map(t => ({
+            tier: t.tier,
+            costPrice: t.costPrice ? Number(t.costPrice) : null,
+            regularPrice: Number(t.regularPrice) || 0,
+            salePrice: t.salePrice ? Number(t.salePrice) : null,
+            agentPrice: t.agentPrice ? Number(t.agentPrice) : null,
+          })),
+        },
+      } : {}),
+      ...(touchSeasons && seasonPeriods?.length ? {
+        seasonPeriods: {
+          create: (seasonPeriods as PeriodInput[]).map(p => ({
+            season: p.season,
+            startDate: new Date(p.startDate),
+            endDate: new Date(p.endDate),
+          })),
+        },
+      } : {}),
     },
     include: { translations: true, priceTiers: true, seasonPeriods: { orderBy: { startDate: "asc" } } },
   });
