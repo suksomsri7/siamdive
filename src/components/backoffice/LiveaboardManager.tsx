@@ -86,6 +86,7 @@ const emptySchedForm = (boatId = "") => ({
   status: "OPEN" as ScheduleStatus,
   season: null as string | null,
   fromPrice: "" as string,
+  note: "" as string,
   packages: [] as SchedPackage[],
   logistics: emptyLogistics(),
   ...Object.fromEntries(ALL_LANGS.map(l => [l, emptySchedLang()])) as Record<LangKey, SchedLang>,
@@ -177,6 +178,7 @@ export default function LiveaboardManager({
     base.status = s.status as ScheduleStatus;
     base.season = s.season ?? null;
     base.fromPrice = s.fromPrice?.toString() ?? "";
+    base.note = s.note ?? "";
     const lg = (s.logistics ?? {}) as Partial<SchedLogistics>;
     base.logistics = { ...emptyLogistics(), ...Object.fromEntries(Object.entries(lg).map(([k, v]) => [k, v == null ? "" : String(v)])) } as SchedLogistics;
     base.packages = (s.packages ?? []).map(p => { const t0 = p.priceTiers?.[0]; return { packageId: p.packageId, availableSeats: p.availableSeats?.toString() ?? "", isFull: p.isFull ?? false, appendScheduleDetail: p.appendScheduleDetail ?? false, regularPrice: t0?.regularPrice?.toString() ?? "", salePrice: t0?.salePrice?.toString() ?? "" }; });
@@ -191,7 +193,7 @@ export default function LiveaboardManager({
     const lg0 = schedForm.logistics; const num = (v: string) => v && !isNaN(Number(v)) ? Number(v) : undefined;
     const logistics = { departurePort: lg0.departurePort || undefined, departureTime: lg0.departureTime || undefined, departureAirport: lg0.departureAirport || undefined, returnPort: lg0.returnPort || undefined, returnTime: lg0.returnTime || undefined, returnAirport: lg0.returnAirport || undefined, requiredCert: lg0.requiredCert || undefined, requiredDives: num(lg0.requiredDives), totalDivesMin: num(lg0.totalDivesMin), totalDivesMax: num(lg0.totalDivesMax) };
     const cleanList = (a: string[]) => (a ?? []).map(x => x.trim()).filter(Boolean);
-    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, logistics, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => { const sl = schedForm[l] as SchedLang; return { lang: l, ...sl, included: cleanList(sl.included), excluded: cleanList(sl.excluded), details: { requirements: sl.requirements || "", highlights: sl.highlights || "", marineLife: cleanList(sl.marineLife), optionalExtras: cleanList(sl.optionalExtras), goodToKnow: sl.goodToKnow || "", paymentTerms: sl.paymentTerms || "" } }; }) };
+    const body = { boatId: schedForm.boatId, dateType: schedForm.dateType, departureDate: (schedForm.dateType === "single" || schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.departureDate || null) : null, returnDate: (schedForm.dateType === "period" || schedForm.dateType === "range") ? (schedForm.returnDate || null) : null, weekDays: schedForm.weekDays, status: schedForm.status, season: schedForm.season, fromPrice: schedForm.fromPrice || null, note: schedForm.note || null, logistics, packages: pkgsWithPrices, translations: ALL_LANGS.map(l => { const sl = schedForm[l] as SchedLang; return { lang: l, ...sl, included: cleanList(sl.included), excluded: cleanList(sl.excluded), details: { requirements: sl.requirements || "", highlights: sl.highlights || "", marineLife: cleanList(sl.marineLife), optionalExtras: cleanList(sl.optionalExtras), goodToKnow: sl.goodToKnow || "", paymentTerms: sl.paymentTerms || "" } }; }) };
     if (editSchedId) await fetch(`/api/schedules/${editSchedId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     else await fetch("/api/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSavingSched(false); closeSched(); load();
@@ -358,7 +360,7 @@ export default function LiveaboardManager({
       </div>
 
       {/* ── Cabin panel ── */}
-      {pkgBoat && <PackagePanel boatId={pkgBoat.id} boatName={pkgBoat.name} onClose={() => setPkgBoat(null)} label="Cabin" />}
+      {pkgBoat && <PackagePanel boatId={pkgBoat.id} boatName={pkgBoat.name} onClose={() => setPkgBoat(null)} label="Cabin" cabinFields />}
       {optionsBoat && <OptionsPanel boatId={optionsBoat.id} boatName={optionsBoat.name} onClose={() => setOptionsBoat(null)} />}
 
       {/* ── Boat slide panel ── */}
@@ -434,6 +436,8 @@ export default function LiveaboardManager({
               <div><label style={lbl}>สถานะ</label><select value={schedForm.status} onChange={e => setSchedForm(f => ({ ...f, status: e.target.value as ScheduleStatus }))} style={inp}>{STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
 
               <div><label style={lbl}>ราคาเริ่มต้น (from) — สกุล {boats.find(b => b.id === schedForm.boatId)?.currency || "THB"}</label><input type="number" value={schedForm.fromPrice} onChange={e => setSchedForm(f => ({ ...f, fromPrice: e.target.value }))} placeholder="เช่น 2916" style={inp} /></div>
+
+              <div><label style={lbl}>โน้ตภายใน/ราคา (note — แสดงใต้ราคาในแอดมิน)</label><input value={schedForm.note} onChange={e => setSchedForm(f => ({ ...f, note: e.target.value }))} placeholder="เช่น From $1,750/person · diver+non-diver · travel.padi.com" style={inp} /></div>
 
               {/* Cabins + ราคาต่อ Cabin */}
               {schedPackageOptions.length > 0 && (

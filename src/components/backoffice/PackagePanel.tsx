@@ -99,9 +99,9 @@ const taStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 80, fon
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-type Props = { boatId: string; boatName: string; onClose: () => void; seasonPricing?: boolean; defaultEditId?: string; defaultNew?: boolean; label?: string; roomFields?: boolean; };
+type Props = { boatId: string; boatName: string; onClose: () => void; seasonPricing?: boolean; defaultEditId?: string; defaultNew?: boolean; label?: string; roomFields?: boolean; cabinFields?: boolean; };
 
-export default function PackagePanel({ boatId, boatName, onClose, seasonPricing = false, defaultEditId, defaultNew, label = "Package", roomFields = false }: Props) {
+export default function PackagePanel({ boatId, boatName, onClose, seasonPricing = false, defaultEditId, defaultNew, label = "Package", roomFields = false, cabinFields = false }: Props) {
   const [packages, setPackages] = useState<PkgRow[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -151,9 +151,10 @@ export default function PackagePanel({ boatId, boatName, onClose, seasonPricing 
     const body = {
       boatId, name: form.name, totalSeats: form.totalSeats || null, status: form.status,
       photos: form.photos,
-      ...(roomFields ? {
+      ...((roomFields || cabinFields) ? {
         bedType: form.bedType || null, occupancyMin: form.occupancyMin || null, occupancyMax: form.occupancyMax || null,
-        roomSizeSqm: form.roomSizeSqm || null, pricePerNight: form.pricePerNight || null, amenities: form.amenities,
+        roomSizeSqm: form.roomSizeSqm || null, amenities: form.amenities,
+        ...(roomFields ? { pricePerNight: form.pricePerNight || null } : {}),
       } : {}),
       translations: ALL_LANGS.map(l => ({ lang: l, ...(form[l] as LangForm) })),
       priceTiers: seasonPricing ? form.priceTiers.map(t => ({
@@ -294,16 +295,16 @@ export default function PackagePanel({ boatId, boatName, onClose, seasonPricing 
               </div>
             </div>
 
-            {/* Room attributes (dive resort) */}
-            {roomFields && (
+            {/* Room/cabin attributes (dive resort = roomFields, liveaboard = cabinFields) */}
+            {(roomFields || cabinFields) && (
               <div style={{ border: "1px solid #1d2a1d", borderRadius: 8, padding: 12, display: "flex", flexDirection: "column", gap: 10, background: "#0f140f" }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#6cc26c" }}>🛏️ รายละเอียดห้องพัก</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#6cc26c" }}>🛏️ {cabinFields && !roomFields ? "รายละเอียดห้องพัก (Cabin)" : "รายละเอียดห้องพัก"}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                   <div><label style={labelStyle}>ประเภทเตียง</label><input value={form.bedType} onChange={e => set("bedType", e.target.value)} style={inputStyle} placeholder="Double or Twin" /></div>
                   <div><label style={labelStyle}>จุขั้นต่ำ</label><input type="number" value={form.occupancyMin} onChange={e => set("occupancyMin", e.target.value)} style={inputStyle} placeholder="1" /></div>
                   <div><label style={labelStyle}>จุสูงสุด</label><input type="number" value={form.occupancyMax} onChange={e => set("occupancyMax", e.target.value)} style={inputStyle} placeholder="2" /></div>
                   <div><label style={labelStyle}>ขนาด (ตร.ม.)</label><input type="number" value={form.roomSizeSqm} onChange={e => set("roomSizeSqm", e.target.value)} style={inputStyle} placeholder="—" /></div>
-                  <div style={{ gridColumn: "span 2" }}><label style={labelStyle}>ราคาห้อง/คืน</label><input type="number" value={form.pricePerNight} onChange={e => set("pricePerNight", e.target.value)} style={inputStyle} placeholder="—" /></div>
+                  {roomFields && <div style={{ gridColumn: "span 2" }}><label style={labelStyle}>ราคาห้อง/คืน</label><input type="number" value={form.pricePerNight} onChange={e => set("pricePerNight", e.target.value)} style={inputStyle} placeholder="—" /></div>}
                 </div>
                 <div><label style={labelStyle}>สิ่งอำนวยความสะดวก (คั่นด้วย ,)</label>
                   <input value={form.amenities.join(", ")} onChange={e => set("amenities", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} style={inputStyle} placeholder="Air Conditioning, Private bathroom" /></div>
