@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
 import MyPlanScreen from "./ark-ai/MyPlanScreen";
-import { initPlanStore, planCount } from "@/lib/plan-store";
+import { initPlanStore } from "@/lib/plan-store";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
 
@@ -71,7 +71,6 @@ export default function Navbar() {
   const [planInitialId,  setPlanInitialId]  = useState<string | null>(null);
   const [planBuilding,   setPlanBuilding]   = useState(false);
   const [contactOpen,    setContactOpen]    = useState(false);
-  const [planBadge,      setPlanBadge]      = useState(0);
   const langRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
   const scrollTicking = useRef(false);
@@ -83,15 +82,6 @@ export default function Navbar() {
   useEffect(() => { contactOpenRef.current = contactOpen; }, [contactOpen]);
 
   useEffect(() => { initPlanStore(); }, []);
-
-  // Keep the My Plan badge honest: seed from the store, then refresh on any
-  // plan mutation broadcast (same `myplan-change` signal the BottomNav uses).
-  useEffect(() => {
-    setPlanBadge(planCount());
-    const handler = () => setPlanBadge(planCount());
-    window.addEventListener("myplan-change", handler);
-    return () => window.removeEventListener("myplan-change", handler);
-  }, [pathname]);
 
   // Scroll-driven nav state:
   // - `scrolled` controls the glass background once past the hero band
@@ -302,38 +292,6 @@ export default function Navbar() {
                 </div>
               )}
             </div>
-
-            {/* My Plan — mask-icon button, sits right after the contact/Send
-                button. Opens the MyPlanScreen overlay via the same
-                `open-myplan` event the BottomNav fires. Badge mirrors the
-                saved-plan count. */}
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("open-myplan"))}
-              aria-label="My Plan"
-              style={{
-                position: "relative",
-                width: 34, height: 34, borderRadius: 8,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
-                cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
-            >
-              <img src="/ai-mask.png" alt="" width={20} height={20} style={{ filter: "brightness(1.1)" }} />
-              {planBadge > 0 && (
-                <span style={{
-                  position: "absolute", top: -5, right: -5,
-                  minWidth: 16, height: 16, borderRadius: 8,
-                  background: "#ef4444", color: "#fff",
-                  fontSize: 9, fontWeight: 900,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  padding: "0 4px",
-                  boxShadow: "0 2px 6px rgba(239,68,68,0.4)",
-                }}>{planBadge}</span>
-              )}
-            </button>
           </div>
         </nav>
       </header>
