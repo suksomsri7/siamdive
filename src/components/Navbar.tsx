@@ -312,16 +312,16 @@ export default function Navbar() {
               aria-label="My Plan"
               style={{
                 position: "relative",
-                width: 34, height: 34, borderRadius: 8,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
+                width: 38, height: 38, borderRadius: "50%",
+                background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)",
                 cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "background 0.15s",
+                transition: "background 0.15s, transform 0.15s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "scale(1.06)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.transform = "scale(1)"; }}
             >
-              <img src="/ai-mask.png" alt="" width={20} height={20} style={{ filter: "brightness(1.1)" }} />
+              <img src="/ai-mask.png" alt="" width={24} height={24} style={{ filter: "brightness(1.15)" }} />
               {planBadge > 0 && (
                 <span style={{
                   position: "absolute", top: -5, right: -5,
