@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useCurrency } from "@/components/CurrencyProvider";
 
 const BOAT_TYPE_LABEL: Record<string, string> = {
   DAYTRIP: "Scuba Day Trips", SNORKELING: "Snorkeling", LAND_TOUR: "Land Tour",
@@ -15,6 +16,9 @@ type TripCardProps = {
   slug: string;
   title: string;
   price: number;
+  // Native currency of `price`. Defaults to THB (Thai day trips) when a caller
+  // hasn't been updated; liveaboard/resort callers pass the boat's currency.
+  currency?: string;
   duration: string;
   type: "DAYTRIP" | "LIVEABOARD";
   destinationName: string;
@@ -32,10 +36,11 @@ type TripCardProps = {
 };
 
 export default function TripCard({
-  slug, title, price, duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", dateLabel, lang, onClick,
+  slug, title, price, currency = "THB", duration, type, destinationName, imageUrl, covers, boatType, description, variant = "vertical", dateLabel, lang, onClick,
 }: TripCardProps) {
   const [hovered, setHovered] = useState(false);
   const isHorizontal = variant === "horizontal";
+  const { display } = useCurrency();
 
   // Pick a random cover once on client mount (random per page load)
   const [displayImage, setDisplayImage] = useState<string | undefined>(imageUrl);
@@ -87,7 +92,7 @@ export default function TripCard({
         {isHorizontal ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
             {duration && <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>}
-            {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>}
+            {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>{display(price, currency)}</span>}
           </div>
         ) : (description || duration || price > 0) ? (
           <div style={{ maxHeight: hovered ? 80 : 0, opacity: hovered ? 1 : 0, overflow: "hidden", transition: "max-height 0.25s ease, opacity 0.2s ease", marginTop: hovered ? 8 : 0 }}>
@@ -96,7 +101,7 @@ export default function TripCard({
             )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               {duration && <span style={{ fontSize: 11, color: "#64748b" }}>{duration}</span>}
-              {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>฿{price.toLocaleString()}</span>}
+              {price > 0 && <span style={{ fontSize: 13, fontWeight: 900, color: "#60a5fa" }}>{display(price, currency)}</span>}
             </div>
           </div>
         ) : null}

@@ -5,6 +5,10 @@ import BottomNav from "@/components/BottomNav";
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { CurrencyProvider } from "@/components/CurrencyProvider";
+import CurrencySelector from "@/components/CurrencySelector";
+import { getUserCurrency } from "@/lib/userCurrency";
+import { getConversionTable } from "@/lib/fx";
 
 const VALID_LANGS = ["en", "th", "cn", "ja", "ko", "de", "fr", "ru"];
 
@@ -133,8 +137,15 @@ export default async function FrontendLayout({
   const l = (VALID_LANGS.includes(lang) ? lang : "en") as FooterLang;
   const t = (key: keyof typeof FOOTER_T) => FOOTER_T[key][l] ?? FOOTER_T[key]["en"];
 
+  const currency = await getUserCurrency();
+  const table = await getConversionTable(currency);
+
   return (
-    <>
+    <CurrencyProvider
+      currency={currency}
+      factor={table?.factor ?? {}}
+      date={table?.date ? table.date.toISOString().slice(0, 10) : null}
+    >
       <Navbar />
       {children}
       <SearchFab />
@@ -192,9 +203,12 @@ export default async function FrontendLayout({
             <p style={{ color: "#333", fontSize: 12 }}>
               {t("rights")}
             </p>
-            <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#444", fontSize: 11, transition: "color 0.15s" }} className="hover-white">
-              Sitemap
-            </a>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <CurrencySelector compact />
+              <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#444", fontSize: 11, transition: "color 0.15s" }} className="hover-white">
+                Sitemap
+              </a>
+            </div>
           </div>
         </div>
         <script
@@ -220,6 +234,6 @@ export default async function FrontendLayout({
           }) }}
         />
       </footer>
-    </>
+    </CurrencyProvider>
   );
 }

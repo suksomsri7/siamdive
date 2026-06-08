@@ -338,7 +338,8 @@ model Package {
   occupancyMax  Int?
   roomSizeSqm   Int?
   amenities     String[]              @default([]) // e.g. ["Air Conditioning","Private bathroom"]
-  pricePerNight Float? // resort room rate per night (configurator base), in boat.currency
+  pricePerNight Float? // resort room rate per night (configurator base), in `currency` ?? boat.currency
+  currency      String? // native currency of pricePerNight when it differs from boat.currency (e.g. MYR room in a USD resort); null = inherit boat.currency
   translations  PackageTranslation[]
   priceTiers    PackagePriceTier[]
   seasonPeriods PackageSeasonPeriod[]
@@ -356,7 +357,8 @@ model DivePackage {
   boat          Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
   boatId        String
   numberOfDives Int
-  price         Float? // per person, in boat.currency (null until operator fills it)
+  price         Float? // per person, in `currency` ?? boat.currency (null until operator fills it)
+  currency      String? // native currency of price when it differs from boat.currency (e.g. PADI dive package quoted in MYR); null = inherit boat.currency
   order         Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -371,7 +373,8 @@ model MealPlan {
   boat        Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
   boatId      String
   name        String // "Full Board" / "Half Board"
-  price       Float? // per person/night add-on, in boat.currency
+  price       Float? // per person/night add-on, in `currency` ?? boat.currency
+  currency    String? // native currency of price when it differs from boat.currency; null = inherit boat.currency
   included    Boolean  @default(false)
   description String   @default("") // HTML detail (what's covered)
   order       Int      @default(0)
@@ -437,6 +440,22 @@ model PackagePriceTier {
   agentPrice   Float?
 
   @@unique([packageId, tier])
+}
+
+// Daily FX rates for converting native trip prices into the user's chosen
+// display currency. Populated by the fx-rates cron from ECB (frankfurter.app),
+// pivoted through EUR. History is retained so a price can be quoted at the rate
+// of a given day. Conversion is display-only — stored trip prices stay native.
+model FxRate {
+  id        String   @id @default(cuid())
+  base      String // ISO 4217, e.g. "EUR" (ECB pivot)
+  quote     String // ISO 4217, e.g. "THB"
+  rate      Float // 1 base = `rate` quote
+  date      DateTime // the rate's effective day (ECB working day, UTC midnight)
+  fetchedAt DateTime @default(now())
+
+  @@unique([base, quote, date])
+  @@index([quote, date])
 }
 
 // ── Country ───────────────────────────────────────────────────────────────────

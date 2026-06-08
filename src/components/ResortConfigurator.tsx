@@ -1,21 +1,24 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useCurrency } from "@/components/CurrencyProvider";
+import { formatMoney, resolveItemCurrency } from "@/lib/currency";
 
 // PADI-style booking configurator for a dive resort: pick nights × room ×
 // dive package × meal plan → live estimated total. Prices that the operator
 // hasn't filled in (null) degrade gracefully to "สอบถามราคา" instead of 0.
-// Self-contained + only rendered for DIVE_RESORT boats, so it can't affect the
-// liveaboard / daytrip detail view.
+// Prices are stored native (room/dive/meal may differ, e.g. USD room + MYR dive)
+// and converted to the viewer's currency before summing. Self-contained + only
+// rendered for DIVE_RESORT boats, so it can't affect liveaboard / daytrip views.
 
 type Room = {
   id: string; name: string;
   translations: { lang: string; title: string }[];
   bedType?: string | null; occupancyMin?: number | null; occupancyMax?: number | null;
-  roomSizeSqm?: number | null; amenities?: string[]; pricePerNight?: number | null;
+  roomSizeSqm?: number | null; amenities?: string[]; pricePerNight?: number | null; currency?: string | null;
 };
-type DivePackage = { id: string; numberOfDives: number; price: number | null };
-type MealPlan = { id: string; name: string; price: number | null; included: boolean; description: string };
+type DivePackage = { id: string; numberOfDives: number; price: number | null; currency?: string | null };
+type MealPlan = { id: string; name: string; price: number | null; included: boolean; description: string; currency?: string | null };
 
 type Resort = {
   currency?: string;
@@ -31,23 +34,21 @@ const T = {
   th: { configure: "จัดแพ็กเกจของคุณ", nights: "จำนวนคืน", room: "ห้องพัก", dives: "แพ็กเกจดำน้ำ", meal: "มื้ออาหาร",
     divesUnit: "ไดฟ์", included: "รวมในราคา", estTotal: "ราคาประมาณการ", perStay: "ต่อการเข้าพัก", ask: "สอบถามราคา",
     askNote: "ราคาบางส่วนยังไม่ระบุ — กดติดต่อเพื่อขอใบเสนอราคา", bed: "เตียง", occ: "พักได้", guests: "ท่าน", sqm: "ตร.ม.",
-    perNight: "/คืน", amenities: "สิ่งอำนวยความสะดวก", eco: "เป็นมิตรกับสิ่งแวดล้อม", note: "ราคาประมาณการเบื้องต้น ยืนยันอีกครั้งเมื่อติดต่อจอง" },
+    perNight: "/คืน", amenities: "สิ่งอำนวยความสะดวก", eco: "เป็นมิตรกับสิ่งแวดล้อม", note: "ราคาประมาณการ แปลงค่าเงินโดยประมาณ ยืนยันอีกครั้งเมื่อติดต่อจอง" },
   en: { configure: "Build your package", nights: "Nights", room: "Room", dives: "Dive package", meal: "Meal plan",
     divesUnit: "dives", included: "included", estTotal: "Estimated total", perStay: "per stay", ask: "Ask for price",
     askNote: "Some prices aren't set yet — contact us for a quote", bed: "Bed", occ: "Sleeps", guests: "guests", sqm: "m²",
-    perNight: "/night", amenities: "Amenities", eco: "Eco-friendly", note: "Indicative estimate — confirmed on enquiry" },
+    perNight: "/night", amenities: "Amenities", eco: "Eco-friendly", note: "Indicative estimate — currency approximate, confirmed on enquiry" },
 };
 
 function tr(arr: { lang: string; title: string }[], lang: string) {
   return (arr.find(t => t.lang === lang) || arr.find(t => t.lang === "en") || arr[0])?.title || "";
 }
-function money(n: number, cur: string) {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(n)) + " " + cur;
-}
 
 export default function ResortConfigurator({ resort, lang }: { resort: Resort; lang: string }) {
   const t = (T as Record<string, typeof T.th>)[lang] || T.en;
-  const cur = resort.currency || "USD";
+  const { display, convert, currency } = useCurrency();
+  const boatCur = resort.currency || "USD";
   const rooms = resort.packages || [];
   const dps = resort.divePackages || [];
   const mps = resort.mealPlans || [];
@@ -61,14 +62,22 @@ export default function ResortConfigurator({ resort, lang }: { resort: Resort; l
   const dp = dps.find(d => d.id === dpId);
   const mp = mps.find(m => m.id === mpId);
 
+  // Convert each line into the viewer's currency BEFORE summing (lines may be
+  // in different native currencies). A null line (price unset OR no FX rate)
+  // makes the whole total unknown → "ask for price".
   const calc = useMemo(() => {
-    const roomCost = room?.pricePerNight != null ? room.pricePerNight * nights : null;
-    const diveCost = dp ? dp.price : 0;
-    const mealCost = mp ? (mp.included ? 0 : mp.price) : 0;
+    const line = (amountNative: number | null | undefined, itemCcy: string): number | null => {
+      if (amountNative == null) return null;
+      if (amountNative === 0) return 0;
+      return convert(amountNative, itemCcy);
+    };
+    const roomCost = line(room?.pricePerNight != null ? room.pricePerNight * nights : null, resolveItemCurrency(room, boatCur));
+    const diveCost = dp ? line(dp.price, resolveItemCurrency(dp, boatCur)) : 0;
+    const mealCost = mp ? (mp.included ? 0 : line(mp.price, resolveItemCurrency(mp, boatCur))) : 0;
     const known = roomCost != null && diveCost != null && mealCost != null;
     const total = known ? (roomCost as number) + (diveCost as number) + (mealCost as number) : null;
-    return { roomCost, diveCost, mealCost, total };
-  }, [room, dp, mp, nights]);
+    return { total };
+  }, [room, dp, mp, nights, convert, boatCur]);
 
   const sel: React.CSSProperties = { width: "100%", background: "#161616", border: "1px solid #2a2a2a", borderRadius: 8, color: "#eee", fontSize: 14, padding: "10px 12px", outline: "none" };
   const lbl: React.CSSProperties = { fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 };
@@ -95,7 +104,7 @@ export default function ResortConfigurator({ resort, lang }: { resort: Resort; l
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={lbl}>{t.room}</label>
             <select value={roomId} onChange={e => setRoomId(e.target.value)} style={sel}>
-              {rooms.map(r => <option key={r.id} value={r.id}>{tr(r.translations, lang) || r.name}{r.pricePerNight != null ? ` — ${money(r.pricePerNight, cur)}${t.perNight}` : ""}</option>)}
+              {rooms.map(r => <option key={r.id} value={r.id}>{tr(r.translations, lang) || r.name}{r.pricePerNight != null ? ` — ${display(r.pricePerNight, resolveItemCurrency(r, boatCur))}${t.perNight}` : ""}</option>)}
             </select>
           </div>
         )}
@@ -103,7 +112,7 @@ export default function ResortConfigurator({ resort, lang }: { resort: Resort; l
           <div>
             <label style={lbl}>{t.dives}</label>
             <select value={dpId} onChange={e => setDpId(e.target.value)} style={sel}>
-              {dps.map(d => <option key={d.id} value={d.id}>{d.numberOfDives} {t.divesUnit}{d.price != null ? ` — ${money(d.price, cur)}` : ""}</option>)}
+              {dps.map(d => <option key={d.id} value={d.id}>{d.numberOfDives} {t.divesUnit}{d.price != null ? ` — ${display(d.price, resolveItemCurrency(d, boatCur))}` : ""}</option>)}
             </select>
           </div>
         )}
@@ -111,7 +120,7 @@ export default function ResortConfigurator({ resort, lang }: { resort: Resort; l
           <div>
             <label style={lbl}>{t.meal}</label>
             <select value={mpId} onChange={e => setMpId(e.target.value)} style={sel}>
-              {mps.map(m => <option key={m.id} value={m.id}>{m.name}{m.included ? ` (${t.included})` : m.price != null ? ` — ${money(m.price, cur)}` : ""}</option>)}
+              {mps.map(m => <option key={m.id} value={m.id}>{m.name}{m.included ? ` (${t.included})` : m.price != null ? ` — ${display(m.price, resolveItemCurrency(m, boatCur))}` : ""}</option>)}
             </select>
           </div>
         )}
@@ -133,7 +142,7 @@ export default function ResortConfigurator({ resort, lang }: { resort: Resort; l
           <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em" }}>{t.estTotal}</div>
           {calc.total != null ? (
             <>
-              <div style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>{money(calc.total, cur)}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>{formatMoney(calc.total, currency, { approx: true })}</div>
               <div style={{ fontSize: 11, color: "#777" }}>{t.perStay} · {nights} {t.nights.toLowerCase()} · {t.note}</div>
             </>
           ) : (
