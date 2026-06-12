@@ -223,7 +223,7 @@ export default function Navbar() {
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setContactOpen(v => !v)}
-                aria-label="Contact"
+                aria-label="Menu"
                 style={{
                   width: 34, height: 34, borderRadius: 8,
                   background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
@@ -234,8 +234,9 @@ export default function Navbar() {
                 onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
                 onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                {/* hamburger — same menu as v2 (www.siamdive.com) */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
 
@@ -243,17 +244,35 @@ export default function Navbar() {
                 <div style={{
                   position: "absolute", top: "calc(100% + 8px)", right: 0,
                   background: "rgba(13,13,13,0.98)", border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 12, padding: 6, minWidth: 170,
+                  borderRadius: 12, padding: 6, minWidth: 210,
                   boxShadow: "0 16px 40px rgba(0,0,0,0.6)", zIndex: 200,
                   animation: "dropIn 0.2s ease-out both",
                 }}>
+                  {/* page links — mirrors the v2 hamburger */}
+                  {[
+                    { label: lang === "th" ? "เกี่ยวกับเรา" : "About us", href: `/${lang}/about` },
+                    { label: lang === "th" ? "นโยบายความเป็นส่วนตัว" : "Privacy policy", href: `/${lang}/privacy` },
+                    { label: lang === "th" ? "ข้อกำหนดการใช้บริการ" : "Terms of service", href: `/${lang}/terms` },
+                    { label: "Site map", href: "/sitemap.xml" },
+                    { label: "Blog", href: `/${lang}/blogs` },
+                  ].map(m => (
+                    <a key={m.label} href={m.href}
+                      onClick={() => setContactOpen(false)}
+                      style={{ display: "block", padding: "9px 12px", borderRadius: 8, textDecoration: "none", fontSize: 13, color: "#ddd", fontWeight: 500, transition: "background 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >{m.label}</a>
+                  ))}
+                  <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "6px 4px 2px", paddingTop: 8, paddingLeft: 8, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "#777", textTransform: "uppercase" }}>
+                    {lang === "th" ? "ติดต่อ" : "Contact"}
+                  </div>
                   {[
                     { label: "Line", href: "https://lin.ee/wayWuGH", icon: (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
                         <path d="M12 2C6.48 2 2 5.82 2 10.44c0 4.16 3.69 7.64 8.67 8.3.34.08.8.22.91.5.1.27.07.68.03.94l-.15.9c-.05.25.13.5.39.5.09 0 .18-.03.27-.08.97-.53 5.22-3.07 7.12-5.27C22.02 13.77 22 12.15 22 10.44 22 5.82 17.52 2 12 2z"/>
                       </svg>
                     )},
-                    { label: "WhatsApp", href: "https://wa.me/66", icon: (
+                    { label: "WhatsApp", href: "https://wa.me/66983768135", icon: (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
                         <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.82 14.01c-.25.7-1.48 1.35-2.03 1.39-.5.04-.96.23-3.24-.68-2.76-1.1-4.52-3.93-4.66-4.12-.13-.19-1.1-1.47-1.1-2.8 0-1.33.7-1.99.95-2.26.25-.27.54-.34.72-.34.18 0 .36 0 .52.01.17.01.39-.06.61.47.23.54.77 1.89.84 2.02.07.14.12.3.02.47-.09.18-.14.3-.27.46-.14.16-.29.35-.41.47-.14.14-.28.29-.12.56.16.27.71 1.18 1.53 1.91 1.05.94 1.94 1.23 2.22 1.37.27.14.43.12.59-.07.16-.19.69-.8.87-1.08.18-.27.36-.23.61-.14.25.1 1.58.74 1.85.88.27.14.46.2.52.31.07.11.07.66-.18 1.35z"/>
                       </svg>
@@ -272,6 +291,11 @@ export default function Navbar() {
                     { label: "Kakao", href: "https://pf.kakao.com/_siamdive", icon: (
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="#ccc">
                         <path d="M12 3C7.03 3 3 6.14 3 10c0 2.49 1.66 4.68 4.14 5.93-.13.47-.82 3.02-.85 3.21 0 0-.02.14.07.19.09.06.2.02.2.02.27-.04 3.12-2.04 3.56-2.34.93.13 1.89.2 2.88.2 4.97 0 9-3.14 9-7s-4.03-7-9-7z"/>
+                      </svg>
+                    )},
+                    { label: "Email", href: "mailto:admin@siamdive.com", icon: (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>
                       </svg>
                     )},
                   ].map(c => (
