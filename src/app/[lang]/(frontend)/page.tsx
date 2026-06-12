@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { permanentRedirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import HeroSlider from "@/components/HeroSlider";
 import HomeContent, { type Section } from "@/components/HomeContent";
@@ -217,6 +218,11 @@ const getHomepageData = unstable_cache(
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
+  // The catalog home is retired — the planner home now lives on v2
+  // (www.siamdive.com). 308 so search engines transfer the home pages too.
+  // Content pages (blogs/trips/about/…) keep serving from v1 until full cutover.
+  permanentRedirect("https://www.siamdive.com/");
+  // eslint-disable-next-line no-unreachable
   const { lang } = await params;
   const l = VALID_LANGS.includes(lang) ? lang : "en";
 

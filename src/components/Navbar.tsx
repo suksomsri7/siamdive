@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
 import MyPlanScreen from "./ark-ai/MyPlanScreen";
@@ -200,10 +199,10 @@ export default function Navbar() {
       >
         <nav style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-          {/* Logo — same Ark AI mask icon used in the BottomNav center button. */}
-          <Link href={`/${lang}`} aria-label="SIAMDIVE" style={{ display: "flex", alignItems: "center", flexShrink: 0, zIndex: 1 }}>
+          {/* Logo → the v2 planner home (the old catalog home is retired). */}
+          <a href="https://www.siamdive.com/" aria-label="SIAMDIVE" style={{ display: "flex", alignItems: "center", flexShrink: 0, zIndex: 1 }}>
             <img src="/ai-mask.png" alt="SIAMDIVE" width={36} height={36} style={{ filter: "brightness(1.1)" }} />
-          </Link>
+          </a>
 
           {/* Right: lang dropdown + chat icon */}
           <div ref={langRef} style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
