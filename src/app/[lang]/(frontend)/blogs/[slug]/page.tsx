@@ -2,24 +2,9 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
 import BlogReadTracker from "@/components/analytics/BlogReadTracker";
-
-// Map boat type → frontend trip listing segment
-const BOAT_TYPE_SEGMENT: Record<string, string> = {
-  DAYTRIP: "daytrip",
-  SNORKELING: "snorkeling",
-  LAND_TOUR: "land-tour",
-  LIVEABOARD: "liveaboard",
-  DIVE_RESORT: "dive-resort",
-  FREEDIVE: "freedive",
-  SCUBA_COURSES: "scuba-courses",
-  FREEDIVE_COURSES: "freedive-courses",
-  SCUBA_INSTRUCTOR: "scuba-instructor",
-  FREEDIVE_INSTRUCTOR: "freedive-instructor",
-};
 
 export async function generateMetadata({
   params,
@@ -54,14 +39,27 @@ export async function generateMetadata({
 
   const title = trans.ogTitle || trans.title;
   const description = trans.ogDescription || trans.excerpt;
-  const ogImage = trans.ogImage || blog.covers[0] || "";
+  const SITE = "https://www.siamdive.com";
+  const abs = (u: string) => (u.startsWith("http") ? u : `${SITE}${u}`);
+  const ogImage = abs(trans.ogImage || blog.covers[0] || "");
+
+  // hreflang: every translation shares the public /[lang]/blogs/[slug] shape.
+  const languages: Record<string, string> = {};
+  for (const t of blog.translations) if (t.slug) languages[t.lang] = `${SITE}/${t.lang}/blogs/${t.slug}`;
+  const enSlug = blog.translations.find(t => t.lang === "en")?.slug;
+  if (enSlug) languages["x-default"] = `${SITE}/en/blogs/${enSlug}`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE}/${lang}/blogs/${trans.slug}`,
+      languages,
+    },
     openGraph: {
       title,
       description,
+      url: `${SITE}/${lang}/blogs/${trans.slug}`,
       ...(ogImage ? { images: [{ url: ogImage, width: 1200, height: 630 }] } : {}),
       locale: lang,
       type: "article",
@@ -135,29 +133,20 @@ export default async function BlogDetailPage({
     };
   }).filter(r => r.title && r.slug);
 
-  // ── Recommended trips (featured + published boats, fallback to latest) ──────
-  let recommendedBoats = await prisma.boat.findMany({
-    where: { status: "PUBLISHED", featured: true, NOT: { covers: { isEmpty: true } } },
-    include: {
-      translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
-      priceTiers: { select: { regularPrice: true, salePrice: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
-  if (recommendedBoats.length < 4) {
-    const fillerCount = 4 - recommendedBoats.length;
-    const filler = await prisma.boat.findMany({
-      where: { status: "PUBLISHED", id: { notIn: recommendedBoats.map(b => b.id) }, NOT: { covers: { isEmpty: true } } },
-      include: {
-        translations: { select: { lang: true, title: true, slug: true, excerpt: true } },
-        priceTiers: { select: { regularPrice: true, salePrice: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: fillerCount,
-    });
-    recommendedBoats = [...recommendedBoats, ...filler];
-  }
+  // ── Recommended trips: top-rated liveaboards/resorts from the v2 explore KB ──
+  // (the live product; replaces the legacy v1 boat catalog). Public, cached feed.
+  type FeaturedTrip = {
+    id: string; name: string; slug: string; catSlug: string; path: string;
+    area: string | null; country: string | null;
+    priceFrom: number | null; priceCurrency: string | null; coverImage: string | null; rating: number | null;
+  };
+  let featuredTrips: FeaturedTrip[] = [];
+  try {
+    const res = await fetch("https://www.siamdive.com/api/public/featured-explore?take=6", { next: { revalidate: 1800 } });
+    if (res.ok) featuredTrips = (await res.json()).items ?? [];
+  } catch { /* feed unavailable → just hide the section */ }
+  // v2 explore is EN + TH; link Thai readers to /th/explore, everyone else to /explore.
+  const tripHref = (path: string) => (lang === "th" ? `/th${path}` : path);
 
   // หา translation ของ lang ที่ร้องขอ
   const langTrans = blog.translations.find(t => t.lang === lang);
@@ -171,104 +160,138 @@ export default async function BlogDetailPage({
   const trans = langTrans ?? blog.translations.find(t => t.slug === slug) ?? blog.translations[0];
   if (!trans) return notFound();
 
+  const dateStr = new Date(blog.createdAt).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const isTH = lang === "th";
+
+  // BlogPosting structured data (absolute URLs; www/uploads is proxied to v1).
+  const SITE = "https://www.siamdive.com";
+  const absUrl = (u: string) => (u.startsWith("http") ? u : `${SITE}${u}`);
+  const pageUrl = `${SITE}/${lang}/blogs/${trans.slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: (trans.title || "").slice(0, 110),
+    description: trans.excerpt || trans.ogDescription || undefined,
+    image: blog.covers.length ? blog.covers.map(absUrl) : undefined,
+    datePublished: new Date(blog.createdAt).toISOString(),
+    dateModified: new Date((blog as { updatedAt?: Date }).updatedAt ?? blog.createdAt).toISOString(),
+    inLanguage: lang,
+    mainEntityOfPage: pageUrl,
+    url: pageUrl,
+    author: { "@type": "Organization", name: "SiamDive", url: SITE },
+    publisher: { "@type": "Organization", name: "SiamDive", url: SITE },
+  };
+
   return (
-    <main style={{ background: "#0d0d0d", minHeight: "100vh" }}>
+    <main style={{ background: "#0d0d0d", minHeight: "100vh", color: "#e5e5e5" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <BlogReadTracker blogId={blog.id} lang={lang} />
-      {/* Hero */}
-      {blog.covers[0] && (
-        <div style={{ position: "relative", height: "50vh", minHeight: 280 }}>
-          <Image src={blog.covers[0]} alt={trans.title} fill priority
-            sizes="100vw"
-            style={{ objectFit: "cover" }}
-          />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 0%, rgba(13,13,13,0.3) 55%, transparent 100%)" }} />
-        </div>
+
+      {/* ── Hero: full-bleed cover with title + date overlaid ─────────────── */}
+      {blog.covers[0] ? (
+        <header style={{ position: "relative", minHeight: "min(64vh, 560px)", display: "flex", alignItems: "flex-end" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={blog.covers[0]} alt={trans.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 6%, rgba(13,13,13,0.55) 45%, rgba(13,13,13,0.15) 100%)" }} />
+          <div style={{ position: "relative", maxWidth: 820, margin: "0 auto", width: "100%", padding: "0 24px 44px" }}>
+            <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#cfcfcf", textDecoration: "none", marginBottom: 18 }}>
+              ← Blog
+            </Link>
+            <h1 style={{ fontSize: "clamp(1.7rem,4.5vw,3rem)", fontWeight: 900, lineHeight: 1.12, color: "#fff", margin: 0, textShadow: "0 2px 24px rgba(0,0,0,0.5)" }}>
+              {trans.title}
+            </h1>
+            <p style={{ fontSize: 12.5, color: "#b8b8b8", margin: "14px 0 0" }}>{dateStr}</p>
+          </div>
+        </header>
+      ) : (
+        <header style={{ maxWidth: 820, margin: "0 auto", padding: "96px 24px 0" }}>
+          <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#666", textDecoration: "none", marginBottom: 18 }}>← Blog</Link>
+          <h1 style={{ fontSize: "clamp(1.7rem,4.5vw,3rem)", fontWeight: 900, lineHeight: 1.12, color: "#fff", margin: 0 }}>{trans.title}</h1>
+          <p style={{ fontSize: 12.5, color: "#555", margin: "14px 0 0" }}>{dateStr}</p>
+        </header>
       )}
 
-      {/* Article */}
-      <article style={{
-        maxWidth: 760, margin: "0 auto",
-        padding: blog.covers[0] ? "0 24px 80px" : "100px 24px 80px",
-        marginTop: blog.covers[0] ? -110 : 0,
-        position: "relative",
-      }}>
-        <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#444", textDecoration: "none", marginBottom: 24 }}>
-          ← Blog
-        </Link>
-
-        <h1 style={{ fontSize: "clamp(1.6rem,4vw,2.6rem)", fontWeight: 900, lineHeight: 1.15, color: "#fff", marginBottom: 14 }}>
-          {trans.title}
-        </h1>
-
-        <p style={{ fontSize: 11, color: "#333", marginBottom: 24 }}>
-          {new Date(blog.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-        </p>
-
+      {/* ── Article ───────────────────────────────────────────────────────── */}
+      <article style={{ maxWidth: 720, margin: "0 auto", padding: "44px 24px 72px" }}>
         {trans.excerpt && (
-          <p style={{ fontSize: 16, color: "#666", lineHeight: 1.8, marginBottom: 36, borderBottom: "1px solid #1a1a1a", paddingBottom: 28 }}>
+          <p style={{ fontSize: 18, color: "#9a9a9a", lineHeight: 1.75, margin: "0 0 36px", paddingBottom: 30, borderBottom: "1px solid #1c1c1c", fontWeight: 400 }}>
             {trans.excerpt}
           </p>
         )}
-
         {trans.content && (
-          <div
-            className="blog-content"
-            dangerouslySetInnerHTML={{ __html: trans.content }}
-          />
+          <div className="blog-content" dangerouslySetInnerHTML={{ __html: trans.content }} />
         )}
-
-        <div style={{ marginTop: 56, padding: "28px 0 0", borderTop: "1px solid #1a1a1a" }}>
+        <div style={{ marginTop: 52, paddingTop: 26, borderTop: "1px solid #1c1c1c" }}>
           <Link href={`/${lang}/blogs`} style={{ fontSize: 13, color: "#3b82f6", textDecoration: "none", fontWeight: 600 }}>
-            ← กลับไปหน้า Blog
+            ← {isTH ? "กลับไปหน้า Blog" : "Back to Blog"}
           </Link>
         </div>
       </article>
 
-      {/* ── Image gallery (auto-slide every 6s) ──────────────────────────── */}
-      {blog.covers.length > 1 && (
-        <BlogGallery images={blog.covers} alt={trans.title} />
-      )}
+      {/* ── Image gallery (if multiple covers) ───────────────────────────── */}
+      {blog.covers.length > 1 && <BlogGallery images={blog.covers} alt={trans.title} />}
 
-      {/* ── Related articles (random 20, slide 4 per page every 8s) ──────── */}
+      {/* ── Related articles ──────────────────────────────────────────────── */}
       <RelatedBlogsSlider blogs={relatedForSlider} lang={lang} />
 
-      {/* ── Recommended trips ────────────────────────────────────────────── */}
-      {recommendedBoats.length > 0 && (
-        <section style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
-          <h2 style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 14 }}>ทริปแนะนำ</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-            {recommendedBoats.map(b => {
-              const bt = b.translations.find(t => t.lang === lang) || b.translations.find(t => t.lang === "en") || b.translations[0];
-              const segment = BOAT_TYPE_SEGMENT[b.type] ?? "daytrip";
-              const prices = b.priceTiers.map(t => t.salePrice ?? t.regularPrice).filter(p => p > 0);
-              const minPrice = prices.length ? Math.min(...prices) : 0;
-              return (
-                <Link key={b.id} href={`/${lang}/trips/${segment}`}
-                  style={{ background: "#111", borderRadius: 12, overflow: "hidden", border: "1px solid #1a1a1a", textDecoration: "none", display: "block" }}>
-                  {b.covers[0] && (
-                    <div style={{ aspectRatio: "16/9", overflow: "hidden", position: "relative" }}>
-                      <Image src={b.covers[0]} alt={bt?.title || b.name} fill loading="lazy"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        style={{ objectFit: "cover" }}
-                      />
-                      {minPrice > 0 && (
-                        <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.75)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "4px 9px", borderRadius: 6 }}>
-                          ฿{minPrice.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
+      {/* ── Recommended trips — real top-rated items from the explore KB ──── */}
+      {featuredTrips.length > 0 && (
+        <section style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px 28px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+            <h2 style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.18em", textTransform: "uppercase", margin: 0 }}>
+              {isTH ? "ทริปแนะนำ" : "Recommended trips"}
+            </h2>
+            <Link href={isTH ? "/th/explore" : "/explore"} style={{ fontSize: 12, color: "#777", textDecoration: "none" }}>
+              {isTH ? "ดูทั้งหมด →" : "See all →"}
+            </Link>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 16 }}>
+            {featuredTrips.map(t => (
+              <Link key={t.id} href={tripHref(t.path)}
+                style={{ background: "#121212", borderRadius: 14, overflow: "hidden", border: "1px solid #1c1c1c", textDecoration: "none", display: "block" }}>
+                <div style={{ aspectRatio: "16/10", overflow: "hidden", position: "relative", background: "#1a1a1a" }}>
+                  {t.coverImage && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={t.coverImage} alt={t.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   )}
-                  <div style={{ padding: "12px 14px 16px" }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.1em", textTransform: "uppercase" }}>{segment.replace("-", " ")}</span>
-                    <h3 style={{ fontSize: 13, fontWeight: 800, lineHeight: 1.35, color: "#e5e5e5", margin: "4px 0 6px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{bt?.title || b.name}</h3>
-                    {bt?.excerpt && <p style={{ fontSize: 11, color: "#555", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{bt.excerpt}</p>}
-                  </div>
-                </Link>
-              );
-            })}
+                  {t.rating ? (
+                    <span style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.7)", color: "#fbbf24", fontSize: 12, fontWeight: 700, padding: "3px 8px", borderRadius: 6 }}>
+                      ★ {Math.round(t.rating * 10) / 10}
+                    </span>
+                  ) : null}
+                </div>
+                <div style={{ padding: "12px 14px 16px" }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    {t.catSlug === "dive-resort" ? (isTH ? "รีสอร์ตดำน้ำ" : "Dive resort") : (isTH ? "เรือไลฟ์อะบอร์ด" : "Liveaboard")}
+                  </span>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.3, color: "#ededed", margin: "4px 0 4px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.name}</h3>
+                  <p style={{ fontSize: 11.5, color: "#666", margin: "0 0 8px" }}>{[t.area, t.country].filter(Boolean).join(", ")}</p>
+                  {t.priceFrom != null && (
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", margin: 0 }}>
+                      {isTH ? "เริ่ม" : "from"} {t.priceCurrency} {Math.round(t.priceFrom).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}
+
+      {/* ── Closing CTA → AI planner ──────────────────────────────────────── */}
+      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "8px 24px 80px" }}>
+        <div style={{ background: "linear-gradient(135deg,#0f1f3d,#0b1322)", border: "1px solid #1e2c47", borderRadius: 18, padding: "34px 28px", textAlign: "center" }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "0 0 8px" }}>
+            {isTH ? "พร้อมวางแผนทริปดำน้ำแล้วหรือยัง?" : "Ready to plan your dive trip?"}
+          </h2>
+          <p style={{ fontSize: 14, color: "#9fb3d1", margin: "0 0 20px", lineHeight: 1.6 }}>
+            {isTH ? "บอก AI ของเราว่าอยากไปไหน ช่วงไหน แล้วเราจัดแผน + เช็กราคา/ที่ว่างให้" : "Tell our AI where and when — we build the plan and check prices & availability."}
+          </p>
+          <Link href="/" style={{ display: "inline-block", background: "#2563eb", color: "#fff", fontSize: 14, fontWeight: 700, padding: "13px 28px", borderRadius: 12, textDecoration: "none" }}>
+            {isTH ? "วางแผนกับ AI →" : "Plan with AI →"}
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
