@@ -32,7 +32,6 @@ const NAV = [
   {
     section: "Data",
     items: [
-      { label: "Bookings", href: "/backoffice/bookings", icon: "🧾" },
       { label: "Companies", href: "/backoffice/companies", icon: "🏢" },
       { label: "User Plans", href: "/backoffice/user-plans", icon: "📋" },
     ],
