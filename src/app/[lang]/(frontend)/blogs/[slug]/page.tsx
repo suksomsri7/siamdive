@@ -12,6 +12,14 @@ import BlogReadTracker from "@/components/analytics/BlogReadTracker";
 const collapseLangSuffix = (slug: string, lang: string) =>
   slug.replace(new RegExp(`(?:-${lang})+$`), `-${lang}`);
 
+// Blog uploads live on the v1 deployment. This page is served UNDER www via the
+// v2 proxy, where a relative "/uploads/..." would be double-hopped (www → v1),
+// adding latency and occasional timeouts when many images load at once. Point
+// image <img> srcs DIRECTLY at the v1 origin so the browser hits v1's CDN once.
+const V1_ORIGIN = "https://siamdive.vercel.app";
+const assetUrl = (u: string | null | undefined): string =>
+  !u ? "" : u.startsWith("/") ? `${V1_ORIGIN}${u}` : u;
+
 export async function generateMetadata({
   params,
 }: {
@@ -142,7 +150,7 @@ export default async function BlogDetailPage({
     const rt = rb.translations.find(t => t.lang === lang) || rb.translations.find(t => t.lang === "en") || rb.translations[0];
     return {
       id: rb.id,
-      cover: rb.covers[0] ?? null,
+      cover: assetUrl(rb.covers[0]) || null,
       title: rt?.title ?? "",
       excerpt: rt?.excerpt ?? "",
       slug: rt?.slug ?? "",
@@ -208,7 +216,7 @@ export default async function BlogDetailPage({
       {blog.covers[0] ? (
         <header style={{ position: "relative", minHeight: "min(64vh, 560px)", display: "flex", alignItems: "flex-end" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={blog.covers[0]} alt={trans.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={assetUrl(blog.covers[0])} alt={trans.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 6%, rgba(13,13,13,0.55) 45%, rgba(13,13,13,0.15) 100%)" }} />
           <div style={{ position: "relative", maxWidth: 820, margin: "0 auto", width: "100%", padding: "0 24px 44px" }}>
             <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#cfcfcf", textDecoration: "none", marginBottom: 18 }}>
@@ -246,7 +254,7 @@ export default async function BlogDetailPage({
       </article>
 
       {/* ── Image gallery (if multiple covers) ───────────────────────────── */}
-      {blog.covers.length > 1 && <BlogGallery images={blog.covers} alt={trans.title} />}
+      {blog.covers.length > 1 && <BlogGallery images={blog.covers.map(assetUrl)} alt={trans.title} />}
 
       {/* ── Related articles ──────────────────────────────────────────────── */}
       <RelatedBlogsSlider blogs={relatedForSlider} lang={lang} />

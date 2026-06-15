@@ -97,9 +97,16 @@ export default function RelatedBlogsSlider({ blogs, lang }: Props) {
                     style={{ background: "#111", borderRadius: 12, overflow: "hidden", border: "1px solid #1a1a1a", textDecoration: "none", display: "block" }}
                   >
                     {rb.cover && (
-                      <div style={{ aspectRatio: "16/9", overflow: "hidden" }}>
+                      <div style={{ aspectRatio: "16/9", overflow: "hidden", background: "linear-gradient(135deg,#16263f,#0d1422)" }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={rb.cover} alt={rb.title} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", userSelect: "none" }} loading="lazy" />
+                        <img
+                          src={rb.cover}
+                          alt={rb.title}
+                          draggable={false}
+                          loading="lazy"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", userSelect: "none" }}
+                          onError={e => { e.currentTarget.style.display = "none"; }}
+                        />
                       </div>
                     )}
                     <div style={{ padding: "12px 14px 16px" }}>
