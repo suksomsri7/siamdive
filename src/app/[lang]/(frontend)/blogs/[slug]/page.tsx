@@ -5,6 +5,7 @@ import Link from "next/link";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
 import BlogReadTracker from "@/components/analytics/BlogReadTracker";
+import { getUserCurrency } from "@/lib/userCurrency";
 
 // Collapse a repeated trailing language suffix (legacy bad slugs like
 // "...-de-de-de-de" → "...-de"), so an old malformed URL still resolves and the
@@ -164,9 +165,12 @@ export default async function BlogDetailPage({
     area: string | null; country: string | null;
     priceFrom: number | null; priceCurrency: string | null; coverImage: string | null; rating: number | null;
   };
+  // Pass the visitor's chosen currency so the trip prices convert to match the
+  // currency picker (the v2 feed converts server-side via its FX rates).
+  const userCurrency = await getUserCurrency().catch(() => "THB");
   let featuredTrips: FeaturedTrip[] = [];
   try {
-    const res = await fetch("https://www.siamdive.com/api/public/featured-explore?take=6", { next: { revalidate: 1800 } });
+    const res = await fetch(`https://www.siamdive.com/api/public/featured-explore?take=6&currency=${userCurrency}`, { next: { revalidate: 1800 } });
     if (res.ok) featuredTrips = (await res.json()).items ?? [];
   } catch { /* feed unavailable → just hide the section */ }
   // v2 explore is EN + TH; link Thai readers to /th/explore, everyone else to /explore.
