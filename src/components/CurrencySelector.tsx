@@ -10,7 +10,6 @@ export default function CurrencySelector({ compact = false }: { compact?: boolea
   const { currency, setCurrency } = useCurrency();
   const [open, setOpen] = useState(false);
   const opts = currencyOptions();
-  const active = opts.find(o => o.code === currency);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
@@ -18,12 +17,11 @@ export default function CurrencySelector({ compact = false }: { compact?: boolea
         onClick={() => setOpen(o => !o)}
         aria-label="Change currency"
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6, background: "transparent",
+          display: "inline-flex", alignItems: "center", gap: 5, background: "transparent",
           border: "1px solid rgba(255,255,255,0.14)", borderRadius: 8, color: "#ccc",
-          fontSize: compact ? 12 : 13, fontWeight: 600, padding: compact ? "5px 9px" : "7px 12px", cursor: "pointer",
+          fontSize: compact ? 12 : 13, fontWeight: 700, padding: compact ? "5px 9px" : "7px 12px", cursor: "pointer",
         }}
       >
-        <span>{active?.symbol}</span>
         <span>{currency}</span>
         <span style={{ fontSize: 9, opacity: 0.6 }}>▼</span>
       </button>
@@ -32,9 +30,10 @@ export default function CurrencySelector({ compact = false }: { compact?: boolea
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
           <div
             style={{
-              position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 41,
+              // opens DOWNWARD — the picker now lives in the top navbar
+              position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 41,
               background: "#141414", border: "1px solid #2a2a2a", borderRadius: 10, padding: 6,
-              minWidth: 180, maxHeight: 320, overflowY: "auto", boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+              minWidth: 150, maxHeight: 320, overflowY: "auto", boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
             }}
           >
             {opts.map(o => (
@@ -48,8 +47,7 @@ export default function CurrencySelector({ compact = false }: { compact?: boolea
                   fontSize: 13, padding: "9px 11px", cursor: "pointer",
                 }}
               >
-                <span style={{ width: 30, fontWeight: 700, color: "#888" }}>{o.symbol}</span>
-                <span style={{ fontWeight: 700, width: 38 }}>{o.code}</span>
+                <span style={{ fontWeight: 700, width: 40 }}>{o.code}</span>
                 <span style={{ color: "#777", fontSize: 12 }}>{o.name}</span>
               </button>
             ))}
