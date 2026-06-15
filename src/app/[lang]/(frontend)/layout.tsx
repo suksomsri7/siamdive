@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import SearchFab from "@/components/SearchFab";
 import BottomNav from "@/components/BottomNav";
-import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
@@ -156,43 +155,11 @@ export default async function FrontendLayout({
       {children}
       <SearchFab />
       <BottomNav />
-      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 40px 80px" }}>
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "22px 40px 48px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 32, marginBottom: 36 }}>
-            <div style={{ minWidth: 200 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 10, letterSpacing: "-0.02em" }}>
-                <span style={{ color: "#fff" }}>SIAM</span><span style={{ color: "#3b82f6" }}>DIVE</span>
-              </h3>
-              <p style={{ color: "#555", fontSize: 13, maxWidth: 260, lineHeight: 1.6 }}>
-                {t("tagline")}
-              </p>
-            </div>
-            {/* Minimal footer matching the v2 hamburger menu (Explore / Blog /
-                About / Privacy / Terms + Contact) — legacy Trips/Courses columns
-                removed; the business now lives on the v2 explore + AI planner. */}
-            <div style={{ display: "flex", gap: 48, fontSize: 13, flexWrap: "wrap" }}>
-              <div>
-                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("menuHead")}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, color: "#555" }}>
-                  <a href={l === "th" ? "/th/explore" : "/explore"} className="hover-white" style={{ transition: "color 0.15s" }}>{t("explore")}</a>
-                  <Link href={`/${l}/blogs`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("blog")}</Link>
-                  <Link href={`/${l}/about`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("about")}</Link>
-                  <Link href={`/${l}/privacy`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("privacy")}</Link>
-                  <Link href={`/${l}/terms`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("terms")}</Link>
-                </div>
-              </div>
-              <div>
-                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("contact")}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, color: "#555" }}>
-                  <a href="https://lin.ee/wayWuGH" target="_blank" rel="noopener noreferrer" className="hover-white" style={{ transition: "color 0.15s" }}>Line</a>
-                  <a href="https://wa.me/66983768135" target="_blank" rel="noopener noreferrer" className="hover-white" style={{ transition: "color 0.15s" }}>WhatsApp</a>
-                  <a href="https://m.me/siamdive" target="_blank" rel="noopener noreferrer" className="hover-white" style={{ transition: "color 0.15s" }}>Messenger</a>
-                  <a href="tel:+66983768135" className="hover-white" style={{ transition: "color 0.15s" }}>+66 98 376 8135</a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 20 }}>
+          {/* Footer columns (logo/tagline/menu/contact) removed — those links
+              already live in the v2 hamburger menu. Keep only the legal row. */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <p style={{ color: "#333", fontSize: 12 }}>
               {t("rights")}
             </p>
