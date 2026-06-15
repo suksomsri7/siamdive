@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
@@ -167,9 +167,10 @@ export default async function BlogDetailPage({
   // หา translation ของ lang ที่ร้องขอ
   const langTrans = blog.translations.find(t => t.lang === lang);
 
-  // ถ้ามี translation ภาษานั้น และ slug ไม่ตรง → redirect ไป slug ที่ถูก
+  // ถ้ามี translation ภาษานั้น และ slug ไม่ตรง → 308 ไป slug ที่ถูก (canonical
+  // slug ย้ายถาวร → ดี SEO, ส่ง link equity; ครอบคลุม legacy malformed slug ด้วย)
   if (langTrans && langTrans.slug !== slug) {
-    redirect(`/${lang}/blogs/${langTrans.slug}`);
+    permanentRedirect(`/${lang}/blogs/${langTrans.slug}`);
   }
 
   // ใช้ translation ของ lang ที่ขอ หรือ fallback ไป slug ที่ส่งมา
