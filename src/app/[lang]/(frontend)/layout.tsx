@@ -5,7 +5,6 @@ import BottomNav from "@/components/BottomNav";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
-import CurrencySelector from "@/components/CurrencySelector";
 import { getUserCurrency } from "@/lib/userCurrency";
 import { getConversionTable } from "@/lib/fx";
 
@@ -163,12 +162,9 @@ export default async function FrontendLayout({
             <p style={{ color: "#333", fontSize: 12 }}>
               {t("rights")}
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <CurrencySelector compact />
-              <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#444", fontSize: 11, transition: "color 0.15s" }} className="hover-white">
-                Sitemap
-              </a>
-            </div>
+            <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer" style={{ color: "#444", fontSize: 11, transition: "color 0.15s" }} className="hover-white">
+              Sitemap
+            </a>
           </div>
         </div>
         <script

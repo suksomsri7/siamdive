@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import ArkAIChatPanel from "./ark-ai/ArkAIChatPanel";
 import MyPlanScreen from "./ark-ai/MyPlanScreen";
+import CurrencySelector from "@/components/CurrencySelector";
 import { initPlanStore } from "@/lib/plan-store";
 
 type LangCode = "en" | "th" | "cn" | "ja" | "ko" | "de" | "fr" | "ru";
@@ -218,6 +219,9 @@ export default function Navbar() {
               </button>
               {langOpen && <LangDropdown lang={lang} setLang={switchLang} onClose={() => setLangOpen(false)} />}
             </div>
+
+            {/* currency selector — in the top bar, matching v2 chrome */}
+            <CurrencySelector compact />
 
             <div style={{ position: "relative" }}>
               <button
