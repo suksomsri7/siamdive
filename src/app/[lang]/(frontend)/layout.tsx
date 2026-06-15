@@ -67,6 +67,12 @@ const FOOTER_T = {
     fr: "Plongée à la journée et liveaboards – les meilleurs sites de plongée en Thaïlande.",
     ru: "Дайв-туры и живые борты — лучшие места для дайвинга в Таиланде.",
   },
+  menuHead: {
+    en: "Menu", th: "เมนู", cn: "菜单", ja: "メニュー", ko: "메뉴", de: "Menü", fr: "Menu", ru: "Меню",
+  },
+  explore: {
+    en: "Explore dives", th: "สำรวจทริปดำน้ำ", cn: "探索潜水", ja: "ダイビングを探す", ko: "다이빙 둘러보기", de: "Tauchgänge entdecken", fr: "Explorer la plongée", ru: "Найти дайвинг",
+  },
   trips: {
     en: "Trips", th: "ทริป", cn: "行程", ja: "トリップ", ko: "트립", de: "Trips", fr: "Excursions", ru: "Туры",
   },
@@ -161,28 +167,15 @@ export default async function FrontendLayout({
                 {t("tagline")}
               </p>
             </div>
-            <div style={{ display: "flex", gap: 40, fontSize: 13, flexWrap: "wrap" }}>
+            {/* Minimal footer matching the v2 hamburger menu (Explore / Blog /
+                About / Privacy / Terms + Contact) — legacy Trips/Courses columns
+                removed; the business now lives on the v2 explore + AI planner. */}
+            <div style={{ display: "flex", gap: 48, fontSize: 13, flexWrap: "wrap" }}>
               <div>
-                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("trips")}</p>
+                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("menuHead")}</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, color: "#555" }}>
-                  <Link href={`/${l}/trips/daytrip`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("daytrip")}</Link>
-                  <Link href={`/${l}/trips/snorkeling`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("snorkeling")}</Link>
-                  <Link href={`/${l}/trips/liveaboard`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("liveaboard")}</Link>
-                  <Link href={`/${l}/trips/dive-resort`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("diveResort")}</Link>
-                  <Link href={`/${l}/trips/freedive`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("freedive")}</Link>
-                </div>
-              </div>
-              <div>
-                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("coursesHead")}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, color: "#555" }}>
-                  <Link href={`/${l}/courses/scuba`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("scubaCourses")}</Link>
-                  <Link href={`/${l}/courses/freedive`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("freediveCourses")}</Link>
+                  <a href={l === "th" ? "/th/explore" : "/explore"} className="hover-white" style={{ transition: "color 0.15s" }}>{t("explore")}</a>
                   <Link href={`/${l}/blogs`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("blog")}</Link>
-                </div>
-              </div>
-              <div>
-                <p style={{ color: "#888", fontWeight: 600, marginBottom: 12 }}>{t("company")}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, color: "#555" }}>
                   <Link href={`/${l}/about`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("about")}</Link>
                   <Link href={`/${l}/privacy`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("privacy")}</Link>
                   <Link href={`/${l}/terms`} className="hover-white" style={{ transition: "color 0.15s" }}>{t("terms")}</Link>
