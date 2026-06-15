@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
         create: valid.map((t) => ({
             lang: t.lang,
             title: t.title,
-            slug: t.slug?.trim() || buildSlug(t.title, t.lang, enSlug),
+            slug: collapseLangSuffix((t.slug?.trim() || buildSlug(t.title, t.lang, enSlug)), t.lang),
             excerpt: t.excerpt ?? "",
             content: t.content ?? "",
             keywords: t.keywords ?? [],
@@ -115,6 +115,13 @@ export async function POST(req: NextRequest) {
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+// Collapse a repeated trailing language suffix ("x-de-de-de" → "x-de") — a
+// regenerate/re-translate loop used to append "-<lang>" each pass, producing
+// spammy slugs. Idempotent.
+function collapseLangSuffix(slug: string, lang: string): string {
+  return slug.replace(new RegExp(`(?:-${lang})+$`), `-${lang}`);
 }
 
 // Build slug: all languages use the EN slug (no lang suffix needed)

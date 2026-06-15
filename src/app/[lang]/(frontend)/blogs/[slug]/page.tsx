@@ -6,6 +6,12 @@ import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
 import BlogReadTracker from "@/components/analytics/BlogReadTracker";
 
+// Collapse a repeated trailing language suffix (legacy bad slugs like
+// "...-de-de-de-de" → "...-de"), so an old malformed URL still resolves and the
+// page's slug-mismatch guard 301s it to the normalised slug.
+const collapseLangSuffix = (slug: string, lang: string) =>
+  slug.replace(new RegExp(`(?:-${lang})+$`), `-${lang}`);
+
 export async function generateMetadata({
   params,
 }: {
@@ -23,6 +29,10 @@ export async function generateMetadata({
       where: { slug: decodedSlug },
       select: { blogId: true },
     });
+  }
+  if (!slugTrans) {
+    const norm = collapseLangSuffix(decodedSlug, lang);
+    if (norm !== decodedSlug) slugTrans = await prisma.blogTranslation.findFirst({ where: { slug: norm }, select: { blogId: true } });
   }
   if (!slugTrans) return {};
 
@@ -92,6 +102,12 @@ export default async function BlogDetailPage({
       where: { slug },
       select: { blogId: true },
     });
+  }
+  // legacy malformed slug (repeated -lang) → resolve via the normalised form so
+  // the slug-mismatch guard below 301s it to the clean slug (no broken old URLs)
+  if (!slugTrans) {
+    const norm = collapseLangSuffix(slug, lang);
+    if (norm !== slug) slugTrans = await prisma.blogTranslation.findFirst({ where: { slug: norm }, select: { blogId: true } });
   }
   if (!slugTrans) return notFound();
 

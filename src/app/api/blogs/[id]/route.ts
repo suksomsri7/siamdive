@@ -64,7 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         create: valid.map((t) => ({
             lang: t.lang,
             title: t.title,
-            slug: t.slug?.trim() || buildSlug(t.title, t.lang, enSlug),
+            slug: collapseLangSuffix((t.slug?.trim() || buildSlug(t.title, t.lang, enSlug)), t.lang),
             excerpt: t.excerpt ?? "",
             content: t.content ?? "",
             keywords: t.keywords ?? [],
@@ -141,7 +141,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Upsert each translation by (blogId, lang)
   for (const t of valid) {
-    const slug = t.slug?.trim() || buildSlug(t.title, t.lang, enSlug);
+    const slug = collapseLangSuffix((t.slug?.trim() || buildSlug(t.title, t.lang, enSlug)), t.lang);
     await prisma.blogTranslation.upsert({
       where: { blogId_lang: { blogId: id, lang: t.lang } },
       update: {
@@ -190,6 +190,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9ก-๙]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+// Collapse a repeated trailing language suffix ("x-de-de-de" → "x-de"). PATCH
+// re-translate used to re-append "-<lang>" each pass, growing spammy slugs.
+function collapseLangSuffix(slug: string, lang: string): string {
+  return slug.replace(new RegExp(`(?:-${lang})+$`), `-${lang}`);
 }
 
 function buildSlug(title: string, lang: string, enSlug: string): string {
