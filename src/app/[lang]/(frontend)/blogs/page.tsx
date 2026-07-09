@@ -2,11 +2,18 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
 
+// ISR: the listing used to run per-request and pull EVERY published blog ×
+// all 8 languages (500+ blogs → 4,000+ rows per hit, mostly bot traffic) —
+// a top Supabase-egress driver. Cache for 1h and fetch only the languages
+// this page can render (requested lang + en fallback).
+export const revalidate = 3600;
+
 export default async function BlogsPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
+  const listLangs = lang === "en" ? ["en"] : [lang, "en"];
   const blogs = await prisma.blog.findMany({
     where: { status: "PUBLISHED" },
-    include: { translations: { select: { lang: true, title: true, slug: true, excerpt: true } } },
+    include: { translations: { where: { lang: { in: listLangs } }, select: { lang: true, title: true, slug: true, excerpt: true } } },
     orderBy: { createdAt: "desc" },
   });
 

@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
 import BlogReadTracker from "@/components/analytics/BlogReadTracker";
-import { getUserCurrency } from "@/lib/userCurrency";
+import FeaturedTripsSection from "@/components/blogs/FeaturedTripsSection";
+
+// ── ISR: cache each blog URL for 6h ─────────────────────────────────────────
+// The page used to be fully dynamic (a server-side cookies() read for the
+// currency picker) → EVERY hit — overwhelmingly bots crawling ~4k blog URLs —
+// ran 5+ Prisma queries incl. all-language full bodies. That alone blew the
+// Supabase egress quota (51GB/3 days with zero human sessions). The currency-
+// dependent "Recommended trips" section is now a client component, so the page
+// is static + revalidated; bots hit the Vercel cache, not the database.
+export const revalidate = 21600;
 
 // Collapse a repeated trailing language suffix (legacy bad slugs like
 // "...-de-de-de-de" → "...-de"), so an old malformed URL still resolves and the
@@ -21,6 +31,41 @@ const V1_ORIGIN = "https://siamdive.vercel.app";
 const assetUrl = (u: string | null | undefined): string =>
   !u ? "" : u.startsWith("/") ? `${V1_ORIGIN}${u}` : u;
 
+// ── Shared loader (React cache → generateMetadata + page = ONE set of queries)
+// Translations come back WITHOUT the content column: the 8-language full bodies
+// are the heaviest rows in the DB and the metadata/hreflang/fallback logic only
+// needs slugs/titles/og fields. The single body actually rendered is fetched
+// separately by id (one small row) in the page component.
+const getBlogLight = cache(async (slug: string, lang: string) => {
+  let slugTrans = await prisma.blogTranslation.findUnique({
+    where: { slug_lang: { slug, lang } },
+    select: { blogId: true },
+  });
+  // fallback: ลอง slug กับ lang อื่น (กรณี share link ข้ามภาษา)
+  if (!slugTrans) {
+    slugTrans = await prisma.blogTranslation.findFirst({
+      where: { slug },
+      select: { blogId: true },
+    });
+  }
+  // legacy malformed slug (repeated -lang) → resolve via the normalised form so
+  // the slug-mismatch guard below 301s it to the clean slug (no broken old URLs)
+  if (!slugTrans) {
+    const norm = collapseLangSuffix(slug, lang);
+    if (norm !== slug) slugTrans = await prisma.blogTranslation.findFirst({ where: { slug: norm }, select: { blogId: true } });
+  }
+  if (!slugTrans) return null;
+
+  return prisma.blog.findUnique({
+    where: { id: slugTrans.blogId },
+    include: {
+      translations: {
+        select: { id: true, lang: true, slug: true, title: true, excerpt: true, ogTitle: true, ogDescription: true, ogImage: true },
+      },
+    },
+  });
+});
+
 export async function generateMetadata({
   params,
 }: {
@@ -29,26 +74,7 @@ export async function generateMetadata({
   const { lang, slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
 
-  let slugTrans = await prisma.blogTranslation.findUnique({
-    where: { slug_lang: { slug: decodedSlug, lang } },
-    select: { blogId: true },
-  });
-  if (!slugTrans) {
-    slugTrans = await prisma.blogTranslation.findFirst({
-      where: { slug: decodedSlug },
-      select: { blogId: true },
-    });
-  }
-  if (!slugTrans) {
-    const norm = collapseLangSuffix(decodedSlug, lang);
-    if (norm !== decodedSlug) slugTrans = await prisma.blogTranslation.findFirst({ where: { slug: norm }, select: { blogId: true } });
-  }
-  if (!slugTrans) return {};
-
-  const blog = await prisma.blog.findUnique({
-    where: { id: slugTrans.blogId },
-    include: { translations: true },
-  });
+  const blog = await getBlogLight(decodedSlug, lang);
   if (!blog || blog.status !== "PUBLISHED") return {};
 
   const trans = blog.translations.find(t => t.lang === lang)
@@ -100,45 +126,45 @@ export default async function BlogDetailPage({
   const { lang, slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
 
-  // หา blog จาก slug + lang (ทุกภาษาใช้ slug เดียวกันได้)
-  let slugTrans = await prisma.blogTranslation.findUnique({
-    where: { slug_lang: { slug, lang } },
-    select: { blogId: true },
-  });
-  // fallback: ลอง slug กับ lang อื่น (กรณี share link ข้ามภาษา)
-  if (!slugTrans) {
-    slugTrans = await prisma.blogTranslation.findFirst({
-      where: { slug },
-      select: { blogId: true },
-    });
-  }
-  // legacy malformed slug (repeated -lang) → resolve via the normalised form so
-  // the slug-mismatch guard below 301s it to the clean slug (no broken old URLs)
-  if (!slugTrans) {
-    const norm = collapseLangSuffix(slug, lang);
-    if (norm !== slug) slugTrans = await prisma.blogTranslation.findFirst({ where: { slug: norm }, select: { blogId: true } });
-  }
-  if (!slugTrans) return notFound();
-
-  // ดึง blog พร้อม translations ทุกภาษา
-  const blog = await prisma.blog.findUnique({
-    where: { id: slugTrans.blogId },
-    include: { translations: true },
-  });
+  // หา blog (shared cache กับ generateMetadata → query ชุดเดียวต่อ request)
+  const blog = await getBlogLight(slug, lang);
   if (!blog || blog.status !== "PUBLISHED") return notFound();
 
-  // ── Related blogs: pull up to 20 random PUBLISHED, excluding current ────────
-  // Postgres ORDER BY RANDOM() is fine for this scale (a few hundred blogs).
+  // หา translation ของ lang ที่ร้องขอ
+  const langTrans = blog.translations.find(t => t.lang === lang);
+
+  // ถ้ามี translation ภาษานั้น และ slug ไม่ตรง → 308 ไป slug ที่ถูก (canonical
+  // slug ย้ายถาวร → ดี SEO, ส่ง link equity; ครอบคลุม legacy malformed slug ด้วย)
+  if (langTrans && langTrans.slug !== slug) {
+    permanentRedirect(`/${lang}/blogs/${langTrans.slug}`);
+  }
+
+  // ใช้ translation ของ lang ที่ขอ หรือ fallback ไป slug ที่ส่งมา
+  const trans = langTrans ?? blog.translations.find(t => t.slug === slug) ?? blog.translations[0];
+  if (!trans) return notFound();
+
+  // ดึงเนื้อหาเต็มเฉพาะภาษาที่จะเรนเดอร์จริง (1 แถวเล็ก แทนที่จะแบก 8 ภาษาเต็ม)
+  const contentRow = await prisma.blogTranslation.findUnique({
+    where: { id: trans.id },
+    select: { content: true },
+  });
+  const content = contentRow?.content ?? "";
+
+  // ── Related blogs: up to 12 random PUBLISHED, excluding current ────────────
+  // ORDER BY RANDOM() is acceptable here because with ISR this runs once per
+  // URL per revalidate window (not per request). Translations are trimmed to
+  // the languages this page can actually display.
+  const relatedLangs = lang === "en" ? ["en"] : [lang, "en"];
   const randomBlogs = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM "Blog"
     WHERE status = 'PUBLISHED' AND id != ${blog.id}
     ORDER BY RANDOM()
-    LIMIT 20
+    LIMIT 12
   `;
   const relatedBlogs = randomBlogs.length
     ? await prisma.blog.findMany({
         where: { id: { in: randomBlogs.map(r => r.id) } },
-        include: { translations: { select: { lang: true, title: true, slug: true, excerpt: true } } },
+        include: { translations: { where: { lang: { in: relatedLangs } }, select: { lang: true, title: true, slug: true, excerpt: true } } },
       })
     : [];
   // Restore the random order from the SQL query (findMany doesn't preserve it)
@@ -157,37 +183,6 @@ export default async function BlogDetailPage({
       slug: rt?.slug ?? "",
     };
   }).filter(r => r.title && r.slug);
-
-  // ── Recommended trips: top-rated liveaboards/resorts from the v2 explore KB ──
-  // (the live product; replaces the legacy v1 boat catalog). Public, cached feed.
-  type FeaturedTrip = {
-    id: string; name: string; slug: string; catSlug: string; path: string;
-    area: string | null; country: string | null;
-    priceFrom: number | null; priceCurrency: string | null; coverImage: string | null; rating: number | null;
-  };
-  // Pass the visitor's chosen currency so the trip prices convert to match the
-  // currency picker (the v2 feed converts server-side via its FX rates).
-  const userCurrency = await getUserCurrency().catch(() => "THB");
-  let featuredTrips: FeaturedTrip[] = [];
-  try {
-    const res = await fetch(`https://www.siamdive.com/api/public/featured-explore?take=6&currency=${userCurrency}`, { next: { revalidate: 1800 } });
-    if (res.ok) featuredTrips = (await res.json()).items ?? [];
-  } catch { /* feed unavailable → just hide the section */ }
-  // v2 explore is EN + TH; link Thai readers to /th/explore, everyone else to /explore.
-  const tripHref = (path: string) => (lang === "th" ? `/th${path}` : path);
-
-  // หา translation ของ lang ที่ร้องขอ
-  const langTrans = blog.translations.find(t => t.lang === lang);
-
-  // ถ้ามี translation ภาษานั้น และ slug ไม่ตรง → 308 ไป slug ที่ถูก (canonical
-  // slug ย้ายถาวร → ดี SEO, ส่ง link equity; ครอบคลุม legacy malformed slug ด้วย)
-  if (langTrans && langTrans.slug !== slug) {
-    permanentRedirect(`/${lang}/blogs/${langTrans.slug}`);
-  }
-
-  // ใช้ translation ของ lang ที่ขอ หรือ fallback ไป slug ที่ส่งมา
-  const trans = langTrans ?? blog.translations.find(t => t.slug === slug) ?? blog.translations[0];
-  if (!trans) return notFound();
 
   const dateStr = new Date(blog.createdAt).toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
   const isTH = lang === "th";
@@ -247,8 +242,8 @@ export default async function BlogDetailPage({
             {trans.excerpt}
           </p>
         )}
-        {trans.content && (
-          <div className="blog-content" dangerouslySetInnerHTML={{ __html: trans.content }} />
+        {content && (
+          <div className="blog-content" dangerouslySetInnerHTML={{ __html: content }} />
         )}
         <div style={{ marginTop: 52, paddingTop: 26, borderTop: "1px solid #1c1c1c" }}>
           <Link href={`/${lang}/blogs`} style={{ fontSize: 13, color: "#3b82f6", textDecoration: "none", fontWeight: 600 }}>
@@ -263,49 +258,8 @@ export default async function BlogDetailPage({
       {/* ── Related articles ──────────────────────────────────────────────── */}
       <RelatedBlogsSlider blogs={relatedForSlider} lang={lang} />
 
-      {/* ── Recommended trips — real top-rated items from the explore KB ──── */}
-      {featuredTrips.length > 0 && (
-        <section style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px 28px" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.18em", textTransform: "uppercase", margin: 0 }}>
-              {isTH ? "ทริปแนะนำ" : "Recommended trips"}
-            </h2>
-            <Link href={isTH ? "/th/explore" : "/explore"} style={{ fontSize: 12, color: "#777", textDecoration: "none" }}>
-              {isTH ? "ดูทั้งหมด →" : "See all →"}
-            </Link>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 16 }}>
-            {featuredTrips.map(t => (
-              <Link key={t.id} href={tripHref(t.path)}
-                style={{ background: "#121212", borderRadius: 14, overflow: "hidden", border: "1px solid #1c1c1c", textDecoration: "none", display: "block" }}>
-                <div style={{ aspectRatio: "16/10", overflow: "hidden", position: "relative", background: "#1a1a1a" }}>
-                  {t.coverImage && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={t.coverImage} alt={t.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  )}
-                  {t.rating ? (
-                    <span style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.7)", color: "#fbbf24", fontSize: 12, fontWeight: 700, padding: "3px 8px", borderRadius: 6 }}>
-                      ★ {Math.round(t.rating * 10) / 10}
-                    </span>
-                  ) : null}
-                </div>
-                <div style={{ padding: "12px 14px 16px" }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                    {t.catSlug === "dive-resort" ? (isTH ? "รีสอร์ตดำน้ำ" : "Dive resort") : (isTH ? "เรือไลฟ์อะบอร์ด" : "Liveaboard")}
-                  </span>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.3, color: "#ededed", margin: "4px 0 4px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.name}</h3>
-                  <p style={{ fontSize: 11.5, color: "#666", margin: "0 0 8px" }}>{[t.area, t.country].filter(Boolean).join(", ")}</p>
-                  {t.priceFrom != null && (
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", margin: 0 }}>
-                      {isTH ? "เริ่ม" : "from"} {t.priceCurrency} {Math.round(t.priceFrom).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Recommended trips — client-side (keeps this page statically cacheable) ── */}
+      <FeaturedTripsSection lang={lang} />
 
       {/* ── Closing CTA → AI planner ──────────────────────────────────────── */}
       <section style={{ maxWidth: 1180, margin: "0 auto", padding: "8px 24px 80px" }}>
