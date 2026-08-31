@@ -31,6 +31,10 @@ export default function BottomNav() {
   }, []);
   useEffect(() => { setPlanBadge(planCount()); }, [pathname]);
 
+  // version นี้ยังไม่ใช้แถบ Ark ล่างบนหน้า blog (list + view) — เจ้าของสั่งเอาออก 31 ส.ค. 2026
+  // ([1]=lang · [2]=blogs ⇒ ครอบทั้ง /:lang/blogs และ /:lang/blogs/:slug · หน้าอื่นยังมีแถบปกติ)
+  if (pathname?.split("/")[2] === "blogs") return null;
+
   return (
     <>
       <style>{`
