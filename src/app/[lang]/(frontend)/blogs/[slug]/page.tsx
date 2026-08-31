@@ -6,7 +6,7 @@ import Link from "next/link";
 import BlogGallery from "@/components/blogs/BlogGallery";
 import RelatedBlogsSlider from "@/components/blogs/RelatedBlogsSlider";
 import BlogReadTracker from "@/components/analytics/BlogReadTracker";
-import FeaturedTripsSection from "@/components/blogs/FeaturedTripsSection";
+import BlogFloatingNav from "@/components/blogs/BlogFloatingNav";
 
 // ── ISR: cache each blog URL for 6h ─────────────────────────────────────────
 // The page used to be fully dynamic (a server-side cookies() read for the
@@ -210,6 +210,8 @@ export default async function BlogDetailPage({
     <main style={{ background: "#0d0d0d", minHeight: "100vh", color: "#e5e5e5" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <BlogReadTracker blogId={blog.id} lang={lang} />
+      {/* ปุ่มลอย: กลับหน้าหลัก / กลับบทความ — โผล่เมื่อเลื่อนพ้น hero (แถบบนหด) */}
+      <BlogFloatingNav lang={lang} />
 
       {/* ── Hero: full-bleed cover with title + date overlaid ─────────────── */}
       {blog.covers[0] ? (
@@ -217,6 +219,10 @@ export default async function BlogDetailPage({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={assetUrl(blog.covers[0])} alt={trans.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 6%, rgba(13,13,13,0.55) 45%, rgba(13,13,13,0.15) 100%)" }} />
+          {/* ไอคอน < มุมบนซ้าย → กลับหน้ารวมบทความ (เลื่อนหายไปกับ hero แล้วปุ่มลอยรับช่วงต่อ) */}
+          <Link href={`/${lang}/blogs`} aria-label="Blog" style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 14px)", left: 14, zIndex: 3, width: 38, height: 38, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(10,10,10,0.5)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", textDecoration: "none" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+          </Link>
           <div style={{ position: "relative", maxWidth: 820, margin: "0 auto", width: "100%", padding: "0 24px 44px" }}>
             <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#cfcfcf", textDecoration: "none", marginBottom: 18 }}>
               ← Blog
@@ -257,24 +263,6 @@ export default async function BlogDetailPage({
 
       {/* ── Related articles ──────────────────────────────────────────────── */}
       <RelatedBlogsSlider blogs={relatedForSlider} lang={lang} />
-
-      {/* ── Recommended trips — client-side (keeps this page statically cacheable) ── */}
-      <FeaturedTripsSection lang={lang} />
-
-      {/* ── Closing CTA → AI planner ──────────────────────────────────────── */}
-      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "8px 24px 80px" }}>
-        <div style={{ background: "linear-gradient(135deg,#0f1f3d,#0b1322)", border: "1px solid #1e2c47", borderRadius: 18, padding: "34px 28px", textAlign: "center" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "0 0 8px" }}>
-            {isTH ? "พร้อมวางแผนทริปดำน้ำแล้วหรือยัง?" : "Ready to plan your dive trip?"}
-          </h2>
-          <p style={{ fontSize: 14, color: "#9fb3d1", margin: "0 0 20px", lineHeight: 1.6 }}>
-            {isTH ? "บอก AI ของเราว่าอยากไปไหน ช่วงไหน แล้วเราจัดแผน + เช็กราคา/ที่ว่างให้" : "Tell our AI where and when — we build the plan and check prices & availability."}
-          </p>
-          <Link href="/" style={{ display: "inline-block", background: "#2563eb", color: "#fff", fontSize: 14, fontWeight: 700, padding: "13px 28px", borderRadius: 12, textDecoration: "none" }}>
-            {isTH ? "วางแผนกับ AI →" : "Plan with AI →"}
-          </Link>
-        </div>
-      </section>
     </main>
   );
 }
