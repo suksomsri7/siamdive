@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import Image from "next/image";
+import BlogFloatingNav from "@/components/blogs/BlogFloatingNav";
 
 // ISR: the listing used to run per-request and pull EVERY published blog ×
 // all 8 languages (500+ blogs → 4,000+ rows per hit, mostly bot traffic) —
@@ -19,6 +20,8 @@ export default async function BlogsPage({ params }: { params: Promise<{ lang: st
 
   return (
     <main style={{ background: "#0d0d0d", minHeight: "100vh", paddingTop: 88 }}>
+      {/* ปุ่มลอยกลับหน้าหลัก — โผล่เมื่อเลื่อนลง (เหมือน blog view · หน้านี้ไม่ต้องมีปุ่มกลับบทความ) */}
+      <BlogFloatingNav lang={lang} articles={false} />
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 80px" }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 10 }}>SIAMDIVE</p>
         <h1 style={{ fontSize: "clamp(1.8rem,5vw,3rem)", fontWeight: 900, color: "#fff", marginBottom: 32 }}>Blog</h1>

@@ -219,10 +219,6 @@ export default async function BlogDetailPage({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={assetUrl(blog.covers[0])} alt={trans.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, #0d0d0d 6%, rgba(13,13,13,0.55) 45%, rgba(13,13,13,0.15) 100%)" }} />
-          {/* ไอคอน < มุมบนซ้าย → กลับหน้ารวมบทความ (เลื่อนหายไปกับ hero แล้วปุ่มลอยรับช่วงต่อ) */}
-          <Link href={`/${lang}/blogs`} aria-label="Blog" style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 14px)", left: 14, zIndex: 3, width: 38, height: 38, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(10,10,10,0.5)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", textDecoration: "none" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
-          </Link>
           <div style={{ position: "relative", maxWidth: 820, margin: "0 auto", width: "100%", padding: "0 24px 44px" }}>
             <Link href={`/${lang}/blogs`} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#cfcfcf", textDecoration: "none", marginBottom: 18 }}>
               ← Blog

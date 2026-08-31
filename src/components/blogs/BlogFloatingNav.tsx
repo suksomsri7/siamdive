@@ -27,7 +27,8 @@ const pill: React.CSSProperties = {
   boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
 };
 
-export default function BlogFloatingNav({ lang }: { lang: string }) {
+// articles=false → หน้ารวมบทความใช้ (โชว์แค่ปุ่มกลับหน้าหลัก ไม่ต้องมีปุ่มกลับบทความ)
+export default function BlogFloatingNav({ lang, articles = true }: { lang: string; articles?: boolean }) {
   const [show, setShow] = useState(false);
   const l: L = (LANGS.includes(lang as L) ? lang : "en") as L;
 
@@ -60,14 +61,16 @@ export default function BlogFloatingNav({ lang }: { lang: string }) {
         {HOME[l]}
       </Link>
 
-      {/* กลับหน้าบทความ (/[lang]/blogs) */}
-      <Link href={`/${l}/blogs`} style={pill} aria-label={BLOG[l]}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        </svg>
-        {BLOG[l]}
-      </Link>
+      {/* กลับหน้าบทความ (/[lang]/blogs) — ซ่อนเมื่ออยู่หน้ารวมบทความเองแล้ว */}
+      {articles && (
+        <Link href={`/${l}/blogs`} style={pill} aria-label={BLOG[l]}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          {BLOG[l]}
+        </Link>
+      )}
     </div>
   );
 }
