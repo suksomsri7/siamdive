@@ -22,6 +22,7 @@ const T: Record<string, Record<string, string>> = {
 
 const CONTENT: Record<string, { heading: string; body: string }[]> = {
   en: [
+    { heading: "Our Role and Payments", body: "SIAMDIVE is an information and search service for divers. If you ask us to, we will also help you contact an operator, arrange a booking and prepare the paperwork — as a coordinator only. To do that we pass the details you give us (such as your name, contact details, travel dates, group size, certification level and any documents you send for the booking) to that operator, and only to that operator. You pay the operator directly, so we never collect or store card numbers, bank details or any payment information." },
     { heading: "Information We Collect", body: "We collect anonymous usage data through Google Analytics (page views, device type, approximate location) and our internal analytics system (trip views, search queries). We do not collect personal information unless you voluntarily provide it through our contact channels (Line, WhatsApp, Messenger)." },
     { heading: "How We Use Your Data", body: "Usage data helps us improve our website, understand which dive trips are most popular, and deliver a better experience. We do not sell, rent, or share your personal data with third parties for marketing purposes." },
     { heading: "Cookies", body: "We use essential cookies for website functionality and analytics cookies (Google Analytics) to understand site usage. You can disable cookies in your browser settings at any time." },
@@ -33,6 +34,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "Contact", body: "For privacy-related inquiries, reach us via Line (@siamdive), WhatsApp (+66 98 376 8135), or email." },
   ],
   th: [
+    { heading: "บทบาทของเราและการชำระเงิน", body: "SIAMDIVE เป็นแหล่งค้นหาข้อมูลสำหรับนักดำน้ำ และหากคุณต้องการ เราช่วยติดต่อผู้ประกอบการ ดำเนินการจอง และจัดเตรียมเอกสารให้ได้ โดยทำหน้าที่เป็นผู้ช่วยประสานงานเท่านั้น ในการทำเช่นนั้น เราจะส่งข้อมูลที่คุณให้ไว้ (เช่น ชื่อ ข้อมูลติดต่อ วันเดินทาง จำนวนคน ระดับใบรับรอง และเอกสารที่คุณส่งมาเพื่อการจอง) ให้ผู้ประกอบการรายนั้น และให้เฉพาะรายนั้นเท่านั้น ส่วนการชำระเงิน คุณชำระตรงกับผู้ประกอบการเอง เราจึงไม่เคยเก็บหมายเลขบัตร ข้อมูลบัญชีธนาคาร หรือข้อมูลการชำระเงินใด ๆ ของคุณ" },
     { heading: "ข้อมูลที่เราเก็บรวบรวม", body: "เราเก็บข้อมูลการใช้งานแบบไม่ระบุตัวตนผ่าน Google Analytics (การเข้าชมหน้า, ประเภทอุปกรณ์, ตำแหน่งโดยประมาณ) และระบบวิเคราะห์ภายในของเรา (การดูทริป, การค้นหา) เราไม่เก็บข้อมูลส่วนบุคคล เว้นแต่คุณจะให้ข้อมูลด้วยตนเองผ่านช่องทางติดต่อของเรา (Line, WhatsApp, Messenger)" },
     { heading: "การใช้ข้อมูลของคุณ", body: "ข้อมูลการใช้งานช่วยให้เราปรับปรุงเว็บไซต์ เข้าใจว่าทริปดำน้ำใดได้รับความนิยมมากที่สุด และมอบประสบการณ์ที่ดีขึ้น เราไม่ขาย ไม่ให้เช่า และไม่แบ่งปันข้อมูลส่วนบุคคลของคุณกับบุคคลที่สามเพื่อวัตถุประสงค์ทางการตลาด" },
     { heading: "คุกกี้", body: "เราใช้คุกกี้ที่จำเป็นสำหรับการทำงานของเว็บไซต์ และคุกกี้วิเคราะห์ (Google Analytics) เพื่อทำความเข้าใจการใช้งานเว็บไซต์ คุณสามารถปิดคุกกี้ในการตั้งค่าเบราว์เซอร์ได้ตลอดเวลา" },
@@ -44,6 +46,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "ติดต่อ", body: "สำหรับคำถามเกี่ยวกับความเป็นส่วนตัว ติดต่อเราผ่าน Line (@siamdive), WhatsApp (+66 98 376 8135) หรืออีเมล" },
   ],
   cn: [
+    { heading: "我们的角色与付款方式", body: "SIAMDIVE 是面向潜水员的信息与搜索服务。如果您提出要求，我们还可以帮您联系运营商、协助办理预订并准备相关文件，但仅担任协调者的角色。为此，我们会把您提供的资料（例如姓名、联系方式、出行日期、人数、认证等级，以及您为预订发送的任何文件）转交给该运营商，且仅转交给该运营商。款项由您直接支付给运营商，因此我们绝不会收集或存储您的卡号、银行资料或任何支付信息。" },
     { heading: "我们收集的信息", body: "我们通过 Google Analytics（页面浏览量、设备类型、大致位置）和内部分析系统（行程浏览、搜索查询）收集匿名使用数据。除非您通过我们的联系渠道（Line、WhatsApp、Messenger）自愿提供，否则我们不会收集个人信息。" },
     { heading: "我们如何使用您的数据", body: "使用数据帮助我们改进网站、了解哪些潜水行程最受欢迎，并提供更好的体验。我们不会出于营销目的向第三方出售、出租或分享您的个人数据。" },
     { heading: "Cookies", body: "我们使用必要的 Cookie 来实现网站功能，以及分析 Cookie（Google Analytics）来了解网站使用情况。您可以随时在浏览器设置中禁用 Cookie。" },
@@ -55,6 +58,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "联系方式", body: "如有隐私相关问题，请通过 Line (@siamdive)、WhatsApp (+66 98 376 8135) 或电子邮件与我们联系。" },
   ],
   ja: [
+    { heading: "当社の役割とお支払いについて", body: "SIAMDIVEはダイバー向けの情報・検索サービスです。ご希望があれば、オペレーターへのご連絡、予約の手配、書類のご準備もお手伝いしますが、あくまで調整役としてのみ対応します。その際、お客様からいただいた情報（お名前、連絡先、渡航日、人数、認定ランク、予約のためにお送りいただいた書類など）を、当該オペレーターにのみお渡しします。お支払いはお客様からオペレーターへ直接行っていただくため、カード番号や銀行口座などの決済情報を収集・保存することは一切ありません。" },
     { heading: "収集する情報", body: "Google Analytics（ページビュー、デバイスタイプ、おおよその位置情報）および内部分析システム（トリップ閲覧、検索クエリ）を通じて匿名の使用データを収集しています。お客様が連絡チャネル（Line、WhatsApp、Messenger）を通じて自発的に提供しない限り、個人情報は収集しません。" },
     { heading: "データの使用方法", body: "使用データは、ウェブサイトの改善、人気のダイブトリップの把握、より良い体験の提供に役立てています。マーケティング目的で個人データを第三者に販売、貸与、共有することはありません。" },
     { heading: "Cookie", body: "ウェブサイトの機能に必要な Cookie と、サイト利用状況を把握するための分析 Cookie（Google Analytics）を使用しています。ブラウザの設定でいつでも Cookie を無効にできます。" },
@@ -66,6 +70,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "お問い合わせ", body: "プライバシーに関するお問い合わせは、Line (@siamdive)、WhatsApp (+66 98 376 8135)、またはメールにてご連絡ください。" },
   ],
   ko: [
+    { heading: "저희의 역할과 결제", body: "SIAMDIVE는 다이버를 위한 정보·검색 서비스입니다. 요청하시면 운영자 연락, 예약 진행, 서류 준비도 도와드리지만 어디까지나 조율자 역할만 합니다. 이를 위해 귀하가 주신 정보(성명, 연락처, 여행 날짜, 인원, 자격 등급, 예약을 위해 보내주신 서류 등)를 해당 운영자에게만 전달합니다. 결제는 귀하가 운영자에게 직접 하시므로, 저희는 카드번호나 은행 정보 등 어떠한 결제 정보도 수집하거나 저장하지 않습니다." },
     { heading: "수집하는 정보", body: "Google Analytics(페이지 조회수, 기기 유형, 대략적 위치)와 내부 분석 시스템(트립 조회, 검색 쿼리)을 통해 익명 사용 데이터를 수집합니다. 연락 채널(Line, WhatsApp, Messenger)을 통해 자발적으로 제공하지 않는 한 개인 정보를 수집하지 않습니다." },
     { heading: "데이터 사용 방법", body: "사용 데이터는 웹사이트 개선, 인기 다이빙 트립 파악, 더 나은 경험 제공에 도움이 됩니다. 마케팅 목적으로 개인 데이터를 제3자에게 판매, 임대 또는 공유하지 않습니다." },
     { heading: "쿠키", body: "웹사이트 기능에 필수적인 쿠키와 사이트 사용을 이해하기 위한 분석 쿠키(Google Analytics)를 사용합니다. 브라우저 설정에서 언제든지 쿠키를 비활성화할 수 있습니다." },
@@ -77,6 +82,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "연락처", body: "개인정보 관련 문의는 Line (@siamdive), WhatsApp (+66 98 376 8135) 또는 이메일로 연락해 주세요." },
   ],
   de: [
+    { heading: "Unsere Rolle und Zahlungen", body: "SIAMDIVE ist ein Informations- und Suchdienst für Taucher. Auf Wunsch helfen wir Ihnen außerdem, einen Anbieter zu kontaktieren, eine Buchung zu veranlassen und die Unterlagen vorzubereiten — ausschließlich als Koordinator. Dazu geben wir die von Ihnen mitgeteilten Angaben (etwa Name, Kontaktdaten, Reisedaten, Gruppengröße, Zertifizierungsstufe und alle für die Buchung übermittelten Dokumente) an diesen Anbieter weiter, und nur an ihn. Sie zahlen direkt an den Anbieter; deshalb erfassen oder speichern wir niemals Kartennummern, Bankdaten oder sonstige Zahlungsinformationen." },
     { heading: "Informationen, die wir erheben", body: "Wir erheben anonyme Nutzungsdaten über Google Analytics (Seitenaufrufe, Gerätetyp, ungefährer Standort) und unser internes Analysesystem (Trip-Aufrufe, Suchanfragen). Wir erheben keine personenbezogenen Daten, es sei denn, Sie stellen sie freiwillig über unsere Kontaktkanäle (Line, WhatsApp, Messenger) zur Verfügung." },
     { heading: "Wie wir Ihre Daten verwenden", body: "Nutzungsdaten helfen uns, unsere Website zu verbessern, zu verstehen, welche Tauchtrips am beliebtesten sind, und ein besseres Erlebnis zu bieten. Wir verkaufen, vermieten oder teilen Ihre persönlichen Daten nicht zu Marketingzwecken mit Dritten." },
     { heading: "Cookies", body: "Wir verwenden wesentliche Cookies für die Website-Funktionalität und Analyse-Cookies (Google Analytics), um die Website-Nutzung zu verstehen. Sie können Cookies jederzeit in Ihren Browser-Einstellungen deaktivieren." },
@@ -88,6 +94,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "Kontakt", body: "Für datenschutzbezogene Anfragen erreichen Sie uns über Line (@siamdive), WhatsApp (+66 98 376 8135) oder E-Mail." },
   ],
   fr: [
+    { heading: "Notre rôle et les paiements", body: "SIAMDIVE est un service d'information et de recherche pour plongeurs. Si vous le demandez, nous pouvons aussi vous aider à contacter un opérateur, à organiser une réservation et à préparer les documents — uniquement en qualité de coordinateur. Pour cela, nous transmettons les informations que vous nous confiez (nom, coordonnées, dates de voyage, nombre de participants, niveau de certification et tout document envoyé pour la réservation) à cet opérateur, et à lui seul. Vous payez l'opérateur directement : nous ne collectons donc jamais de numéros de carte, de coordonnées bancaires ni aucune information de paiement." },
     { heading: "Informations collectées", body: "Nous collectons des données d'utilisation anonymes via Google Analytics (pages vues, type d'appareil, localisation approximative) et notre système d'analyse interne (vues de voyages, requêtes de recherche). Nous ne collectons pas d'informations personnelles sauf si vous les fournissez volontairement via nos canaux de contact (Line, WhatsApp, Messenger)." },
     { heading: "Utilisation de vos données", body: "Les données d'utilisation nous aident à améliorer notre site web, à comprendre quels voyages de plongée sont les plus populaires et à offrir une meilleure expérience. Nous ne vendons, ne louons ni ne partageons vos données personnelles avec des tiers à des fins marketing." },
     { heading: "Cookies", body: "Nous utilisons des cookies essentiels pour le fonctionnement du site et des cookies analytiques (Google Analytics) pour comprendre l'utilisation du site. Vous pouvez désactiver les cookies dans les paramètres de votre navigateur à tout moment." },
@@ -99,6 +106,7 @@ const CONTENT: Record<string, { heading: string; body: string }[]> = {
     { heading: "Contact", body: "Pour toute question relative à la confidentialité, contactez-nous via Line (@siamdive), WhatsApp (+66 98 376 8135) ou par e-mail." },
   ],
   ru: [
+    { heading: "Наша роль и оплата", body: "SIAMDIVE — информационно-поисковый сервис для дайверов. По вашей просьбе мы также поможем связаться с оператором, оформить бронирование и подготовить документы — исключительно как координатор. Для этого мы передаём сообщённые вами сведения (имя, контакты, даты поездки, количество участников, уровень сертификации и любые документы, присланные для бронирования) этому оператору и только ему. Оплату вы вносите оператору напрямую, поэтому мы никогда не собираем и не храним номера карт, банковские реквизиты или любую платёжную информацию." },
     { heading: "Собираемая информация", body: "Мы собираем анонимные данные об использовании через Google Analytics (просмотры страниц, тип устройства, приблизительное местоположение) и нашу внутреннюю систему аналитики (просмотры туров, поисковые запросы). Мы не собираем личную информацию, если вы не предоставите её добровольно через наши каналы связи (Line, WhatsApp, Messenger)." },
     { heading: "Как мы используем ваши данные", body: "Данные об использовании помогают нам улучшать наш сайт, понимать, какие дайв-туры наиболее популярны, и предоставлять лучший опыт. Мы не продаём, не сдаём в аренду и не передаём ваши личные данные третьим лицам в маркетинговых целях." },
     { heading: "Файлы cookie", body: "Мы используем необходимые файлы cookie для функционирования сайта и аналитические cookie (Google Analytics) для понимания использования сайта. Вы можете отключить cookie в настройках браузера в любое время." },
@@ -127,7 +135,7 @@ export default async function PrivacyPage({ params }: { params: Promise<{ lang: 
       <h1 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 900, marginBottom: 8, color: "#fff" }}>
         {T.title[l]}
       </h1>
-      <p style={{ color: "#444", fontSize: 13, marginBottom: 32 }}>Last updated: May 2026</p>
+      <p style={{ color: "#444", fontSize: 13, marginBottom: 32 }}>Last updated: 17 September 2026</p>
       {sections.map((s, i) => (
         <section key={i} style={{ marginBottom: 28 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 10, color: "#e5e5e5" }}>{s.heading}</h2>
