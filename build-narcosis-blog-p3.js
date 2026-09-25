@@ -1,0 +1,227 @@
+const fs = require('fs');
+const translations = [];
+
+// ---------------- DE ----------------
+translations.push({
+  lang: "de",
+  title: "Warum 40 Meter sich wie zwei Martinis anfühlen",
+  slug: "why-40-metres-feels-like-two-martinis-de",
+  excerpt: "Wer unter 30 Meter abtaucht, dessen Flaschenstickstoff wirkt bald wie Alkohol und trübt das Urteil, bevor man es merkt. Warum das so ist und der Drei-Meter-Trick.",
+  keywords: ["Stickstoffnarkose","Tiefenrausch","Martini-Effekt","Stickstoffnarkose Symptome","Gasnarkose Tauchen","Stickstoffnarkose Tiefe","Martini-Gesetz Tauchen","Narkose 30 Meter","Stickstoffnarkose behandeln"],
+  ogTitle: "Stickstoffnarkose: Der Tiefenrausch, der Profis täuscht",
+  ogDescription: "Warum tiefes Tauchen sich wie Trinken anfühlt, was bei 30 und 40 Metern wirklich geschieht und der einfache Aufstieg, der den Kopf in Sekunden klärt.",
+  content: `<p>Wer an einem klaren Tag unter dreißig Meter abtaucht, dem kann etwas leise Merkwürdiges widerfahren. Das Riff wirkt eine Spur bunter. Ein Witz, der oben an der Oberfläche floppte, ist plötzlich zum Brüllen. Das Finimeter abzulesen dauert einen Takt länger als es sollte. Nichts tut weh, nichts warnt — und genau dieses angenehme, leicht entrückte Gefühl ist das Problem.</p>
+
+<p>Taucher haben einen Namen dafür: Stickstoffnarkose. Alte Hasen nennen sie den Martini-Effekt oder den Tiefenrausch. Sie gehört zu den wenigen Gefahren beim Tauchen, die sich <em>gut</em> anfühlen, und gerade deshalb erwischt sie auch erfahrene Leute auf dem falschen Fuß.</p>
+
+<h2>Die Luft jeder Flasche hat ein zweites Gesicht</h2>
+<p>Die Luft in deiner Flasche besteht zu etwa 78 Prozent aus Stickstoff. An der Oberfläche ist er reaktionsträge — er strömt ein und aus und tut nichts. Presst man ihn jedoch unter Druck zusammen, ändert er sein Wesen.</p>
+<p>In dreißig Metern drückt das Wasser über dir mit dem vierfachen Gewicht der Atmosphäre auf Meereshöhe. Die Atemluft ist viermal dichter, was bedeutet: Mit jedem Atemzug gelangen viermal so viele Stickstoffmoleküle ins Blut. Stickstoff löst sich leicht in Fett, und Nervenzellen sind von fetthaltigen Membranen umhüllt. Das Gehirn, am lipidreichsten von allen, nimmt ihn am meisten auf. Einmal in diesen Membranen, stört das Gas die elektrische Signalübertragung zwischen den Neuronen — im Grunde so, wie ein leichtes Narkosemittel wirkt. Laut der Encyclopædia Britannica wird die betäubende Wirkung bei etwa dem vierfachen Oberflächendruck spürbar, und das ist die Tiefe, in der diese Geschichte beginnt.</p>
+
+<h2>Das Martini-Gesetz, ohne Glas</h2>
+<p>Tauchlehrer greifen zu einer alten Faustregel, um das Gefühl zu beschreiben. Das Martini-Gesetz besagt, dass dich jede zehn Meter unterhalb von etwa zwanzig Metern wie ein trockener Martini auf leeren Magen trifft. Es ist ein Vergleich, keine Messung — aber es trifft die Form der Sache gut.</p>
+<dl>
+  <dt>Um 20 Meter</dt>
+  <dd>Nichts Offensichtliches, doch Labortests fangen kleine Einbußen bei Konzentration und schnellem Denken ein.</dd>
+  <dt>Um 30 Meter</dt>
+  <dd>Etwa ein Martini. Für viele Taucher ein lockeres, warmes, leicht verlangsamtes Gefühl.</dd>
+  <dt>Um 40 Meter</dt>
+  <dd>Etwa zwei Martinis — und vierzig Meter sind die äußerste Grenze des Sporttauchens.</dd>
+  <dt>Unter 40 Meter</dt>
+  <dd>Die Wirkung steigt schneller als die Tiefe. Das ist kein Terrain für gewöhnliche Taucher mehr.</dd>
+</dl>
+<p>Das entscheidende Wort ist <em>etwa</em>. Für die Narkose gibt es kein Messgerät und keine feste Tiefe, in der sie sich einschaltet. Der eine ist bei vierzig Metern klar im Kopf, der andere bemerkt schon bei fünfundzwanzig einen Nebel. Kaltes Wasser, harte Arbeit, eine hohe Atemfrequenz und Stress holen sie alle früher hervor. Dieselbe Person kann bei zwei Tauchgängen in derselben Woche unterschiedlich betroffen sein.</p>
+
+<h2>Sie kommt über eine Treppe, nicht über eine Klippe</h2>
+<p>Weil der Beginn schleicht statt springt, deckt sich die Narkose sauber mit dem Weg, auf dem Taucher durch ihre Ausbildung Tiefe aufbauen.</p>
+<ul>
+  <li><strong>Open Water, bis 18 Meter:</strong> Die meisten spüren gar nichts, doch kontrollierte Studien haben schon in Tiefen von nur 20 Metern kleine Aussetzer bei den exekutiven Funktionen — Planen, Urteilen — gemessen.</li>
+  <li><strong>Advanced, bis 30 Meter:</strong> Das ist die Schwelle, ab der das Risiko echter Beeinträchtigung zu steigen beginnt und bei der sich das Martini-Gefühl bei vielen zeigt.</li>
+  <li><strong>Sportliche Grenze, 40 Meter:</strong> etwa zwei Martinis Nebel, mit weit weniger geistigem Spielraum für ein Problem, als derselbe Taucher bei 18 Metern hat.</li>
+  <li><strong>Unter 40 Meter:</strong> Die Beeinträchtigung wird beständig statt gelegentlich. In einer klassischen Gedächtnisstudie verloren Taucher, die sich in sechzig Metern Informationen merken sollten, gegenüber der Oberfläche rund 31 Prozent ihres Langzeitgedächtnisses.</li>
+</ul>
+
+<h2>Warum ein gut gelaunter Taucher in der Tiefe gefährlich ist</h2>
+<p>Der Rausch ist der Köder. Weil sich die Narkose meist mild und angenehm anfühlt, ist der Betroffene der Letzte, der es merkt. Das Urteil stumpft ab, die Reaktionen werden langsamer, und der Geist kann sich auf einen einzigen Gedanken versteifen und alles andere ausblenden — ein Phänomen, das Tauchlehrer Fixierung nennen.</p>
+<p>Die Gründungsliteratur des Sports ist voll davon. Jacques Cousteau prägte den Ausdruck <em>l'ivresse des grandes profondeurs</em> — den Rausch der Tiefe —, nachdem er Taucher in der Tiefe wie Betrunkene hatte handeln sehen: manche nestelten an ihrer Ausrüstung, von manchen heißt es, sie hätten einem vorbeiziehenden Fisch den Atemregler hingehalten, weil ein benebeltes Hirn entschieden hatte, es müsse nicht mehr atmen. Diese alten Berichte klingen wie Karikaturen, doch die moderne Gefahr ist nüchterner und realer: Ein benebelter Taucher lässt den Plan still fallen. Er treibt hinter etwas her in die Tiefe, vergisst den Blick auf den Vorrat, verpasst den Aufstiegszeitpunkt oder übersieht das Zeichen des Partners. In Sporttiefen macht das Gas dich nicht bewusstlos. Es macht dich zum schlechteren Entscheider in genau dem Moment, in dem gute Entscheidungen am meisten zählen.</p>
+<p>Sie lässt sich zudem leicht mit anderen Problemen verwechseln. Ein langsamer, benebelter Taucher in der Tiefe kann narkotisiert sein — oder das erste Anzeichen von etwas ganz anderem zeigen. Deshalb lohnt es zu wissen, <a href="/de/blogs/why-heart-attack-at-25-metres-looks-like-narcosis">wie ein Herznotfall in 25 Metern genau wie eine Narkose aussehen kann</a>, und warum <a href="/de/blogs/headache-at-20-metres-might-not-be-narcosis">Kopfschmerzen in 20 Metern oft gar keine Narkose sind</a>.</p>
+
+<h2>Die Lösung liegt drei Meter höher</h2>
+<p>Nun der beruhigende Teil. Die Narkose ist vollständig umkehrbar, und die Behandlung braucht kein Medikament, keine Kammer und kein Drama. Steig ein paar Meter auf — so wenig wie drei —, der Druck fällt, der überschüssige Stickstoff tritt aus den Nervenmembranen zurück, und der Kopf wird innerhalb von Sekunden bis wenigen Minuten klar. Kein Kater, und bei einem normalen Sporttauchgang keine bleibende Spur. Die weltweit gelehrte goldene Reihenfolge sind drei kurze Wörter: anhalten, Zeichen geben, aufsteigen. Hör auf abzutauchen, sag es dem Partner, geh ein Stück hoch. Und tauch nicht tiefer, um zu sehen, ob es vergeht.</p>
+<p>Eine Einschränkung ist kürzlich aufgetaucht. Eine Studie von 2024, die Taucher durch einen simulierten Fünfzig-Meter-Tauchgang schickte, fand: Wer beim Aufstieg gewöhnliche Luft atmete, hinterließ eine messbare Spur. Die mit dem verschärften Romberg-Stand geprüfte Gleichgewichtskontrolle verschlechterte sich nach dem Tauchgang, der Anteil nicht bestandener Tests stieg von 47 Prozent davor auf 67 Prozent danach. Wer während der Dekompression Sauerstoff atmete, blieb stabil. Eine Mahnung, dass tiefe Expositionen sich vielleicht nicht so blitzsauber auswaschen, wie es die Regel „einfach flacher werden" nahelegt — ein weiteres Argument dafür, 40 Meter als harte Decke zu behandeln, nicht als Ziel.</p>
+
+<h2>Wofür der Partner wirklich da ist</h2>
+<p>Weil du deine eigene Narkose nicht verlässlich beurteilen kannst, wird das Buddy-System vom Formalismus zum Sicherheitsnetz. Ein narkotisierter Taucher ist von außen oft lange offensichtlich, bevor er selbst etwas merkt. Achte beim Partner auf einen leeren Blick ins Blaue, auf das Fummeln an einem einfachen Karabiner, auf langsame oder falsche Antworten auf Handzeichen, auf Abweichen von der geplanten Route oder auf eine seltsam heitere oder ängstliche Stimmung.</p>
+<p>Ein sauberer Feldtest: Halt in der Tiefe eine Zahl Finger hoch und erwarte, dass der Partner mit dieser Zahl plus eins antwortet. Zeigst du zwei, sollte er drei zeigen. Jede andere Antwort — oder eine lange Pause — ist das Signal, gemeinsam flacher zu gehen. Es ist dasselbe Prinzip wie das Wissen um die <a href="/de/blogs/5-narcosis-red-flags-buddy-misses-30-metres">Narkose-Warnzeichen, die ein Partner in 30 Metern gern übersieht</a>, und der Grund, warum <a href="/de/blogs/at-30-metres-instructor-stops-helping-on-purpose">Tauchlehrer sich in 30 Metern bewusst zurücknehmen</a>, damit Schüler lernen, es selbst zu erkennen.</p>
+
+<h2>Der Narkose voraus bleiben</h2>
+<p>Du kannst deinem Körper nicht antrainieren, keinen Stickstoff mehr aufzunehmen, aber du kannst die Belastung verkleinern und die Chancen stapeln.</p>
+<ul>
+  <li><strong>Tauch nach deinem Brevet.</strong> Die Tiefengrenzen einer Zertifizierung sind keine Bürokratie; sie halten dich in dem Bereich, in dem die Narkose mild bleibt und ein Drei-Meter-Aufstieg sie noch behebt.</li>
+  <li><strong>Steig langsam ab, mit den Füßen voran, an einer Leine.</strong> Ein rascher Abstieg bringt dich in die Tiefe, bevor der Kopf hinterherkommt, und verstärkt den Schlag.</li>
+  <li><strong>Komm ausgeruht und warm an.</strong> Kälte, Erschöpfung, ein Kater, hohes Kohlendioxid vom harten Flossenschlag und schlichter Stress senken alle die Tiefe, in der sich der Nebel legt.</li>
+  <li><strong>Erwarte nicht, dass Nitrox dich rettet.</strong> Das ist der große Irrtum. Angereicherte Luft enthält immer noch reichlich Stickstoff und tut daher nichts gegen die Narkose — und ihre niedrigere Sauerstoffgrenze deckelt sogar, wie tief du sie sicher mitnehmen darfst, eine Falle, die <a href="/de/blogs/nitrox-mod-oxygen-toxicity-depth-limit">die 34-Meter-Nitrox-Grenze behandelt, die zu viele Taucher ignorieren</a>.</li>
+</ul>
+<p>Das einzige Gas, das die narkotische Last wirklich verdünnt, ist Helium, weshalb technische und Berufstaucher unterhalb der Sporttiefen Trimix atmen. Auf der relativen Skala der narkotischen Stärke steht Helium bei 0,045, Stickstoff bei 1,0 und Argon bei satten 2,3 — Helium ist kaum narkotisch, und genau das ist es, was seinen erheblichen Preis in der Tiefe wert macht.</p>
+
+<p>Nichts davon macht die Narkose zu einem Charakterfehler oder einem seltenen Ausnahmefall. Sie ist Physik, die auf jeden Taucher wirkt, der tief genug geht — so gewöhnlich wie die Ohren, die einen Druckausgleich brauchen. Achte die Decke, tauch mit einem Partner, der dich lesen kann, und denk daran: Das Gegenmittel liegt immer nur ein paar Meter über deinem Kopf. Markier den Partner, dem du stets in die Tiefe folgst — hat sich der Grund schon einmal ein bisschen zu gut angefühlt?</p>
+
+<h3>Quellen</h3>
+<ul>
+  <li><a href="https://blog.padi.com/nitrogen-narcosis-what-divers-need-to-know/" rel="nofollow">PADI — Stickstoffnarkose: Symptome, Beginn und Umgang</a></li>
+  <li><a href="https://www.britannica.com/science/nitrogen-narcosis" rel="nofollow">Encyclopaedia Britannica — Stickstoffnarkose: Physiologie und Druck</a></li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11278881/" rel="nofollow">NIH/NCBI — Narkotische Stickstoffwirkung besteht nach simuliertem 50-m-Tauchgang fort (2024)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4337274/" rel="nofollow">NIH/NCBI — Inertgasnarkose und Unterwasseraktivitäten (Übersicht)</a></li>
+</ul>`
+});
+
+// ---------------- FR ----------------
+translations.push({
+  lang: "fr",
+  title: "Pourquoi 40 mètres, c'est deux martinis",
+  slug: "why-40-metres-feels-like-two-martinis-fr",
+  excerpt: "Sous 30 mètres, l'azote de votre bloc se met à agir comme l'alcool et émousse le jugement avant qu'on le remarque. Voici pourquoi, et la remontée de trois mètres qui règle tout.",
+  keywords: ["narcose à l'azote","ivresse des profondeurs","effet martini","narcose symptômes","narcose plongée","narcose profondeur","loi du martini plongée","narcose 30 mètres","traiter la narcose"],
+  ogTitle: "Narcose à l'azote : l'ivresse profonde qui trompe les experts",
+  ogDescription: "Pourquoi plonger profond ressemble à boire, ce qui se passe vraiment à 30 et 40 mètres, et la remontée toute simple qui éclaircit l'esprit en quelques secondes.",
+  content: `<p>Descendre sous trente mètres par une belle journée, et il peut se produire quelque chose d'étrangement discret. Le récif paraît un rien plus vif. Une blague tombée à plat sur le bateau devient soudain hilarante. Lire le manomètre demande un temps de plus qu'il ne faudrait. Rien ne fait mal, rien n'alerte — et cette sensation agréable, légèrement détachée, est précisément le problème.</p>
+
+<p>Les plongeurs lui ont donné un nom : la narcose à l'azote. Les anciens parlent d'effet martini, ou d'ivresse des profondeurs. C'est l'un des rares dangers de la plongée qui arrive en donnant du <em>plaisir</em>, et c'est bien pour cela qu'il prend de court les gens expérimentés.</p>
+
+<h2>L'air de chaque bloc a une seconde vie</h2>
+<p>L'air de votre bouteille contient environ 78 pour cent d'azote. En surface, il est inerte : il entre et sort des poumons sans rien faire. Comprimé sous pression, en revanche, il change de nature.</p>
+<p>À trente mètres, l'eau au-dessus de vous pèse quatre fois le poids de l'atmosphère au niveau de la mer. L'air respiré est quatre fois plus dense, donc quatre fois plus de molécules d'azote passent dans le sang à chaque inspiration. L'azote se dissout facilement dans les graisses, et les cellules nerveuses sont enveloppées de membranes lipidiques. Le cerveau, le plus riche en lipides de tous, en absorbe le plus. Une fois dans ces membranes, le gaz brouille la signalisation électrique entre les neurones, à la manière d'un léger anesthésique. Selon l'Encyclopædia Britannica, l'effet narcotique devient perceptible autour de quatre fois la pression de surface, et c'est la profondeur où cette histoire commence.</p>
+
+<h2>La loi du martini, sans le verre</h2>
+<p>Les moniteurs sortent une vieille règle empirique pour décrire la sensation. La loi du martini veut que chaque dizaine de mètres sous une vingtaine de mètres vous frappe comme un martini sec à jeun. C'est une image, pas une mesure, mais elle épouse bien la forme du phénomène.</p>
+<dl>
+  <dt>Vers 20 mètres</dt>
+  <dd>Rien d'évident, mais les tests en laboratoire captent de petites baisses de concentration et de vivacité.</dd>
+  <dt>Vers 30 mètres</dt>
+  <dd>Environ un martini. Pour beaucoup, une sensation relâchée, chaude, un peu ralentie.</dd>
+  <dt>Vers 40 mètres</dt>
+  <dd>Environ deux martinis — et quarante mètres, c'est la limite extrême de la plongée loisir.</dd>
+  <dt>Sous 40 mètres</dt>
+  <dd>L'effet monte plus vite que la profondeur. Ce n'est plus le terrain du plongeur ordinaire.</dd>
+</dl>
+<p>Le mot clé est <em>environ</em>. La narcose n'a pas de manomètre, ni de profondeur fixe où elle s'enclenche. L'un a l'esprit clair à quarante mètres, l'autre sent un brouillard dès vingt-cinq. L'eau froide, l'effort, une respiration rapide et le stress la font toujours venir plus tôt. Une même personne peut être touchée différemment sur deux plongées dans la même semaine.</p>
+
+<h2>Elle arrive par un escalier, pas par une falaise</h2>
+<p>Parce que l'apparition rampe au lieu de bondir, la narcose épouse joliment la façon dont on gagne de la profondeur au fil de sa formation.</p>
+<ul>
+  <li><strong>Open Water, jusqu'à 18 mètres :</strong> la plupart ne ressentent rien, pourtant des études contrôlées ont mesuré de petits ratés des fonctions exécutives — planifier, juger — dès 20 mètres.</li>
+  <li><strong>Advanced, jusqu'à 30 mètres :</strong> c'est le seuil où le risque d'une vraie altération commence à grimper, et où la sensation martini se manifeste chez beaucoup.</li>
+  <li><strong>Limite loisir, 40 mètres :</strong> environ deux martinis de brume, avec bien moins de marge mentale face à un problème que le même plongeur n'en a à 18 mètres.</li>
+  <li><strong>Sous 40 mètres :</strong> l'altération devient constante plutôt qu'occasionnelle. Dans une étude de mémoire classique, des plongeurs priés de retenir des informations à soixante mètres ont perdu environ 31 pour cent de leur mémoire à long terme par rapport à la surface.</li>
+</ul>
+
+<h2>Pourquoi un plongeur heureux en profondeur est dangereux</h2>
+<p>L'ivresse est l'appât. Comme la narcose semble le plus souvent douce et plaisante, celui qu'elle touche est le dernier à le savoir. Le jugement s'émousse, les réactions ralentissent, et l'esprit peut se verrouiller sur une seule idée en ignorant tout le reste — un phénomène que les moniteurs appellent la fixation.</p>
+<p>La littérature fondatrice du sport en regorge. Jacques Cousteau a forgé l'expression <em>l'ivresse des grandes profondeurs</em> après avoir vu des plongeurs se comporter en profondeur comme des gens ivres : certains tâtonnaient avec leur matériel, d'autres, dit-on, tendaient leur détendeur à un poisson de passage parce qu'un cerveau embrumé avait décidé qu'il n'avait plus besoin de respirer. Ces vieux récits sonnent caricaturaux, mais le danger d'aujourd'hui est plus terne et plus réel : un plongeur narcosé lâche discrètement le plan. Il dérive plus profond à la poursuite de quelque chose, oublie de vérifier son air, rate le moment de remonter, ou manque le signal du binôme. Aux profondeurs loisir, le gaz ne vous fait pas perdre connaissance. Il fait de vous un moins bon décideur au moment précis où les bonnes décisions comptent le plus.</p>
+<p>On la confond aussi facilement avec d'autres problèmes. Un plongeur lent et embrumé en profondeur peut être narcosé, ou montrer le premier signe de tout autre chose ; d'où l'intérêt de savoir <a href="/fr/blogs/why-heart-attack-at-25-metres-looks-like-narcosis">comment un accident cardiaque à 25 mètres peut ressembler exactement à une narcose</a>, et pourquoi <a href="/fr/blogs/headache-at-20-metres-might-not-be-narcosis">un mal de tête à 20 mètres n'est souvent pas une narcose du tout</a>.</p>
+
+<h2>Le remède est trois mètres plus haut</h2>
+<p>Voici le côté rassurant. La narcose est totalement réversible, et sa guérison ne demande ni médicament, ni caisson, ni panique. Remontez de quelques mètres — trois suffisent —, la pression baisse, l'azote en excès ressort de ces membranes nerveuses, et l'esprit s'éclaircit en quelques secondes à deux ou trois minutes. Pas de gueule de bois, et pour une plongée loisir ordinaire, aucune trace durable. La séquence d'or enseignée partout tient en trois mots courts : stopper, signaler, remonter. Cessez de descendre, prévenez le binôme, remontez un peu. Ne poussez surtout pas plus profond « pour voir si ça passe ».</p>
+<p>Une réserve a émergé récemment. Une étude de 2024, qui a fait faire aux plongeurs une plongée simulée à cinquante mètres, a constaté que respirer de l'air ordinaire à la remontée laissait une trace mesurable : le contrôle de l'équilibre, testé par un Romberg renforcé, s'est dégradé après la plongée, la part d'échecs passant de 47 pour cent avant à 67 pour cent après. Ceux qui respiraient de l'oxygène pendant la décompression sont restés stables. Un rappel que les expositions profondes ne se rincent peut-être pas aussi net que le suggère la règle du « il suffit de remonter » — un argument de plus pour traiter 40 mètres comme un plafond dur, pas comme un objectif.</p>
+
+<h2>À quoi sert vraiment le binôme</h2>
+<p>Comme on ne peut pas juger sa propre narcose de façon fiable, le système de binôme cesse d'être une formalité pour devenir le filet de sécurité. Un plongeur narcosé est souvent visible de l'extérieur bien avant de sentir que quelque chose cloche. Guettez chez le partenaire un regard vide dans le bleu, des tâtonnements sur un simple mousqueton, des réponses lentes ou fausses aux signes, un écart de la route prévue, ou une humeur bizarrement gaie ou anxieuse.</p>
+<p>Un contrôle de terrain net : en profondeur, montrez un nombre de doigts et attendez que le binôme réponde par ce nombre plus un. Vous montrez deux, il doit montrer trois. Toute autre réponse — ou un long silence — est le signal de remonter ensemble. C'est le même principe que de connaître les <a href="/fr/blogs/5-narcosis-red-flags-buddy-misses-30-metres">signaux de narcose qu'un binôme rate souvent à 30 mètres</a>, et c'est pourquoi <a href="/fr/blogs/at-30-metres-instructor-stops-helping-on-purpose">les moniteurs s'effacent volontairement à 30 mètres</a> pour que l'élève apprenne à le repérer seul.</p>
+
+<h2>Garder une longueur d'avance sur la narcose</h2>
+<p>On ne peut pas entraîner son corps à cesser d'absorber l'azote, mais on peut réduire l'exposition et mettre les chances de son côté.</p>
+<ul>
+  <li><strong>Plongez selon votre niveau.</strong> Les limites de profondeur d'une certification ne sont pas de la paperasse ; elles vous maintiennent dans la zone où la narcose reste douce et où une remontée de trois mètres suffit encore.</li>
+  <li><strong>Descendez lentement, pieds en avant, le long d'un cordage.</strong> Une chute rapide vous mène au fond avant que la tête ne suive, ce qui amplifie le choc.</li>
+  <li><strong>Arrivez reposé et au chaud.</strong> Le froid, la fatigue, la gueule de bois, un fort taux de gaz carbonique dû au palmage intense et le simple stress abaissent tous la profondeur à laquelle la brume s'installe.</li>
+  <li><strong>N'attendez pas du nitrox qu'il vous sauve.</strong> C'est la grande idée fausse. L'air enrichi contient encore beaucoup d'azote et ne fait donc rien contre la narcose — et sa limite d'oxygène plus basse plafonne même la profondeur où l'on peut l'emmener sans risque, un piège traité dans <a href="/fr/blogs/nitrox-mod-oxygen-toxicity-depth-limit">la limite nitrox de 34 mètres que trop de plongeurs ignorent</a>.</li>
+</ul>
+<p>Le seul gaz qui dilue vraiment la charge narcotique est l'hélium, et c'est pourquoi les plongeurs techniques et professionnels respirent du trimix sous les profondeurs loisir. Sur l'échelle relative de la puissance narcotique, l'hélium est à 0,045, l'azote à 1,0 et l'argon à un solide 2,3 — l'hélium n'est presque pas narcotique, et voilà exactement ce qui justifie son coût élevé en profondeur.</p>
+
+<p>Rien de tout cela ne fait de la narcose un défaut de caractère ou un accident rare. C'est de la physique qui agit sur tout plongeur descendant assez bas — aussi banale que les oreilles qui réclament un équilibrage. Respectez le plafond, plongez avec un binôme qui sait vous lire, et souvenez-vous que le remède est toujours à quelques mètres au-dessus de votre tête. Identifiez le binôme que vous suivez toujours vers le fond — le fond vous a-t-il déjà semblé un peu trop bon ?</p>
+
+<h3>Sources</h3>
+<ul>
+  <li><a href="https://blog.padi.com/nitrogen-narcosis-what-divers-need-to-know/" rel="nofollow">PADI — Narcose à l'azote : symptômes, apparition et gestion</a></li>
+  <li><a href="https://www.britannica.com/science/nitrogen-narcosis" rel="nofollow">Encyclopaedia Britannica — Narcose à l'azote : physiologie et pression</a></li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11278881/" rel="nofollow">NIH/NCBI — Effets narcotiques de l'azote persistant après une plongée simulée à 50 m (2024)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4337274/" rel="nofollow">NIH/NCBI — Narcose aux gaz inertes et activités subaquatiques (revue)</a></li>
+</ul>`
+});
+
+// ---------------- RU ----------------
+translations.push({
+  lang: "ru",
+  title: "40 метров — это как два мартини",
+  slug: "why-40-metres-feels-like-two-martinis-ru",
+  excerpt: "Стоит уйти глубже 30 метров, и азот из баллона начинает действовать как алкоголь, притупляя рассудок раньше, чем вы это заметите. Почему так — и решение в три метра.",
+  keywords: ["азотный наркоз","глубинное опьянение","эффект мартини","симптомы азотного наркоза","газовый наркоз дайвинг","наркоз глубина","закон мартини дайвинг","наркоз 30 метров","лечение азотного наркоза"],
+  ogTitle: "Азотный наркоз: глубинный хмель, что обманывает опытных",
+  ogDescription: "Почему на глубине будто пьянеешь, что на самом деле происходит на 30 и 40 метрах и какое простое всплытие проясняет голову за секунды.",
+  content: `<p>Уйдите глубже тридцати метров в ясный день — и может тихо произойти нечто странное. Риф кажется чуть ярче. Шутка, что не зашла на палубе, вдруг ужасно смешна. На то, чтобы считать показания манометра, уходит на такт больше, чем нужно. Ничего не болит, ничто не тревожит — и это приятное, слегка отстранённое ощущение и есть проблема.</p>
+
+<p>У дайверов для него есть имя: азотный наркоз. Ветераны зовут его эффектом мартини или глубинным опьянением. Это одна из немногих опасностей в дайвинге, что приходит с ощущением <em>удовольствия</em>, и именно поэтому она застаёт врасплох даже опытных.</p>
+
+<h2>У воздуха в любом баллоне есть вторая жизнь</h2>
+<p>Воздух в вашем баллоне примерно на 78 процентов состоит из азота. На поверхности он инертен — входит и выходит из лёгких, ничего не делая. Но сожмите его под давлением, и он меняет нрав.</p>
+<p>На тридцати метрах вода над вами давит с четырёхкратным весом атмосферы у поверхности моря. Вдыхаемый воздух вчетверо плотнее, а значит, с каждым вдохом в кровь попадает вчетверо больше молекул азота. Азот легко растворяется в жире, а нервные клетки одеты в липидные мембраны. Мозг, самый богатый липидами, впитывает его сильнее всего. Оказавшись в этих мембранах, газ сбивает передачу электрических сигналов между нейронами — в целом так же, как действует лёгкий наркоз. Как отмечает Британская энциклопедия, наркотический эффект становится заметен примерно при четырёхкратном давлении поверхности, и именно с этой глубины начинается наша история.</p>
+
+<h2>Закон мартини — без бокала</h2>
+<p>Инструкторы прибегают к старому правилу, чтобы описать это ощущение. Закон мартини гласит: каждые десять метров глубже примерно двадцати бьют по вам, как сухой мартини натощак. Это сравнение, а не измерение, но форму явления оно передаёт метко.</p>
+<dl>
+  <dt>Около 20 метров</dt>
+  <dd>Ничего явного, но лабораторные тесты улавливают лёгкое падение концентрации и скорости мышления.</dd>
+  <dt>Около 30 метров</dt>
+  <dd>Примерно один мартини. У многих дайверов — расслабленное, тёплое, слегка замедленное состояние.</dd>
+  <dt>Около 40 метров</dt>
+  <dd>Примерно два мартини, а сорок метров — крайняя граница любительского дайвинга.</dd>
+  <dt>Глубже 40 метров</dt>
+  <dd>Эффект растёт быстрее глубины. Это уже не территория обычного дайвера.</dd>
+</dl>
+<p>Ключевое слово — «примерно». У наркоза нет прибора и нет фиксированной глубины, где он включается. Один ясен в голове на сорока метрах, другой ловит туман уже на двадцати пяти. Холодная вода, тяжёлая работа, частое дыхание и стресс — всё это вызывает его раньше. Один и тот же человек может по-разному пострадать на двух погружениях за одну неделю.</p>
+
+<h2>Он приходит по лестнице, а не с обрыва</h2>
+<p>Поскольку наступление подкрадывается, а не прыгает, наркоз аккуратно ложится на то, как дайверы набирают глубину по мере обучения.</p>
+<ul>
+  <li><strong>Open Water, до 18 метров:</strong> большинство не чувствует ничего, однако контролируемые исследования замерили мелкие сбои исполнительных функций — планирования, суждения — уже на глубине в 20 метров.</li>
+  <li><strong>Advanced, до 30 метров:</strong> это порог, где риск настоящего нарушения начинает расти и где у многих проявляется «мартини»-ощущение.</li>
+  <li><strong>Любительский предел, 40 метров:</strong> около двух мартини тумана, причём умственного запаса на проблему куда меньше, чем у того же дайвера на 18 метрах.</li>
+  <li><strong>Глубже 40 метров:</strong> нарушение становится постоянным, а не случайным. В одном классическом исследовании памяти дайверы, которым нужно было запомнить информацию на шестидесяти метрах, теряли около 31 процента долговременной памяти по сравнению с поверхностью.</li>
+</ul>
+
+<h2>Почему довольный дайвер на глубине опасен</h2>
+<p>Хмель — это приманка. Поскольку наркоз обычно ощущается мягко и приятно, тот, кого он затронул, узнаёт об этом последним. Суждение притупляется, реакции замедляются, а разум может замкнуться на одной мысли, не замечая всего прочего — явление, которое инструкторы называют фиксацией.</p>
+<p>Основополагающая литература этого спорта полна таких историй. Жак Кусто ввёл выражение <em>l'ivresse des grandes profondeurs</em> — опьянение глубиной, — увидев, как дайверы на глубине ведут себя будто пьяные: одни неуклюже возятся со снаряжением, о других рассказывают, что они протягивали регулятор проплывающей рыбе, ведь одурманенный мозг решил, что дышать больше не нужно. Эти старые рассказы звучат карикатурно, но нынешняя опасность тусклее и реальнее: одурманенный дайвер тихо бросает план. Он уходит глубже за чем-то, забывает проверить запас газа, ошибается со временем всплытия или пропускает сигнал напарника. На любительских глубинах газ не лишает сознания. Он делает вас худшим в принятии решений ровно в тот миг, когда верные решения важнее всего.</p>
+<p>Его к тому же легко спутать с другими бедами. Медлительный, затуманенный дайвер на глубине может быть под наркозом — а может показывать первый признак чего-то совсем иного; вот почему стоит знать, <a href="/ru/blogs/why-heart-attack-at-25-metres-looks-like-narcosis">как сердечный приступ на 25 метрах может выглядеть точь-в-точь как наркоз</a>, и почему <a href="/ru/blogs/headache-at-20-metres-might-not-be-narcosis">головная боль на 20 метрах часто вовсе не наркоз</a>.</p>
+
+<h2>Решение — тремя метрами выше</h2>
+<p>А вот и обнадёживающая часть. Наркоз полностью обратим, и лечение не требует ни лекарства, ни барокамеры, ни паники. Поднимитесь на несколько метров — хватит и трёх, — давление падает, лишний азот выходит из нервных мембран, и голова проясняется за секунды или пару минут. Ни похмелья, ни следа после обычного любительского погружения. Золотая последовательность, которой учат по всему миру, укладывается в три коротких слова: остановись, дай сигнал, всплывай. Прекрати спуск, скажи напарнику, поднимись немного. И ни в коем случае не уходи глубже, «чтобы проверить, пройдёт ли».</p>
+<p>Одна оговорка всплыла недавно. Исследование 2024 года, где дайверы прошли имитацию погружения на пятьдесят метров, показало: дыхание обычным воздухом на подъёме оставляло измеримый след. Контроль равновесия, проверенный усложнённой пробой Ромберга, ухудшался после погружения — доля непройденных тестов выросла с 47 процентов до погружения до 67 процентов после. Те, кто дышал кислородом во время декомпрессии, оставались устойчивы. Это напоминание, что глубокие экспозиции, возможно, не отмываются так мгновенно начисто, как намекает правило «просто поднимись выше», — ещё один довод считать 40 метров жёстким потолком, а не целью.</p>
+
+<h2>Зачем на самом деле нужен напарник</h2>
+<p>Поскольку собственный наркоз надёжно оценить нельзя, система напарника перестаёт быть формальностью и становится страховочной сетью. Одурманенный дайвер часто заметен со стороны задолго до того, как сам почувствует неладное. Следите за напарником: пустой взгляд в синеву, возня с простым карабином, медленные или неверные ответы на жесты, отклонение от намеченного маршрута, странно весёлое или тревожное настроение.</p>
+<p>Есть аккуратная проверка под водой: покажите несколько пальцев и ждите, что напарник ответит этим числом плюс один. Показали два — он должен показать три. Любой другой ответ или долгая пауза — сигнал всплывать вместе. Тот же принцип, что и знание <a href="/ru/blogs/5-narcosis-red-flags-buddy-misses-30-metres">признаков наркоза, которые напарник часто упускает на 30 метрах</a>, и потому <a href="/ru/blogs/at-30-metres-instructor-stops-helping-on-purpose">инструкторы намеренно отступают на 30 метрах</a>, чтобы ученик научился ловить это сам.</p>
+
+<h2>Опережать наркоз</h2>
+<p>Приучить тело не поглощать азот нельзя, но уменьшить экспозицию и сложить шансы в свою пользу можно.</p>
+<ul>
+  <li><strong>Погружайтесь по своему сертификату.</strong> Ограничения глубины в сертификации — не бюрократия; они держат вас в зоне, где наркоз остаётся мягким, а всплытие на три метра ещё всё решает.</li>
+  <li><strong>Спускайтесь медленно, ногами вперёд, по концу.</strong> Быстрое падение уводит вас на глубину прежде, чем догонит голова, и усиливает удар.</li>
+  <li><strong>Приходите отдохнувшим и в тепле.</strong> Холод, усталость, похмелье, высокий уровень углекислого газа от тяжёлой работы ластами и обычный стресс — всё это опускает глубину, на которой ложится туман.</li>
+  <li><strong>Не ждите, что найтрокс вас спасёт.</strong> Это большое заблуждение. В обогащённом воздухе азота по-прежнему хватает, так что против наркоза он не делает ничего, а его более низкий кислородный предел даже ограничивает глубину, на которую его можно безопасно взять, — ловушка, разобранная в материале про <a href="/ru/blogs/nitrox-mod-oxygen-toxicity-depth-limit">34-метровый предел найтрокса, который слишком многие игнорируют</a>.</li>
+</ul>
+<p>Единственный газ, что действительно разбавляет наркотическую нагрузку, — гелий, и потому технические и коммерческие дайверы, уходя ниже любительских глубин, дышат тримиксом. По относительной шкале наркотической силы гелий стоит на 0,045, азот на 1,0, а аргон на внушительных 2,3 — гелий почти не наркотичен, и именно это оправдывает его немалую цену на глубине.</p>
+
+<p>Ничто из этого не делает наркоз изъяном характера или редкой случайностью. Это физика, действующая на каждого дайвера, кто уходит достаточно глубоко, — так же обыденно, как ушам нужно продуваться. Уважайте потолок, погружайтесь с напарником, который умеет вас читать, и помните: противоядие всегда всего в нескольких метрах над головой. Отметьте напарника, за которым всегда идёте в глубину, — а дно вам когда-нибудь казалось чуть-чуть слишком хорошим?</p>
+
+<h3>Источники</h3>
+<ul>
+  <li><a href="https://blog.padi.com/nitrogen-narcosis-what-divers-need-to-know/" rel="nofollow">PADI — Азотный наркоз: симптомы, наступление и действия</a></li>
+  <li><a href="https://www.britannica.com/science/nitrogen-narcosis" rel="nofollow">Британская энциклопедия — Азотный наркоз: физиология и давление</a></li>
+  <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11278881/" rel="nofollow">NIH/NCBI — Наркотический эффект азота сохраняется после имитации погружения на 50 м (2024)</a></li>
+  <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4337274/" rel="nofollow">NIH/NCBI — Наркоз инертными газами и подводная деятельность (обзор)</a></li>
+</ul>`
+});
+
+fs.writeFileSync('/root/projects/siamdive/narcosis-payload-part3.json', JSON.stringify(translations));
+console.log('part3 langs:', translations.map(t=>t.lang).join(','));
